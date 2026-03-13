@@ -51,13 +51,13 @@ defmodule SoundboardWeb.AuthControllerTest do
     end
 
     test "callback/2 creates new user on successful auth", %{conn: conn} do
-      auth_data = %{
+      auth_data = %Ueberauth.Auth{
         uid: "12345",
-        info: %{
+        info: %Ueberauth.Auth.Info{
           nickname: "TestUser",
           image: "test_avatar.jpg"
         },
-        credentials: %{
+        credentials: %Ueberauth.Auth.Credentials{
           token: "valid-token"
         }
       }

@@ -95,15 +95,23 @@ defmodule SoundboardWeb.AuthController do
     user_params
   end
 
-  defp oauth_access_token(auth) do
-    case get_in(auth, [:credentials, :token]) do
-      nil ->
+  defp oauth_access_token(%{credentials: credentials}) when not is_nil(credentials) do
+    case Map.get(credentials, :token) do
+      token when is_binary(token) and token != "" ->
+        {:ok, token}
+
+      token when is_binary(token) ->
         {:error, :missing_access_token}
 
-      token ->
+      token when not is_nil(token) ->
         {:ok, to_string(token)}
+
+      _ ->
+        {:error, :missing_access_token}
     end
   end
+
+  defp oauth_access_token(_), do: {:error, :missing_access_token}
 
   defp fetch_discord_guild_ids(token) do
     ensure_discord_http_started()
