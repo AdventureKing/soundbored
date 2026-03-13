@@ -6,8 +6,6 @@ services:
     command: tunnel run
     env_file: 
       - stack.env
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
       - default
 
@@ -17,7 +15,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4000:4000"
+      - "4000:4000"
     volumes:
       - /mnt/media/soundboard:/app/priv/static/uploads
     tmpfs:
