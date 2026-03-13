@@ -109,8 +109,20 @@ defmodule Soundboard.Sounds.UploadsTest do
     end
 
     test "publishes canonical soundboard events after create", %{user: user} do
-      Soundboard.PubSubTopics.subscribe_files()
       Soundboard.PubSubTopics.subscribe_stats()
+
+      parent = self()
+
+      spawn(fn ->
+        Soundboard.PubSubTopics.subscribe_files()
+        send(parent, :files_subscribed)
+
+        receive do
+          message -> send(parent, {:files_event, message})
+        end
+      end)
+
+      assert_receive :files_subscribed
 
       name = "upload_events_#{System.unique_integer([:positive])}"
 
@@ -123,7 +135,7 @@ defmodule Soundboard.Sounds.UploadsTest do
                })
                |> Uploads.create()
 
-      assert_receive {:files_updated}
+      assert_receive {:files_event, {:files_updated}}
       assert_receive {:stats_updated}
     end
 
