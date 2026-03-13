@@ -7,7 +7,7 @@ defmodule SoundboardWeb.AuthController do
   alias Soundboard.Accounts.User
   alias Soundboard.Repo
   @discord_guilds_url "https://discord.com/api/users/@me/guilds"
-  @discord_member_url "https://discord.com/api/users/@me/guilds/%s/member"
+  @discord_member_base_url "https://discord.com/api/users/@me/guilds"
 
   def request(conn, %{"provider" => "discord"} = _params) do
     conn
@@ -298,9 +298,9 @@ defmodule SoundboardWeb.AuthController do
       {~c"Accept", ~c"application/json"}
     ]
 
-    member_url = :io_lib.format(@discord_member_url, [to_charlist(guild_id)])
+    member_url = "#{@discord_member_base_url}/#{to_string(guild_id)}/member"
 
-    case :httpc.request(:get, {member_url, headers}, [], [body_format: :binary]) do
+    case :httpc.request(:get, {to_charlist(member_url), headers}, [], [body_format: :binary]) do
       {:ok, {{_status_line, status, _reason_phrase}, _headers, body}} when status in 200..299 ->
         with {:ok, decoded} <- Jason.decode(to_string(body)),
              roles when is_list(roles) <- Map.get(decoded, "roles") || Map.get(decoded, :roles) do
