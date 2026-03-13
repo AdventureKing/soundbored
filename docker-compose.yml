@@ -1,29 +1,38 @@
 services:
+  tunnel:
+    container_name: cloudflared-beebot
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - default
+
   soundbored:
-    image: christom/soundbored:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "127.0.0.1:4000:4000"
-    env_file: .env
     volumes:
-      - soundbored_data:/app/priv/static/uploads
-    # the below can be added for improved security
-      - type: tmpfs
-        target: /tmp/mix_pubsub
-        tmpfs:
-          mode: 0777
-    user: 9999:9999 # make sure this user has permissions on the soundbored_data volume
+      - /mnt/media/soundboard:/app/priv/static/uploads
+    tmpfs:
+      - /tmp/mix_pubsub:mode=0777
+    user: "1000:1000"
     read_only: true
     environment:
       TMPDIR: /tmp/mix_pubsub
-      SECRET_KEY_BASE_FILE: /run/secrets/soundbored_secret_key_base
-    secrets:
-      - soundbored_secret_key_base
-
-volumes:
-  soundbored_data:
-
-secrets:
-  soundbored_secret_key_base:
-    # this file should contain securely-generated random data (see README.md)
-    # and only be readable by root or the user running the docker daemon
-    file: ./secret_key_base.txt
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      PHX_HOST: beebot.win
+      SCHEME: https
+      BASIC_AUTH_USERNAME: ${BASIC_AUTH_USERNAME}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD}
+      AUTO_JOIN: ${AUTO_JOIN}
+      SOUNDBOARD_REQUIRED_GUILD_ID: ${SOUNDBOARD_REQUIRED_GUILD_ID}
+      SOUNDBOARD_ALLOWED_ROLE_IDS: ${SOUNDBOARD_ALLOWED_ROLE_IDS}
+      SOUNDBOARD_SETTINGS_PANEL_ROLE_IDS: ${SOUNDBOARD_SETTINGS_PANEL_ROLE_IDS}
