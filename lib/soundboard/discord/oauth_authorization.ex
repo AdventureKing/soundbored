@@ -117,25 +117,51 @@ defmodule Soundboard.Discord.OAuthAuthorization do
   end
 
   defp fetch_nested_key(%{} = source, [key]) do
-    atom_key = key
-    string_key = to_string(key)
+    source = normalize_source(source)
 
-    case source[atom_key] || source[string_key] do
+    case fetch_nested_value(source, key) do
       nil -> {:error, :missing_value}
       value -> {:ok, value}
     end
   end
 
   defp fetch_nested_key(%{} = source, [parent | rest]) do
-    parent_key = to_string(parent)
+    source = normalize_source(source)
 
-    case source[parent] || source[parent_key] do
+    case fetch_nested_value(source, parent) do
       nil -> {:error, :missing_value}
       nested -> nested |> fetch_nested_key(rest)
     end
   end
 
   defp fetch_nested_key(_source, _path), do: {:error, :missing_value}
+
+  defp normalize_source(source) when is_struct(source), do: Map.from_struct(source)
+  defp normalize_source(source), do: source
+
+  defp fetch_nested_value(source, key) do
+    cond do
+      is_map(source) and Map.has_key?(source, key) -> Map.get(source, key)
+      is_atom(key) and is_map(source) and Map.has_key?(source, Atom.to_string(key)) -> Map.get(source, Atom.to_string(key))
+      is_binary(key) and is_map(source) ->
+        to_existing_atom_or_nil(key)
+        |> case do
+          nil -> nil
+          atom_key -> Map.get(source, atom_key)
+        end
+
+      true ->
+        nil
+    end
+  end
+
+  defp to_existing_atom_or_nil(value) do
+    try do
+      String.to_existing_atom(value)
+    rescue
+      ArgumentError -> nil
+    end
+  end
 
   defp normalize_id(id) when is_binary(id) do
     value = String.trim(id)
