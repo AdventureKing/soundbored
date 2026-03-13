@@ -54,8 +54,7 @@ defmodule SoundboardWeb.AuthController do
   defp verify_discord_guild_membership(auth) do
     case required_discord_guild_id() do
       {:ok, required_guild_id} ->
-        with {:ok, token} <- oauth_access_token(auth),
-             {:ok, guild_ids} <- fetch_discord_guild_ids(token),
+        with {:ok, guild_ids} <- guild_ids_for_membership_check(auth),
              true <- required_guild_id in guild_ids do
           :ok
         else
@@ -68,6 +67,43 @@ defmodule SoundboardWeb.AuthController do
 
       :no_required_guild ->
         :ok
+    end
+  end
+
+  defp guild_ids_for_membership_check(auth) do
+    case guild_ids_from_oauth_payload(auth) do
+      {:ok, guild_ids} ->
+        {:ok, guild_ids}
+
+      :missing ->
+        with {:ok, token} <- oauth_access_token(auth) do
+          fetch_discord_guild_ids(token)
+        end
+    end
+  end
+
+  defp guild_ids_from_oauth_payload(auth) do
+    guilds =
+      auth
+      |> Map.get(:extra)
+      |> case do
+        %{} = extra ->
+          raw_info = Map.get(extra, :raw_info) || Map.get(extra, "raw_info")
+          if is_map(raw_info), do: Map.get(raw_info, :guilds) || Map.get(raw_info, "guilds"), else: nil
+
+        _ ->
+          nil
+      end
+
+    if is_list(guilds) do
+      guild_ids =
+        guilds
+        |> Enum.map(&guild_id_from_payload/1)
+        |> Enum.filter(&is_binary/1)
+
+      {:ok, guild_ids}
+    else
+      :missing
     end
   end
 
@@ -156,6 +192,9 @@ defmodule SoundboardWeb.AuthController do
 
   defp membership_failure_message({:not_in_required_guild, guild_id}),
     do: "Access denied: you must be a member of Discord guild #{guild_id}."
+
+  defp membership_failure_message({:discord_api_error, 429, _body}),
+    do: "Discord is rate limiting membership checks. Please wait a moment and try again."
 
   defp membership_failure_message({:discord_api_error, _status, _body}),
     do: "Could not verify your Discord guild membership. Please try again."

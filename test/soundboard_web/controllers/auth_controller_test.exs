@@ -59,27 +59,26 @@ defmodule SoundboardWeb.AuthControllerTest do
         },
         credentials: %Ueberauth.Auth.Credentials{
           token: "valid-token"
+        },
+        extra: %Ueberauth.Auth.Extra{
+          raw_info: %{
+            guilds: [%{"id" => "guild-1"}]
+          }
         }
       }
 
-      with_mock :httpc,
-        request: fn
-          :get, _url, _headers, _options ->
-            {:ok, {{~c"HTTP/1.1", 200, ~c"OK"}, [], ~c"[{\"id\":\"guild-1\"}]"}}
-        end do
-        conn =
-          conn
-          |> assign(:ueberauth_auth, auth_data)
-          |> get(~p"/auth/discord/callback")
+      conn =
+        conn
+        |> assign(:ueberauth_auth, auth_data)
+        |> get(~p"/auth/discord/callback")
 
-        assert redirected_to(conn) == "/"
-        assert get_session(conn, :user_id)
+      assert redirected_to(conn) == "/"
+      assert get_session(conn, :user_id)
 
-        user = Repo.get_by(User, discord_id: "12345")
-        assert user
-        assert user.username == "TestUser"
-        assert user.avatar == "test_avatar.jpg"
-      end
+      user = Repo.get_by(User, discord_id: "12345")
+      assert user
+      assert user.username == "TestUser"
+      assert user.avatar == "test_avatar.jpg"
     end
 
     test "callback/2 uses existing user if found", %{conn: conn} do
