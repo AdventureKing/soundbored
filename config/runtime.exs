@@ -10,6 +10,15 @@ source!([
   System.get_env()
 ])
 
+parse_role_ids = fn value ->
+  value
+  |> to_string()
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+  |> Enum.reject(&(&1 == ""))
+  |> Enum.uniq()
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration
@@ -35,6 +44,8 @@ if config_env() == :dev do
   port = env!("PORT", :integer, 4000)
   callback_url = "#{scheme}://#{host}/auth/discord/callback"
   required_discord_guild_id = env!("DISCORD_REQUIRED_GUILD_ID", :string, nil)
+  discord_role_guild_id = env!("DISCORD_ROLE_GUILD_ID", :string, required_discord_guild_id)
+  discord_upload_role_ids = env!("DISCORD_UPLOAD_ROLE_IDS", :string, "") |> parse_role_ids.()
   discord_token = env!("DISCORD_TOKEN", :string!, nil)
   client_id = env!("DISCORD_CLIENT_ID", :string!, nil)
   client_secret = env!("DISCORD_CLIENT_SECRET", :string!, nil)
@@ -81,6 +92,8 @@ if config_env() == :dev do
 
   config :soundboard,
     required_discord_guild_id: required_discord_guild_id,
+    discord_role_guild_id: discord_role_guild_id,
+    discord_upload_role_ids: discord_upload_role_ids,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,
@@ -164,7 +177,8 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
   # Configure Ueberauth
   config :ueberauth, Ueberauth,
     providers: [
-      discord: {Ueberauth.Strategy.Discord, [default_scope: "identify guilds"]}
+      discord:
+        {Ueberauth.Strategy.Discord, [default_scope: "identify guilds guilds.members.read"]}
     ]
 
   # Configure Discord OAuth
@@ -173,6 +187,8 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
     client_secret: env!("DISCORD_CLIENT_SECRET", :string!),
     redirect_uri: callback_url
   required_discord_guild_id = env!("DISCORD_REQUIRED_GUILD_ID", :string, nil)
+  discord_role_guild_id = env!("DISCORD_ROLE_GUILD_ID", :string, required_discord_guild_id)
+  discord_upload_role_ids = env!("DISCORD_UPLOAD_ROLE_IDS", :string, "") |> parse_role_ids.()
 
   # Configure Discord bot token
   discord_token = env!("DISCORD_TOKEN", :string!)
@@ -192,6 +208,8 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
 
   config :soundboard,
     required_discord_guild_id: required_discord_guild_id,
+    discord_role_guild_id: discord_role_guild_id,
+    discord_upload_role_ids: discord_upload_role_ids,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,

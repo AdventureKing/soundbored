@@ -265,6 +265,25 @@ defmodule SoundboardWeb.API.SoundControllerTest do
 
       assert json_response(conn, 401)
     end
+
+    test "returns forbidden when uploader role does not match", %{conn: conn} do
+      original = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+      Application.put_env(:soundboard, :discord_upload_role_ids, ["role-required"])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_upload_role_ids, original)
+      end)
+
+      conn =
+        post(conn, ~p"/api/sounds", %{
+          "source_type" => "url",
+          "name" => "forbidden_by_role",
+          "url" => "https://example.com/nope.mp3"
+        })
+
+      assert %{"error" => "Your Discord role does not allow uploading clips"} =
+               json_response(conn, 403)
+    end
   end
 
   describe "play" do

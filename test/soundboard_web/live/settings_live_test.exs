@@ -62,4 +62,30 @@ defmodule SoundboardWeb.SettingsLiveTest do
     assert html =~ "is_join_sound"
     assert html =~ "is_leave_sound"
   end
+
+  test "shows upload permission decision", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/settings")
+
+    assert html =~ "Clip upload:"
+    assert html =~ "Allowed"
+    assert html =~ "Your role IDs:"
+    assert html =~ "Allowed uploader role IDs:"
+  end
+
+  test "shows not allowed when uploader roles are configured and user does not match", %{
+    conn: conn
+  } do
+    original = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+    Application.put_env(:soundboard, :discord_upload_role_ids, ["role-required"])
+
+    on_exit(fn ->
+      Application.put_env(:soundboard, :discord_upload_role_ids, original)
+    end)
+
+    {:ok, _view, html} = live(conn, "/settings")
+
+    assert html =~ "Clip upload:"
+    assert html =~ "Not allowed"
+    assert html =~ "role-required"
+  end
 end

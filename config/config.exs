@@ -8,7 +8,9 @@
 import Config
 
 config :soundboard,
-  required_discord_guild_id: nil
+  required_discord_guild_id: nil,
+  discord_role_guild_id: nil,
+  discord_upload_role_ids: []
 
 # config :soundboard,
 #   ecto_repos: [Soundboard.Repo],
@@ -93,5 +95,6 @@ config :soundboard,
 # Add this with your other configs
 config :ueberauth, Ueberauth,
   providers: [
-    discord: {Ueberauth.Strategy.Discord, [default_scope: "identify guilds"]}
+    discord:
+      {Ueberauth.Strategy.Discord, [default_scope: "identify guilds guilds.members.read"]}
   ]

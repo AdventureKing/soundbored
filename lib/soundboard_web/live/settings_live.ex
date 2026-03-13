@@ -1,6 +1,7 @@
 defmodule SoundboardWeb.SettingsLive do
   use SoundboardWeb, :live_view
   use SoundboardWeb.Live.Support.PresenceLive
+  alias Soundboard.Accounts.Permissions
   alias Soundboard.Accounts.ApiTokens
   alias Soundboard.PublicURL
 
@@ -14,6 +15,7 @@ defmodule SoundboardWeb.SettingsLive do
       |> assign(:tokens, [])
       |> assign(:new_token, nil)
       |> assign(:base_url, PublicURL.current())
+      |> assign_upload_permission()
 
     {:ok, load_tokens(socket)}
   end
@@ -73,6 +75,41 @@ defmodule SoundboardWeb.SettingsLive do
     ~H"""
     <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Settings</h1>
+
+      <section aria-labelledby="permissions-heading" class="space-y-3">
+        <header class="space-y-1">
+          <h2 id="permissions-heading" class="text-xl font-semibold text-gray-800 dark:text-gray-100">
+            Permissions
+          </h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Upload access is decided from your Discord role IDs.
+          </p>
+        </header>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-3">
+          <p class="text-sm">
+            <span class="font-semibold text-gray-700 dark:text-gray-200">Clip upload:</span>
+            <span class={if @upload_permission.allowed?, do: "text-green-700 dark:text-green-400 font-semibold", else: "text-red-700 dark:text-red-400 font-semibold"}>
+              {if @upload_permission.allowed?, do: "Allowed", else: "Not allowed"}
+            </span>
+          </p>
+
+          <p class="text-xs text-gray-600 dark:text-gray-400">
+            {upload_permission_message(@upload_permission)}
+          </p>
+
+          <div class="text-xs text-gray-700 dark:text-gray-300">
+            <div>
+              <span class="font-semibold">Your role IDs:</span>
+              {format_role_ids(@upload_permission.user_roles)}
+            </div>
+            <div>
+              <span class="font-semibold">Allowed uploader role IDs:</span>
+              {format_role_ids(@upload_permission.required_roles)}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section aria-labelledby="api-tokens-heading" class="space-y-6">
         <header class="space-y-2">
@@ -289,4 +326,27 @@ defmodule SoundboardWeb.SettingsLive do
 
   defp format_dt(nil), do: nil
   defp format_dt(%NaiveDateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
+
+  defp assign_upload_permission(%{assigns: %{current_user: user}} = socket) do
+    assign(socket, :upload_permission, Permissions.permission_decision(user, :upload_clips))
+  end
+
+  defp upload_permission_message(%{reason: :allowed_by_default}) do
+    "No uploader roles are configured, so all authenticated users may upload clips."
+  end
+
+  defp upload_permission_message(%{reason: :role_match}) do
+    "At least one of your Discord role IDs matches the configured uploader roles."
+  end
+
+  defp upload_permission_message(%{reason: :missing_required_role}) do
+    "None of your Discord role IDs match the configured uploader roles."
+  end
+
+  defp upload_permission_message(%{reason: :no_user}) do
+    "You must be signed in to upload clips."
+  end
+
+  defp format_role_ids([]), do: "none"
+  defp format_role_ids(role_ids), do: Enum.join(role_ids, ", ")
 end

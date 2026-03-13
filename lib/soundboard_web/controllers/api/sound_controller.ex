@@ -1,6 +1,7 @@
 defmodule SoundboardWeb.API.SoundController do
   use SoundboardWeb, :controller
 
+  alias Soundboard.Accounts.Permissions
   alias Soundboard.{Repo, Sound, Sounds}
 
   def index(conn, _params) do
@@ -15,6 +16,7 @@ defmodule SoundboardWeb.API.SoundController do
 
   def create(conn, params) do
     with {:ok, user} <- require_upload_user(conn),
+         :ok <- require_upload_permission(user),
          {:ok, sound} <- create_sound(user, params) do
       conn
       |> put_status(:created)
@@ -24,6 +26,11 @@ defmodule SoundboardWeb.API.SoundController do
         conn
         |> put_status(:forbidden)
         |> json(%{error: "Uploads require a user API token"})
+
+      {:error, :insufficient_role} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "Your Discord role does not allow uploading clips"})
 
       {:error, %Ecto.Changeset{} = changeset} ->
         conn
@@ -92,6 +99,10 @@ defmodule SoundboardWeb.API.SoundController do
   end
 
   defp require_play_user(conn), do: require_upload_user(conn)
+
+  defp require_upload_permission(user) do
+    if Permissions.can_upload_clips?(user), do: :ok, else: {:error, :insufficient_role}
+  end
 
   defp format_sound(sound, current_user) do
     user_setting = find_user_setting(sound, current_user)

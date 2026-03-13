@@ -145,6 +145,20 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       refute has_element?(view, "#upload-form")
     end
 
+    test "disables Add Sound when uploader role is missing", %{conn: conn} do
+      original = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+      Application.put_env(:soundboard, :discord_upload_role_ids, ["role-required"])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_upload_role_ids, original)
+      end)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "button[disabled]", "Add Sound")
+      refute has_element?(view, "button[phx-click='show_upload_modal']")
+    end
+
     test "can edit sound", %{conn: conn, sound: sound} do
       {:ok, view, _html} = live(conn, "/")
 

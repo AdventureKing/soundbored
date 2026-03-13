@@ -62,7 +62,8 @@ defmodule SoundboardWeb.AuthControllerTest do
         },
         extra: %Ueberauth.Auth.Extra{
           raw_info: %{
-            guilds: [%{"id" => "guild-1"}]
+            guilds: [%{"id" => "guild-1"}],
+            member: %{"roles" => ["clip-uploader", "tester"]}
           }
         }
       }
@@ -79,6 +80,7 @@ defmodule SoundboardWeb.AuthControllerTest do
       assert user
       assert user.username == "TestUser"
       assert user.avatar == "test_avatar.jpg"
+      assert user.discord_roles == ["clip-uploader", "tester"]
     end
 
     test "callback/2 uses existing user if found", %{conn: conn} do
@@ -91,7 +93,8 @@ defmodule SoundboardWeb.AuthControllerTest do
         |> User.changeset(%{
           discord_id: "12345",
           username: "ExistingUser",
-          avatar: "old_avatar.jpg"
+          avatar: "old_avatar.jpg",
+          discord_roles: ["old-role"]
         })
         |> Repo.insert()
 
@@ -122,6 +125,10 @@ defmodule SoundboardWeb.AuthControllerTest do
         assert get_session(conn, :user_id) == existing_user.id
         # Only increased by the one we created
         assert final_count == initial_count + 1
+
+        refreshed_user = Repo.get!(User, existing_user.id)
+        assert refreshed_user.username == "TestUser"
+        assert refreshed_user.avatar == "test_avatar.jpg"
       end
     end
 

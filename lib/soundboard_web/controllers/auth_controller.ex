@@ -7,6 +7,7 @@ defmodule SoundboardWeb.AuthController do
   alias Soundboard.Accounts.User
   alias Soundboard.Repo
   @discord_guilds_url "https://discord.com/api/users/@me/guilds"
+  @discord_member_url "https://discord.com/api/users/@me/guilds/%s/member"
 
   def request(conn, %{"provider" => "discord"} = _params) do
     conn
@@ -22,7 +23,8 @@ defmodule SoundboardWeb.AuthController do
 
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
     with :ok <- verify_discord_guild_membership(auth) do
-      user_params = user_params_from_auth(auth)
+      role_ids = role_ids_for_auth(auth)
+      user_params = user_params_from_auth(auth, role_ids)
 
       case find_or_create_user(user_params) do
         {:ok, user} ->
@@ -134,14 +136,13 @@ defmodule SoundboardWeb.AuthController do
     end
   end
 
-  defp user_params_from_auth(auth) do
-    user_params = %{
+  defp user_params_from_auth(auth, role_ids) do
+    %{
       discord_id: auth.uid,
       username: auth.info.nickname || auth.info.name,
-      avatar: auth.info.image
+      avatar: auth.info.image,
+      discord_roles: role_ids
     }
-
-    user_params
   end
 
   defp oauth_access_token(%{credentials: credentials}) when not is_nil(credentials) do
@@ -200,6 +201,130 @@ defmodule SoundboardWeb.AuthController do
   defp guild_id_from_payload(%{id: id}), do: to_string(id)
   defp guild_id_from_payload(_), do: nil
 
+  defp role_ids_for_auth(auth) do
+    case guild_role_ids_for_auth(auth) do
+      {:ok, role_ids} ->
+        role_ids
+
+      {:error, reason} ->
+        log_role_fetch_failure(reason, auth.uid)
+        []
+    end
+  end
+
+  defp guild_role_ids_for_auth(auth) do
+    case role_ids_from_oauth_payload(auth) do
+      {:ok, role_ids} ->
+        {:ok, role_ids}
+
+      :missing ->
+        with {:ok, guild_id} <- role_guild_id(auth),
+             {:ok, token} <- oauth_access_token(auth) do
+          fetch_discord_role_ids(token, guild_id)
+        end
+    end
+  end
+
+  defp role_ids_from_oauth_payload(auth) do
+    roles =
+      auth
+      |> Map.get(:extra)
+      |> case do
+        %{} = extra ->
+          raw_info = Map.get(extra, :raw_info) || Map.get(extra, "raw_info")
+
+          if is_map(raw_info) do
+            member = Map.get(raw_info, :member) || Map.get(raw_info, "member")
+            if is_map(member), do: Map.get(member, :roles) || Map.get(member, "roles"), else: nil
+          else
+            nil
+          end
+
+        _ ->
+          nil
+      end
+
+    if is_list(roles) do
+      {:ok, normalize_role_ids(roles)}
+    else
+      :missing
+    end
+  end
+
+  defp role_guild_id(auth) do
+    case configured_role_guild_id() do
+      {:ok, role_guild_id} ->
+        {:ok, role_guild_id}
+
+      :missing ->
+        case required_discord_guild_id() do
+          {:ok, required_guild_id} ->
+            {:ok, required_guild_id}
+
+          :no_required_guild ->
+            infer_role_guild_id(auth)
+        end
+    end
+  end
+
+  defp configured_role_guild_id do
+    case Application.get_env(:soundboard, :discord_role_guild_id) do
+      value when is_binary(value) ->
+        trimmed = String.trim(value)
+        if trimmed == "", do: :missing, else: {:ok, trimmed}
+
+      value when is_integer(value) ->
+        {:ok, Integer.to_string(value)}
+
+      _ ->
+        :missing
+    end
+  end
+
+  defp infer_role_guild_id(auth) do
+    case guild_ids_from_oauth_payload(auth) do
+      {:ok, [guild_id]} -> {:ok, guild_id}
+      {:ok, _guild_ids} -> {:error, :missing_role_guild_id}
+      :missing -> {:error, :missing_role_guild_id}
+    end
+  end
+
+  defp fetch_discord_role_ids(token, guild_id) do
+    ensure_discord_http_started()
+
+    headers = [
+      {~c"Authorization", to_charlist("Bearer #{token}")},
+      {~c"User-Agent", ~c"SoundboardOAuth"},
+      {~c"Accept", ~c"application/json"}
+    ]
+
+    member_url = :io_lib.format(@discord_member_url, [to_charlist(guild_id)])
+
+    case :httpc.request(:get, {member_url, headers}, [], [body_format: :binary]) do
+      {:ok, {{_status_line, status, _reason_phrase}, _headers, body}} when status in 200..299 ->
+        with {:ok, decoded} <- Jason.decode(to_string(body)),
+             roles when is_list(roles) <- Map.get(decoded, "roles") || Map.get(decoded, :roles) do
+          {:ok, normalize_role_ids(roles)}
+        else
+          _ -> {:error, :invalid_discord_role_response}
+        end
+
+      {:ok, {{_status_line, status, _reason_phrase}, _headers, body}} ->
+        {:error, {:discord_api_error, status, to_string(body)}}
+
+      {:error, reason} ->
+        {:error, {:http_error, reason}}
+    end
+  end
+
+  defp normalize_role_ids(role_ids) do
+    role_ids
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
   defp membership_failure_message(:missing_access_token),
     do: "Could not verify your Discord membership. Please try signing in again."
 
@@ -218,6 +343,12 @@ defmodule SoundboardWeb.AuthController do
   defp membership_failure_message(_other),
     do: "Error signing in"
 
+  defp log_role_fetch_failure(reason, discord_uid) do
+    Logger.warning(
+      "Discord OAuth role fetch failed for user #{inspect(discord_uid)}: #{inspect(reason)}"
+    )
+  end
+
   defp log_membership_failure(reason, discord_uid) do
     Logger.warning(
       "Discord OAuth membership check failed for user #{inspect(discord_uid)}: #{inspect(reason)}"
@@ -232,7 +363,9 @@ defmodule SoundboardWeb.AuthController do
         |> Repo.insert()
 
       user ->
-        {:ok, user}
+        user
+        |> User.changeset(params)
+        |> Repo.update()
     end
   end
 
