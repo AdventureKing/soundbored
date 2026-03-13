@@ -9,9 +9,6 @@ defmodule SoundboardWeb.AuthHTML do
         <p class="text-gray-700">
           Your Discord account is not in the required guild for this soundboard.
         </p>
-        <p :if={@guild_id} class="text-sm text-gray-600">
-          Required guild ID: <span class="font-mono text-gray-800">{@guild_id}</span>
-        </p>
         <p class="text-sm text-gray-600">
           Join the server first, then sign in again.
         </p>

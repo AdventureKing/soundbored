@@ -58,16 +58,10 @@ defmodule SoundboardWeb.AuthController do
   end
 
   def not_in_guild(conn, _params) do
-    guild_id =
-      case required_discord_guild_id() do
-        {:ok, id} -> id
-        :no_required_guild -> nil
-      end
-
     conn
     |> put_layout(html: {SoundboardWeb.Layouts, :root})
     |> put_status(:forbidden)
-    |> render(:not_in_guild, guild_id: guild_id, page_title: "Access denied")
+    |> render(:not_in_guild, page_title: "Access denied")
   end
 
   defp verify_discord_guild_membership(auth) do

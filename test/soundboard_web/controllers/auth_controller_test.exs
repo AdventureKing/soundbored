@@ -163,8 +163,7 @@ defmodule SoundboardWeb.AuthControllerTest do
 
       assert response_body =~ "Access denied"
       assert response_body =~ "not in the required guild"
-      assert response_body =~ "Required guild ID:"
-      assert response_body =~ "guild-1"
+      refute response_body =~ "Required guild ID:"
     end
 
     test "callback/2 handles auth failures", %{conn: conn} do
