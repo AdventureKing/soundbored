@@ -83,7 +83,7 @@ defmodule Soundboard.Accounts.Permissions do
 
   defp normalize_role_ids(_), do: []
 
-  defp configured_role_ids(:manage_settings) do
+  def configured_role_ids(:manage_settings) do
     :soundboard
     |> Application.get_env(:discord_settings_admin_role_id)
     |> case do
