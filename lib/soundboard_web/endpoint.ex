@@ -1,5 +1,6 @@
 defmodule SoundboardWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :soundboard
+  use Plug.ErrorHandler
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -51,4 +52,33 @@ defmodule SoundboardWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug SoundboardWeb.Router
+
+  @impl true
+  def handle_errors(conn, %{reason: %OAuth2.Error{} = reason}) do
+    if conn.request_path == "/auth/discord/callback" do
+      message =
+        case reason.body do
+          %{"error_description" => description}
+          when is_binary(description) and String.contains?(description, "rate limited") ->
+            "Discord sign-in is being rate limited right now. Please wait a moment and try again."
+
+          _ ->
+            "Discord sign-in failed. Please try again."
+        end
+
+      conn
+      |> Plug.Conn.put_status(:found)
+      |> Phoenix.Controller.put_flash(:error, message)
+      |> Phoenix.Controller.redirect(to: "/")
+      |> Plug.Conn.halt()
+    else
+      status = if is_nil(conn.status), do: 500, else: conn.status
+      Plug.Conn.send_resp(conn, status, "Something went wrong.")
+    end
+  end
+
+  def handle_errors(conn, _params) do
+    status = if is_nil(conn.status), do: 500, else: conn.status
+    send_resp(conn, status, "Something went wrong.")
+  end
 end
