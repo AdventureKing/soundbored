@@ -5,10 +5,12 @@ defmodule Soundboard.Accounts.PermissionsTest do
   alias Soundboard.Accounts.User
 
   setup do
-    original = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+    original_upload_roles = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+    original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
 
     on_exit(fn ->
-      Application.put_env(:soundboard, :discord_upload_role_ids, original)
+      Application.put_env(:soundboard, :discord_upload_role_ids, original_upload_roles)
+      Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
     end)
 
     :ok
@@ -42,5 +44,29 @@ defmodule Soundboard.Accounts.PermissionsTest do
     Application.put_env(:soundboard, :discord_upload_role_ids, ["role-a"])
 
     refute Permissions.can_upload_clips?(nil)
+  end
+
+  test "denies settings access when admin role is not configured" do
+    Application.put_env(:soundboard, :discord_settings_admin_role_id, nil)
+
+    user = %User{discord_roles: []}
+
+    refute Permissions.can_manage_settings?(user)
+  end
+
+  test "allows settings access when user has configured admin role" do
+    Application.put_env(:soundboard, :discord_settings_admin_role_id, "admin-role")
+
+    user = %User{discord_roles: ["member", "admin-role"]}
+
+    assert Permissions.can_manage_settings?(user)
+  end
+
+  test "denies settings access when user does not have configured admin role" do
+    Application.put_env(:soundboard, :discord_settings_admin_role_id, "admin-role")
+
+    user = %User{discord_roles: ["member"]}
+
+    refute Permissions.can_manage_settings?(user)
   end
 end

@@ -10,7 +10,8 @@ import Config
 config :soundboard,
   required_discord_guild_id: nil,
   discord_role_guild_id: nil,
-  discord_upload_role_ids: []
+  discord_upload_role_ids: [],
+  discord_settings_admin_role_id: nil
 
 # config :soundboard,
 #   ecto_repos: [Soundboard.Repo],

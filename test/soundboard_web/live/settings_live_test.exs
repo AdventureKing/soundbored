@@ -5,12 +5,20 @@ defmodule SoundboardWeb.SettingsLiveTest do
   alias Soundboard.Repo
 
   setup %{conn: conn} do
+    original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
+    Application.put_env(:soundboard, :discord_settings_admin_role_id, "settings-admin")
+
+    on_exit(fn ->
+      Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
+    end)
+
     {:ok, user} =
       %User{}
       |> User.changeset(%{
         username: "apitok_user_#{System.unique_integer([:positive])}",
         discord_id: Integer.to_string(System.unique_integer([:positive])),
-        avatar: "test.jpg"
+        avatar: "test.jpg",
+        discord_roles: ["settings-admin"]
       })
       |> Repo.insert()
 
@@ -63,29 +71,23 @@ defmodule SoundboardWeb.SettingsLiveTest do
     assert html =~ "is_leave_sound"
   end
 
-  test "shows upload permission decision", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/settings")
+  test "redirects when user is missing configured settings admin role", %{conn: conn} do
+    {:ok, non_admin} =
+      %User{}
+      |> User.changeset(%{
+        username: "non_admin_#{System.unique_integer([:positive])}",
+        discord_id: Integer.to_string(System.unique_integer([:positive])),
+        avatar: "non-admin.jpg",
+        discord_roles: ["member"]
+      })
+      |> Repo.insert()
 
-    assert html =~ "Clip upload:"
-    assert html =~ "Allowed"
-    assert html =~ "Your role IDs:"
-    assert html =~ "Allowed uploader role IDs:"
-  end
+    non_admin_conn =
+      conn
+      |> recycle()
+      |> Map.replace!(:secret_key_base, SoundboardWeb.Endpoint.config(:secret_key_base))
+      |> init_test_session(%{user_id: non_admin.id})
 
-  test "shows not allowed when uploader roles are configured and user does not match", %{
-    conn: conn
-  } do
-    original = Application.get_env(:soundboard, :discord_upload_role_ids, [])
-    Application.put_env(:soundboard, :discord_upload_role_ids, ["role-required"])
-
-    on_exit(fn ->
-      Application.put_env(:soundboard, :discord_upload_role_ids, original)
-    end)
-
-    {:ok, _view, html} = live(conn, "/settings")
-
-    assert html =~ "Clip upload:"
-    assert html =~ "Not allowed"
-    assert html =~ "role-required"
+    assert {:error, {:redirect, %{to: "/"}}} = live(non_admin_conn, "/settings")
   end
 end
