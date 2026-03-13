@@ -22,7 +22,7 @@ defmodule SoundboardWeb.Live.Support.LiveTags do
   def list_tags_for_sound(filename), do: Tags.list_for_sound(filename)
 
   def broadcast_update do
-    PubSubTopics.broadcast_files_updated()
+    PubSubTopics.broadcast_files_updated(self())
   end
 
   defp validate_tag_name(tag_name) do

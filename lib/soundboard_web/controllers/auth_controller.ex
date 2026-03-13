@@ -21,7 +21,7 @@ defmodule SoundboardWeb.AuthController do
   end
 
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
-    with {:ok, _} <- verify_discord_guild_membership(auth) do
+    with :ok <- verify_discord_guild_membership(auth) do
       user_params = user_params_from_auth(auth)
 
       case find_or_create_user(user_params) do
@@ -117,9 +117,9 @@ defmodule SoundboardWeb.AuthController do
     ensure_discord_http_started()
 
     headers = [
-      {'Authorization', to_charlist("Bearer #{token}")},
-      {'User-Agent', 'SoundboardOAuth'},
-      {'Accept', 'application/json'}
+      {~c"Authorization", to_charlist("Bearer #{token}")},
+      {~c"User-Agent", ~c"SoundboardOAuth"},
+      {~c"Accept", ~c"application/json"}
     ]
 
     case :httpc.request(:get, {to_charlist(@discord_guilds_url), headers}, [], [body_format: :binary]) do
