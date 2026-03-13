@@ -2,6 +2,7 @@ defmodule SoundboardWeb.AuthControllerTest do
   use SoundboardWeb.ConnCase
   alias Soundboard.{Accounts.User, Repo}
   import ExUnit.CaptureLog
+  import Mock
 
   setup %{conn: conn} do
     # Clean up users before each test
@@ -20,8 +21,11 @@ defmodule SoundboardWeb.AuthControllerTest do
       client_secret: "test_client_secret"
     )
 
+    Application.put_env(:soundboard, :required_discord_guild_id, "guild-1")
+
     on_exit(fn ->
       Application.delete_env(:ueberauth, Ueberauth.Strategy.Discord.OAuth)
+      Application.delete_env(:soundboard, :required_discord_guild_id)
     end)
 
     {:ok, conn: conn}
@@ -52,21 +56,30 @@ defmodule SoundboardWeb.AuthControllerTest do
         info: %{
           nickname: "TestUser",
           image: "test_avatar.jpg"
+        },
+        credentials: %{
+          token: "valid-token"
         }
       }
 
-      conn =
-        conn
-        |> assign(:ueberauth_auth, auth_data)
-        |> get(~p"/auth/discord/callback")
+      with_mock :httpc,
+        request: fn
+          :get, _url, _headers, _options ->
+            {:ok, {{~c"HTTP/1.1", 200, ~c"OK"}, [], ~c"[{\"id\":\"guild-1\"}]"}}
+        end do
+        conn =
+          conn
+          |> assign(:ueberauth_auth, auth_data)
+          |> get(~p"/auth/discord/callback")
 
-      assert redirected_to(conn) == "/"
-      assert get_session(conn, :user_id)
+        assert redirected_to(conn) == "/"
+        assert get_session(conn, :user_id)
 
-      user = Repo.get_by(User, discord_id: "12345")
-      assert user
-      assert user.username == "TestUser"
-      assert user.avatar == "test_avatar.jpg"
+        user = Repo.get_by(User, discord_id: "12345")
+        assert user
+        assert user.username == "TestUser"
+        assert user.avatar == "test_avatar.jpg"
+      end
     end
 
     test "callback/2 uses existing user if found", %{conn: conn} do
@@ -88,20 +101,62 @@ defmodule SoundboardWeb.AuthControllerTest do
         info: %{
           nickname: "TestUser",
           image: "test_avatar.jpg"
+        },
+        credentials: %{
+          token: "valid-token"
         }
       }
 
-      conn =
-        conn
-        |> assign(:ueberauth_auth, auth_data)
-        |> get(~p"/auth/discord/callback")
+      with_mock :httpc,
+        request: fn
+          :get, _url, _headers, _options ->
+            {:ok, {{~c"HTTP/1.1", 200, ~c"OK"}, [], ~c"[{\"id\":\"guild-1\"}]"}}
+        end do
+        conn =
+          conn
+          |> assign(:ueberauth_auth, auth_data)
+          |> get(~p"/auth/discord/callback")
 
-      final_count = Repo.aggregate(User, :count)
+        final_count = Repo.aggregate(User, :count)
 
-      assert redirected_to(conn) == "/"
-      assert get_session(conn, :user_id) == existing_user.id
-      # Only increased by the one we created
-      assert final_count == initial_count + 1
+        assert redirected_to(conn) == "/"
+        assert get_session(conn, :user_id) == existing_user.id
+        # Only increased by the one we created
+        assert final_count == initial_count + 1
+      end
+    end
+
+    test "callback/2 rejects users who are not in the required guild", %{conn: conn} do
+      auth_data = %{
+        uid: "67890",
+        info: %{
+          nickname: "TestUser",
+          image: "test_avatar.jpg"
+        },
+        credentials: %{
+          token: "valid-token"
+        }
+      }
+
+      log =
+        capture_log(fn ->
+          with_mock :httpc,
+            request: fn
+              :get, _url, _headers, _options ->
+                {:ok, {{~c"HTTP/1.1", 200, ~c"OK"}, [], ~c"[{\"id\":\"other-guild\"}]"}}
+            end do
+            conn =
+              conn
+              |> assign(:ueberauth_auth, auth_data)
+              |> get(~p"/auth/discord/callback")
+
+            assert redirected_to(conn) == "/"
+            assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+                     "Access denied: you must be a member of Discord guild guild-1."
+          end
+        end)
+
+      assert log =~ "Discord OAuth membership check failed"
     end
 
     test "callback/2 handles auth failures", %{conn: conn} do

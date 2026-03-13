@@ -7,6 +7,9 @@
 # General application configuration
 import Config
 
+config :soundboard,
+  required_discord_guild_id: nil
+
 # config :soundboard,
 #   ecto_repos: [Soundboard.Repo],
 #   generators: [timestamp_type: :utc_datetime],
@@ -90,5 +93,5 @@ config :soundboard,
 # Add this with your other configs
 config :ueberauth, Ueberauth,
   providers: [
-    discord: {Ueberauth.Strategy.Discord, [default_scope: "identify"]}
+    discord: {Ueberauth.Strategy.Discord, [default_scope: "identify guilds"]}
   ]

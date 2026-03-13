@@ -34,6 +34,7 @@ if config_env() == :dev do
   scheme = env!("SCHEME", :string!, "http")
   port = env!("PORT", :integer, 4000)
   callback_url = "#{scheme}://#{host}/auth/discord/callback"
+  required_discord_guild_id = env!("DISCORD_REQUIRED_GUILD_ID", :string, nil)
   discord_token = env!("DISCORD_TOKEN", :string!, nil)
   client_id = env!("DISCORD_CLIENT_ID", :string!, nil)
   client_secret = env!("DISCORD_CLIENT_SECRET", :string!, nil)
@@ -79,6 +80,7 @@ if config_env() == :dev do
   end
 
   config :soundboard,
+    required_discord_guild_id: required_discord_guild_id,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,
@@ -162,7 +164,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
   # Configure Ueberauth
   config :ueberauth, Ueberauth,
     providers: [
-      discord: {Ueberauth.Strategy.Discord, [default_scope: "identify"]}
+      discord: {Ueberauth.Strategy.Discord, [default_scope: "identify guilds"]}
     ]
 
   # Configure Discord OAuth
@@ -170,6 +172,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
     client_id: env!("DISCORD_CLIENT_ID", :string!),
     client_secret: env!("DISCORD_CLIENT_SECRET", :string!),
     redirect_uri: callback_url
+  required_discord_guild_id = env!("DISCORD_REQUIRED_GUILD_ID", :string, nil)
 
   # Configure Discord bot token
   discord_token = env!("DISCORD_TOKEN", :string!)
@@ -188,6 +191,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
   end
 
   config :soundboard,
+    required_discord_guild_id: required_discord_guild_id,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,
