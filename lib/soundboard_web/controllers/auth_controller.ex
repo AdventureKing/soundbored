@@ -36,6 +36,12 @@ defmodule SoundboardWeb.AuthController do
           |> redirect(to: "/")
       end
     else
+      {:error, {:not_in_required_guild, _guild_id} = reason} ->
+        log_membership_failure(reason, auth.uid)
+
+        conn
+        |> redirect(to: ~p"/auth/denied/not-in-guild")
+
       {:error, reason} ->
         log_membership_failure(reason, auth.uid)
 
@@ -49,6 +55,19 @@ defmodule SoundboardWeb.AuthController do
     conn
     |> put_flash(:error, "Failed to authenticate")
     |> redirect(to: "/")
+  end
+
+  def not_in_guild(conn, _params) do
+    guild_id =
+      case required_discord_guild_id() do
+        {:ok, id} -> id
+        :no_required_guild -> nil
+      end
+
+    conn
+    |> put_layout(html: {SoundboardWeb.Layouts, :root})
+    |> put_status(:forbidden)
+    |> render(:not_in_guild, guild_id: guild_id, page_title: "Access denied")
   end
 
   defp verify_discord_guild_membership(auth) do

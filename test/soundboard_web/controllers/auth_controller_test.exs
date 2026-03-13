@@ -149,13 +149,22 @@ defmodule SoundboardWeb.AuthControllerTest do
               |> assign(:ueberauth_auth, auth_data)
               |> get(~p"/auth/discord/callback")
 
-            assert redirected_to(conn) == "/"
-            assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
-                     "Access denied: you must be a member of Discord guild guild-1."
+            assert redirected_to(conn) == "/auth/denied/not-in-guild"
           end
         end)
 
       assert log =~ "Discord OAuth membership check failed"
+    end
+
+    test "not_in_guild/2 shows a dedicated denied page", %{conn: conn} do
+      conn = get(conn, ~p"/auth/denied/not-in-guild")
+
+      response_body = html_response(conn, 403)
+
+      assert response_body =~ "Access denied"
+      assert response_body =~ "not in the required guild"
+      assert response_body =~ "Required guild ID:"
+      assert response_body =~ "guild-1"
     end
 
     test "callback/2 handles auth failures", %{conn: conn} do
