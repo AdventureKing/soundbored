@@ -8,7 +8,7 @@ defmodule Soundboard.Accounts.Permissions do
 
   alias Soundboard.Accounts.User
 
-  @type permission :: :upload_clips | :manage_settings
+  @type permission :: :upload_clips | :play_clips | :manage_settings
   @type decision_reason ::
           :allowed_by_default
           | :role_match
@@ -31,11 +31,14 @@ defmodule Soundboard.Accounts.Permissions do
   @spec can_upload_clips?(User.t() | nil) :: boolean()
   def can_upload_clips?(user), do: can?(user, :upload_clips)
 
+  @spec can_play_clips?(User.t() | nil) :: boolean()
+  def can_play_clips?(user), do: can?(user, :play_clips)
+
   @spec can_manage_settings?(User.t() | nil) :: boolean()
   def can_manage_settings?(user), do: can?(user, :manage_settings)
 
   @spec permission_decision(User.t() | nil, permission()) :: decision()
-  def permission_decision(user, permission) when permission in [:upload_clips, :manage_settings] do
+  def permission_decision(user, permission) when permission in [:upload_clips, :play_clips, :manage_settings] do
     required_roles = configured_role_ids(permission)
     user_roles = user_role_ids(user)
 
@@ -43,7 +46,7 @@ defmodule Soundboard.Accounts.Permissions do
       is_nil(user) ->
         decision(permission, false, :no_user, user_roles, required_roles)
 
-      required_roles == [] and permission == :upload_clips ->
+      required_roles == [] and permission in [:upload_clips, :play_clips] ->
         decision(permission, true, :allowed_by_default, user_roles, required_roles)
 
       required_roles == [] and permission == :manage_settings ->
@@ -66,6 +69,12 @@ defmodule Soundboard.Accounts.Permissions do
   def configured_role_ids(:upload_clips) do
     :soundboard
     |> Application.get_env(:discord_upload_role_ids, [])
+    |> normalize_role_ids()
+  end
+
+  def configured_role_ids(:play_clips) do
+    :soundboard
+    |> Application.get_env(:discord_play_role_ids, [])
     |> normalize_role_ids()
   end
 

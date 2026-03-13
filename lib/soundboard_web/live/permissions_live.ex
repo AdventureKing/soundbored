@@ -13,6 +13,7 @@ defmodule SoundboardWeb.PermissionsLive do
      |> mount_presence(session)
      |> assign(:current_path, "/permissions")
      |> assign(:current_user, current_user)
+     |> assign(:play_permission, Permissions.permission_decision(current_user, :play_clips))
      |> assign(:upload_permission, Permissions.permission_decision(current_user, :upload_clips))
      |> assign(:settings_permission, Permissions.permission_decision(current_user, :manage_settings))}
   end
@@ -22,6 +23,39 @@ defmodule SoundboardWeb.PermissionsLive do
     ~H"""
     <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Permissions</h1>
+
+      <section class="space-y-3">
+        <header class="space-y-1">
+          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Clip Playback</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Play access is decided from your Discord role IDs.
+          </p>
+        </header>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-3">
+          <p class="text-sm">
+            <span class="font-semibold text-gray-700 dark:text-gray-200">Status:</span>
+            <span class={status_class(@play_permission.allowed?)}>
+              {if @play_permission.allowed?, do: "Allowed", else: "Not allowed"}
+            </span>
+          </p>
+
+          <p class="text-xs text-gray-600 dark:text-gray-400">
+            {play_permission_message(@play_permission)}
+          </p>
+
+          <div class="text-xs text-gray-700 dark:text-gray-300">
+            <div>
+              <span class="font-semibold">Your role IDs:</span>
+              {format_role_ids(@play_permission.user_roles)}
+            </div>
+            <div>
+              <span class="font-semibold">Allowed player role IDs:</span>
+              {format_role_ids(@play_permission.required_roles)}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section class="space-y-3">
         <header class="space-y-1">
@@ -106,6 +140,22 @@ defmodule SoundboardWeb.PermissionsLive do
 
   defp permission_message(%{reason: :no_user}) do
     "You must be signed in to upload clips."
+  end
+
+  defp play_permission_message(%{reason: :allowed_by_default}) do
+    "No player roles are configured, so all authenticated users may play clips."
+  end
+
+  defp play_permission_message(%{reason: :role_match}) do
+    "At least one of your Discord role IDs matches the configured player roles."
+  end
+
+  defp play_permission_message(%{reason: :missing_required_role}) do
+    "None of your Discord role IDs match the configured player roles."
+  end
+
+  defp play_permission_message(%{reason: :no_user}) do
+    "You must be signed in to play clips."
   end
 
   defp settings_permission_message(%{reason: :role_match}) do

@@ -49,20 +49,28 @@ defmodule SoundboardWeb.API.SoundController do
       sound ->
         case require_play_user(conn) do
           {:ok, user} ->
-            actor = %{display_name: user.username, user_id: user.id}
+            case require_play_permission(user) do
+              :ok ->
+                actor = %{display_name: user.username, user_id: user.id}
 
-            Soundboard.AudioPlayer.play_sound(sound.filename, actor)
+                Soundboard.AudioPlayer.play_sound(sound.filename, actor)
 
-            conn
-            |> put_status(:accepted)
-            |> json(%{
-              data: %{
-                status: "accepted",
-                message: "Playback request accepted for #{sound.filename}",
-                requested_by: actor.display_name,
-                sound: %{id: sound.id, filename: sound.filename}
-              }
-            })
+                conn
+                |> put_status(:accepted)
+                |> json(%{
+                  data: %{
+                    status: "accepted",
+                    message: "Playback request accepted for #{sound.filename}",
+                    requested_by: actor.display_name,
+                    sound: %{id: sound.id, filename: sound.filename}
+                  }
+                })
+
+              {:error, :insufficient_role} ->
+                conn
+                |> put_status(:forbidden)
+                |> json(%{error: "Your Discord role does not allow playing clips"})
+            end
 
           {:error, :forbidden_auth_state} ->
             conn
@@ -102,6 +110,10 @@ defmodule SoundboardWeb.API.SoundController do
 
   defp require_upload_permission(user) do
     if Permissions.can_upload_clips?(user), do: :ok, else: {:error, :insufficient_role}
+  end
+
+  defp require_play_permission(user) do
+    if Permissions.can_play_clips?(user), do: :ok, else: {:error, :insufficient_role}
   end
 
   defp format_sound(sound, current_user) do

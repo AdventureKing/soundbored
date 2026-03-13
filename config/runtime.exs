@@ -46,6 +46,7 @@ if config_env() == :dev do
   required_discord_guild_id = env!("DISCORD_REQUIRED_GUILD_ID", :string, nil)
   discord_role_guild_id = env!("DISCORD_ROLE_GUILD_ID", :string, required_discord_guild_id)
   discord_upload_role_ids = env!("DISCORD_UPLOAD_ROLE_IDS", :string, "") |> parse_role_ids.()
+  discord_play_role_ids = env!("DISCORD_PLAY_ROLE_IDS", :string, "") |> parse_role_ids.()
   discord_settings_admin_role_id = env!("DISCORD_SETTINGS_ADMIN_ROLE_ID", :string, nil)
   discord_token = env!("DISCORD_TOKEN", :string!, nil)
   client_id = env!("DISCORD_CLIENT_ID", :string!, nil)
@@ -95,6 +96,7 @@ if config_env() == :dev do
     required_discord_guild_id: required_discord_guild_id,
     discord_role_guild_id: discord_role_guild_id,
     discord_upload_role_ids: discord_upload_role_ids,
+    discord_play_role_ids: discord_play_role_ids,
     discord_settings_admin_role_id: discord_settings_admin_role_id,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
@@ -191,6 +193,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
   required_discord_guild_id = env!("DISCORD_REQUIRED_GUILD_ID", :string, nil)
   discord_role_guild_id = env!("DISCORD_ROLE_GUILD_ID", :string, required_discord_guild_id)
   discord_upload_role_ids = env!("DISCORD_UPLOAD_ROLE_IDS", :string, "") |> parse_role_ids.()
+  discord_play_role_ids = env!("DISCORD_PLAY_ROLE_IDS", :string, "") |> parse_role_ids.()
   discord_settings_admin_role_id = env!("DISCORD_SETTINGS_ADMIN_ROLE_ID", :string, nil)
 
   # Configure Discord bot token
@@ -213,6 +216,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
     required_discord_guild_id: required_discord_guild_id,
     discord_role_guild_id: discord_role_guild_id,
     discord_upload_role_ids: discord_upload_role_ids,
+    discord_play_role_ids: discord_play_role_ids,
     discord_settings_admin_role_id: discord_settings_admin_role_id,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,

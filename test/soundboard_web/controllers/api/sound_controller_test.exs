@@ -348,6 +348,20 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       conn = post(conn, ~p"/api/sounds/1/play")
       assert json_response(conn, 401)
     end
+
+    test "returns forbidden when player role does not match", %{conn: conn, sound: sound} do
+      original = Application.get_env(:soundboard, :discord_play_role_ids, [])
+      Application.put_env(:soundboard, :discord_play_role_ids, ["role-player"])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_play_role_ids, original)
+      end)
+
+      conn = post(conn, ~p"/api/sounds/#{sound.id}/play")
+
+      assert %{"error" => "Your Discord role does not allow playing clips"} =
+               json_response(conn, 403)
+    end
   end
 
   defp insert_sound(user) do

@@ -3,13 +3,18 @@ defmodule SoundboardWeb.Live.Support.SoundPlayback do
 
   import Phoenix.LiveView, only: [put_flash: 3]
 
+  alias Soundboard.Accounts.Permissions
   alias Soundboard.Accounts.User
 
   def play(socket, sound_name) do
     case socket.assigns[:current_user] do
       %User{username: username} ->
-        Soundboard.AudioPlayer.play_sound(sound_name, username)
-        {:noreply, socket}
+        if Permissions.can_play_clips?(socket.assigns[:current_user]) do
+          Soundboard.AudioPlayer.play_sound(sound_name, username)
+          {:noreply, socket}
+        else
+          {:noreply, put_flash(socket, :error, "Your Discord role does not allow playing clips")}
+        end
 
       _ ->
         {:noreply, put_flash(socket, :error, "You must be logged in to play sounds")}

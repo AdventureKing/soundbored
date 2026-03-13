@@ -6,13 +6,16 @@ defmodule SoundboardWeb.PermissionsLiveTest do
 
   setup %{conn: conn} do
     original_upload_roles = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+    original_play_roles = Application.get_env(:soundboard, :discord_play_role_ids, [])
     original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
 
     Application.put_env(:soundboard, :discord_upload_role_ids, ["uploader-role"])
+    Application.put_env(:soundboard, :discord_play_role_ids, ["player-role"])
     Application.put_env(:soundboard, :discord_settings_admin_role_id, "settings-admin")
 
     on_exit(fn ->
       Application.put_env(:soundboard, :discord_upload_role_ids, original_upload_roles)
+      Application.put_env(:soundboard, :discord_play_role_ids, original_play_roles)
       Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
     end)
 
@@ -34,10 +37,11 @@ defmodule SoundboardWeb.PermissionsLiveTest do
     %{conn: authed_conn, user: user}
   end
 
-  test "shows upload and settings permission sections", %{conn: conn} do
+  test "shows play, upload, and settings permission sections", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/permissions")
 
     assert html =~ "Permissions"
+    assert html =~ "Clip Playback"
     assert html =~ "Clip Upload"
     assert html =~ "Settings Access"
   end
@@ -45,9 +49,12 @@ defmodule SoundboardWeb.PermissionsLiveTest do
   test "allows opening permissions page for non-admin users", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/permissions")
 
+    assert html =~ "Clip Playback"
+    assert html =~ "Allowed player role IDs:"
+    assert html =~ "Not allowed"
     assert html =~ "Clip Upload"
+    assert html =~ "Allowed uploader role IDs:"
     assert html =~ "Allowed"
     assert html =~ "Settings Access"
-    assert html =~ "Not allowed"
   end
 end

@@ -6,10 +6,12 @@ defmodule Soundboard.Accounts.PermissionsTest do
 
   setup do
     original_upload_roles = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+    original_play_roles = Application.get_env(:soundboard, :discord_play_role_ids, [])
     original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
 
     on_exit(fn ->
       Application.put_env(:soundboard, :discord_upload_role_ids, original_upload_roles)
+      Application.put_env(:soundboard, :discord_play_role_ids, original_play_roles)
       Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
     end)
 
@@ -44,6 +46,30 @@ defmodule Soundboard.Accounts.PermissionsTest do
     Application.put_env(:soundboard, :discord_upload_role_ids, ["role-a"])
 
     refute Permissions.can_upload_clips?(nil)
+  end
+
+  test "allows play by default when no player roles are configured" do
+    Application.put_env(:soundboard, :discord_play_role_ids, [])
+
+    user = %User{discord_roles: []}
+
+    assert Permissions.can_play_clips?(user)
+  end
+
+  test "allows play when at least one role matches configured player roles" do
+    Application.put_env(:soundboard, :discord_play_role_ids, ["role-play", "role-other"])
+
+    user = %User{discord_roles: ["role-z", "role-play"]}
+
+    assert Permissions.can_play_clips?(user)
+  end
+
+  test "denies play when roles do not match configured player roles" do
+    Application.put_env(:soundboard, :discord_play_role_ids, ["role-play"])
+
+    user = %User{discord_roles: ["role-z"]}
+
+    refute Permissions.can_play_clips?(user)
   end
 
   test "denies settings access when admin role is not configured" do
