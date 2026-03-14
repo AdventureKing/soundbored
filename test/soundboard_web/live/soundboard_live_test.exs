@@ -121,6 +121,57 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       end
     end
 
+    test "shows admin stop and clear queue button for settings admins", %{conn: conn, user: user} do
+      original_admin_user_ids =
+        Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+      end)
+
+      {:ok, _view, html} = live(conn, "/")
+
+      assert html =~ "Admin Stop + Clear Queue"
+    end
+
+    test "hides admin stop and clear queue button for non-admins", %{conn: conn} do
+      original_admin_user_ids =
+        Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["different-admin"])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+      end)
+
+      {:ok, _view, html} = live(conn, "/")
+
+      refute html =~ "Admin Stop + Clear Queue"
+    end
+
+    test "admin stop and clear queue button clears playback queue", %{conn: conn, user: user} do
+      original_admin_user_ids =
+        Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+      end)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      with_mock Soundboard.AudioPlayer, stop_and_clear_queue: fn -> :ok end do
+        view
+        |> element("[phx-click='admin_stop_and_clear_queue']")
+        |> render_click()
+
+        assert_called(Soundboard.AudioPlayer.stop_and_clear_queue())
+      end
+    end
+
     test "can open and close upload modal", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
 

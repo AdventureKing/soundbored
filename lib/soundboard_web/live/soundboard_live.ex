@@ -35,6 +35,7 @@ defmodule SoundboardWeb.SoundboardLive do
       |> assign(:current_path, "/")
       |> assign(:current_user, current_user)
       |> assign(:can_upload_clips, Permissions.can_upload_clips?(current_user))
+      |> assign(:can_manage_settings, Permissions.can_manage_settings?(current_user))
       |> assign_initial_state()
       |> assign_favorites(current_user)
       |> refresh_cooldown_timer()
@@ -321,6 +322,21 @@ defmodule SoundboardWeb.SoundboardLive do
     end
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("admin_stop_and_clear_queue", _params, socket) do
+    if Permissions.can_manage_settings?(socket.assigns[:current_user]) do
+      socket =
+        socket
+        |> push_event("stop-all-sounds", %{})
+        |> put_flash(:info, "Stopped all sounds and cleared queue.")
+
+      Soundboard.AudioPlayer.stop_and_clear_queue()
+      {:noreply, socket}
+    else
+      {:noreply, put_flash(socket, :error, "You are not allowed to clear the playback queue.")}
+    end
   end
 
   @impl true

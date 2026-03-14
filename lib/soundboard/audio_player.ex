@@ -38,6 +38,10 @@ defmodule Soundboard.AudioPlayer do
     GenServer.cast(__MODULE__, :stop_sound)
   end
 
+  def stop_and_clear_queue do
+    GenServer.cast(__MODULE__, :stop_and_clear_queue)
+  end
+
   def set_voice_channel(guild_id, channel_id) do
     GenServer.cast(__MODULE__, {:set_voice_channel, guild_id, channel_id})
   end
@@ -98,6 +102,16 @@ defmodule Soundboard.AudioPlayer do
   def handle_cast(:stop_sound, state) do
     Notifier.error("Bot is not connected to a voice channel")
     {:noreply, state}
+  end
+
+  def handle_cast(:stop_and_clear_queue, state) do
+    if match?({_, _}, state.voice_channel) do
+      {guild_id, _channel_id} = state.voice_channel
+      Voice.stop(guild_id)
+    end
+
+    Notifier.sound_played("All sounds stopped and queue cleared", "System")
+    {:noreply, PlaybackQueue.clear_all(state)}
   end
 
   def handle_cast({:playback_finished, guild_id}, state) do
