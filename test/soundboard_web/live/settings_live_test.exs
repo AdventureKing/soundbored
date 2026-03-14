@@ -72,7 +72,7 @@ defmodule SoundboardWeb.SettingsLiveTest do
     assert html =~ "is_leave_sound"
   end
 
-  test "lists guild roles and saves per-role cooldowns", %{conn: conn} do
+  test "lists role cooldown rows alphabetically and saves per-role cooldowns", %{conn: conn} do
     guilds = [
       %{
         id: "guild-1",
@@ -80,8 +80,9 @@ defmodule SoundboardWeb.SettingsLiveTest do
         channels: %{},
         voice_states: [],
         roles: [
-          %{id: "role-fast", name: "Fast Role", position: 10},
-          %{id: "role-slow", name: "Slow Role", position: 5}
+          %{id: "role-charlie", name: "Charlie Role", position: 10},
+          %{id: "role-alpha", name: "Alpha Role", position: 5},
+          %{id: "role-bravo", name: "Bravo Role", position: 1}
         ]
       }
     ]
@@ -90,21 +91,95 @@ defmodule SoundboardWeb.SettingsLiveTest do
       {:ok, view, html} = live(conn, "/settings")
 
       assert html =~ "Role Cooldowns"
-      assert html =~ "Fast Role"
-      assert html =~ "Slow Role"
+      assert html =~ ~r/Alpha Role.*Bravo Role.*Charlie Role/s
 
       view
       |> element("form[phx-submit=\"save_role_cooldowns\"]")
       |> render_submit(%{
         "cooldowns" => %{
-          "role-fast" => "5",
-          "role-slow" => "30"
+          "role-alpha" => "5",
+          "role-bravo" => "30",
+          "role-charlie" => "60"
         }
       })
     end
 
-    assert Repo.get_by(RoleCooldown, role_id: "role-fast").cooldown_seconds == 5
-    assert Repo.get_by(RoleCooldown, role_id: "role-slow").cooldown_seconds == 30
+    assert Repo.get_by(RoleCooldown, role_id: "role-alpha").cooldown_seconds == 5
+    assert Repo.get_by(RoleCooldown, role_id: "role-bravo").cooldown_seconds == 30
+    assert Repo.get_by(RoleCooldown, role_id: "role-charlie").cooldown_seconds == 60
+  end
+
+  test "filters role cooldown rows and preserves hidden cooldowns on save", %{conn: conn} do
+    guilds = [
+      %{
+        id: "guild-1",
+        name: "Guild One",
+        channels: %{},
+        voice_states: [],
+        roles: [
+          %{id: "role-alpha", name: "Alpha Role", position: 10},
+          %{id: "role-beta", name: "Beta Role", position: 5}
+        ]
+      }
+    ]
+
+    %RoleCooldown{}
+    |> RoleCooldown.changeset(%{role_id: "role-beta", cooldown_seconds: 45})
+    |> Repo.insert!()
+
+    with_mock Soundboard.Discord.GuildCache, all: fn -> guilds end do
+      {:ok, view, _html} = live(conn, "/settings")
+
+      view
+      |> element("form[phx-change=\"filter_role_cooldowns\"]")
+      |> render_change(%{"role_filter" => %{"query" => "Alpha"}})
+
+      filtered_html = render(view)
+      assert filtered_html =~ "Alpha Role"
+      refute filtered_html =~ "Beta Role"
+
+      view
+      |> element("form[phx-submit=\"save_role_cooldowns\"]")
+      |> render_submit(%{"cooldowns" => %{"role-alpha" => "15"}})
+    end
+
+    assert Repo.get_by(RoleCooldown, role_id: "role-alpha").cooldown_seconds == 15
+    assert Repo.get_by(RoleCooldown, role_id: "role-beta").cooldown_seconds == 45
+  end
+
+  test "toggles role cooldown table sort direction from header clicks", %{conn: conn} do
+    guilds = [
+      %{
+        id: "guild-1",
+        name: "Guild One",
+        channels: %{},
+        voice_states: [],
+        roles: [
+          %{id: "role-charlie", name: "Charlie Role", position: 10},
+          %{id: "role-alpha", name: "Alpha Role", position: 5},
+          %{id: "role-bravo", name: "Bravo Role", position: 1}
+        ]
+      }
+    ]
+
+    with_mock Soundboard.Discord.GuildCache, all: fn -> guilds end do
+      {:ok, view, html} = live(conn, "/settings")
+      assert html =~ ~r/Alpha Role.*Bravo Role.*Charlie Role/s
+
+      view
+      |> element("button[phx-click=\"sort_role_cooldowns\"][phx-value-field=\"role_name\"]")
+      |> render_click()
+
+      descending_html = render(view)
+      assert descending_html =~ ~r/Charlie Role.*Bravo Role.*Alpha Role/s
+
+      view
+      |> element("button[phx-click=\"sort_role_cooldowns\"][phx-value-field=\"role_name\"]")
+      |> render_click()
+
+      ascending_html = render(view)
+      assert ascending_html =~ ~r/Alpha Role.*Bravo Role.*Charlie Role/s
+    end
   end
 
   test "redirects when user is missing configured settings admin role", %{conn: conn} do

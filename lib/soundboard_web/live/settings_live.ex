@@ -4,6 +4,7 @@ defmodule SoundboardWeb.SettingsLive do
   alias Soundboard.Accounts.{ApiTokens, Permissions, RoleCooldowns}
   alias Soundboard.Discord.GuildCache
   alias Soundboard.PublicURL
+  @role_cooldown_sort_fields [:guild_name, :role_name, :role_id, :cooldown_seconds]
 
   @impl true
   def mount(_params, session, socket) do
@@ -17,6 +18,9 @@ defmodule SoundboardWeb.SettingsLive do
         |> assign(:current_user, current_user)
         |> assign(:tokens, [])
         |> assign(:new_token, nil)
+        |> assign(:role_cooldown_filter, "")
+        |> assign(:role_cooldown_sort_by, :role_name)
+        |> assign(:role_cooldown_sort_dir, :asc)
         |> assign(:role_cooldown_rows, [])
         |> assign(:role_cooldown_role_ids, [])
         |> assign(:base_url, PublicURL.current())
@@ -64,7 +68,11 @@ defmodule SoundboardWeb.SettingsLive do
   end
 
   @impl true
-  def handle_event("save_role_cooldowns", %{"cooldowns" => cooldown_inputs}, socket) do
+  def handle_event("save_role_cooldowns", %{"cooldowns" => cooldown_inputs}, socket)
+      when is_map(cooldown_inputs) do
+    cooldown_inputs =
+      fill_missing_cooldown_inputs(socket.assigns[:role_cooldown_rows] || [], cooldown_inputs)
+
     case RoleCooldowns.replace_for_roles(
            socket.assigns[:role_cooldown_role_ids] || [],
            cooldown_inputs
@@ -81,6 +89,37 @@ defmodule SoundboardWeb.SettingsLive do
   @impl true
   def handle_event("save_role_cooldowns", _params, socket) do
     {:noreply, put_flash(socket, :error, "Invalid cooldown submission")}
+  end
+
+  @impl true
+  def handle_event("filter_role_cooldowns", %{"role_filter" => %{"query" => query}}, socket) do
+    {:noreply, assign(socket, :role_cooldown_filter, normalize_role_cooldown_filter(query))}
+  end
+
+  @impl true
+  def handle_event("filter_role_cooldowns", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("sort_role_cooldowns", %{"field" => field}, socket) do
+    field = parse_role_cooldown_sort_field(field)
+    current_field = socket.assigns[:role_cooldown_sort_by] || :role_name
+    current_dir = socket.assigns[:role_cooldown_sort_dir] || :asc
+
+    sort_dir =
+      if field == current_field do
+        toggle_role_cooldown_sort_dir(current_dir)
+      else
+        :asc
+      end
+
+    {:noreply, socket |> assign(:role_cooldown_sort_by, field) |> assign(:role_cooldown_sort_dir, sort_dir)}
+  end
+
+  @impl true
+  def handle_event("sort_role_cooldowns", _params, socket) do
+    {:noreply, socket}
   end
 
   defp load_tokens(%{assigns: %{current_user: nil}} = socket), do: socket
@@ -115,15 +154,11 @@ defmodule SoundboardWeb.SettingsLive do
             guild_name: guild[:name] || "Unknown guild",
             role_id: role_id,
             role_name: role[:name] || "Unknown role",
-            cooldown_seconds: Map.get(cooldowns, role_id),
-            sort_position: role[:position] || 0
+            cooldown_seconds: Map.get(cooldowns, role_id)
           }
         end)
       end)
       |> Enum.filter(&(is_binary(&1.role_id) and &1.role_id != ""))
-      |> Enum.sort_by(fn row ->
-        {String.downcase(row.guild_name), -row.sort_position, String.downcase(row.role_name)}
-      end)
       |> Enum.uniq_by(& &1.role_id)
 
     cached_role_ids = MapSet.new(Enum.map(cached_rows, & &1.role_id))
@@ -138,12 +173,14 @@ defmodule SoundboardWeb.SettingsLive do
           guild_name: "Not in cache",
           role_id: role_id,
           role_name: "(unknown role)",
-          cooldown_seconds: Map.get(cooldowns, role_id),
-          sort_position: -1
+          cooldown_seconds: Map.get(cooldowns, role_id)
         }
       end)
 
-    rows = cached_rows ++ uncached_rows
+    rows =
+      (cached_rows ++ uncached_rows)
+      |> Enum.sort_by(&role_cooldown_sort_key/1)
+
     role_ids = Enum.map(rows, & &1.role_id)
 
     socket
@@ -194,6 +231,100 @@ defmodule SoundboardWeb.SettingsLive do
   defp empty_to_nil(""), do: nil
   defp empty_to_nil(value), do: value
 
+  defp normalize_role_cooldown_filter(value) when is_binary(value), do: String.trim(value)
+  defp normalize_role_cooldown_filter(_), do: ""
+
+  defp filtered_role_cooldown_rows(rows, filter_query) do
+    query =
+      filter_query
+      |> normalize_role_cooldown_filter()
+      |> String.downcase()
+
+    if query == "" do
+      rows
+    else
+      Enum.filter(rows, fn row ->
+        [row.role_name, row.role_id, row.guild_name]
+        |> Enum.map(&((&1 || "") |> to_string() |> String.downcase()))
+        |> Enum.any?(&String.contains?(&1, query))
+      end)
+    end
+  end
+
+  defp role_cooldown_sort_key(row) do
+    {
+      String.downcase(row.role_name || ""),
+      String.downcase(row.guild_name || ""),
+      row.role_id || ""
+    }
+  end
+
+  defp fill_missing_cooldown_inputs(rows, cooldown_inputs) do
+    Enum.reduce(rows, cooldown_inputs, fn row, acc ->
+      if Map.has_key?(acc, row.role_id) do
+        acc
+      else
+        Map.put(acc, row.role_id, cooldown_input_value(row.cooldown_seconds))
+      end
+    end)
+  end
+
+  defp cooldown_input_value(value) when is_integer(value) and value > 0, do: Integer.to_string(value)
+  defp cooldown_input_value(_), do: ""
+
+  defp parse_role_cooldown_sort_field(field) when is_binary(field) do
+    case Enum.find(@role_cooldown_sort_fields, &(Atom.to_string(&1) == field)) do
+      nil -> :role_name
+      parsed_field -> parsed_field
+    end
+  end
+
+  defp parse_role_cooldown_sort_field(field) when field in @role_cooldown_sort_fields, do: field
+  defp parse_role_cooldown_sort_field(_), do: :role_name
+
+  defp toggle_role_cooldown_sort_dir(:asc), do: :desc
+  defp toggle_role_cooldown_sort_dir(:desc), do: :asc
+  defp toggle_role_cooldown_sort_dir(_), do: :asc
+
+  defp sorted_role_cooldown_rows(rows, sort_by, sort_dir) do
+    field = parse_role_cooldown_sort_field(sort_by)
+    dir = if sort_dir == :desc, do: :desc, else: :asc
+
+    sorted = Enum.sort_by(rows, &role_cooldown_field_sort_key(&1, field))
+
+    if dir == :desc do
+      Enum.reverse(sorted)
+    else
+      sorted
+    end
+  end
+
+  defp role_cooldown_field_sort_key(row, :guild_name) do
+    {String.downcase(row.guild_name || ""), String.downcase(row.role_name || ""), row.role_id || ""}
+  end
+
+  defp role_cooldown_field_sort_key(row, :role_name) do
+    {String.downcase(row.role_name || ""), String.downcase(row.guild_name || ""), row.role_id || ""}
+  end
+
+  defp role_cooldown_field_sort_key(row, :role_id) do
+    {row.role_id || "", String.downcase(row.role_name || ""), String.downcase(row.guild_name || "")}
+  end
+
+  defp role_cooldown_field_sort_key(row, :cooldown_seconds) do
+    {row.cooldown_seconds || 0, String.downcase(row.role_name || ""), row.role_id || ""}
+  end
+
+  defp role_cooldown_field_sort_key(row, _), do: role_cooldown_field_sort_key(row, :role_name)
+
+  defp role_cooldown_sort_indicator(sort_by, sort_dir, field) do
+    if parse_role_cooldown_sort_field(sort_by) == field do
+      if sort_dir == :desc, do: "v", else: "^"
+    else
+      "-"
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -217,53 +348,134 @@ defmodule SoundboardWeb.SettingsLive do
               No guild roles are available in cache yet. Keep the bot connected to Discord, then refresh.
             </p>
           <% else %>
+            <% filtered_rows = filtered_role_cooldown_rows(@role_cooldown_rows, @role_cooldown_filter) %>
+            <% sorted_rows = sorted_role_cooldown_rows(filtered_rows, @role_cooldown_sort_by, @role_cooldown_sort_dir) %>
+            <form phx-change="filter_role_cooldowns" class="max-w-md">
+              <label
+                for="role-cooldown-filter"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Filter roles
+              </label>
+              <input
+                id="role-cooldown-filter"
+                name="role_filter[query]"
+                type="text"
+                value={@role_cooldown_filter}
+                placeholder="Type to filter roles..."
+                phx-debounce="200"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </form>
             <form phx-submit="save_role_cooldowns" class="space-y-4">
-              <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                  <thead class="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Guild
-                      </th>
-                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role ID
-                      </th>
-                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cooldown (seconds)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                    <%= for row <- @role_cooldown_rows do %>
+              <%= if filtered_rows == [] do %>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  No roles match that filter.
+                </p>
+              <% else %>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-900">
                       <tr>
-                        <td class="px-4 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                          {row.guild_name}
-                        </td>
-                        <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                          {row.role_name}
-                        </td>
-                        <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono">
-                          {row.role_id}
-                        </td>
-                        <td class="px-4 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            inputmode="numeric"
-                            name={"cooldowns[#{row.role_id}]"}
-                            value={row.cooldown_seconds || ""}
-                            class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </td>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <button
+                            type="button"
+                            phx-click="sort_role_cooldowns"
+                            phx-value-field="guild_name"
+                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                          >
+                            Guild
+                            <span aria-hidden="true">
+                              {role_cooldown_sort_indicator(
+                                @role_cooldown_sort_by,
+                                @role_cooldown_sort_dir,
+                                :guild_name
+                              )}
+                            </span>
+                          </button>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <button
+                            type="button"
+                            phx-click="sort_role_cooldowns"
+                            phx-value-field="role_name"
+                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                          >
+                            Role
+                            <span aria-hidden="true">
+                              {role_cooldown_sort_indicator(
+                                @role_cooldown_sort_by,
+                                @role_cooldown_sort_dir,
+                                :role_name
+                              )}
+                            </span>
+                          </button>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <button
+                            type="button"
+                            phx-click="sort_role_cooldowns"
+                            phx-value-field="role_id"
+                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                          >
+                            Role ID
+                            <span aria-hidden="true">
+                              {role_cooldown_sort_indicator(
+                                @role_cooldown_sort_by,
+                                @role_cooldown_sort_dir,
+                                :role_id
+                              )}
+                            </span>
+                          </button>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <button
+                            type="button"
+                            phx-click="sort_role_cooldowns"
+                            phx-value-field="cooldown_seconds"
+                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                          >
+                            Cooldown (seconds)
+                            <span aria-hidden="true">
+                              {role_cooldown_sort_indicator(
+                                @role_cooldown_sort_by,
+                                @role_cooldown_sort_dir,
+                                :cooldown_seconds
+                              )}
+                            </span>
+                          </button>
+                        </th>
                       </tr>
-                    <% end %>
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                      <%= for row <- sorted_rows do %>
+                        <tr>
+                          <td class="px-4 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {row.guild_name}
+                          </td>
+                          <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            {row.role_name}
+                          </td>
+                          <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono">
+                            {row.role_id}
+                          </td>
+                          <td class="px-4 py-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputmode="numeric"
+                              name={"cooldowns[#{row.role_id}]"}
+                              value={row.cooldown_seconds || ""}
+                              class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
 
               <p class="text-xs text-gray-600 dark:text-gray-400">
                 Leave blank (or set to 0) to use the default cooldown (10 minutes) for that role.
