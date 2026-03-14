@@ -26,12 +26,14 @@ defmodule Soundboard.Discord.GuildCache do
     guild_id = map_get(guild, "id")
     channels = Cache.channels_for_guild(guild_id)
     voice_states = Cache.voice_states(guild_id)
+    roles = map_get(guild, "roles")
 
     %{
       id: guild_id,
       name: map_get(guild, "name"),
       channels: normalize_channels(channels, guild_id),
-      voice_states: Enum.map(voice_states, &normalize_voice_state(&1, guild_id))
+      voice_states: Enum.map(voice_states, &normalize_voice_state(&1, guild_id)),
+      roles: normalize_roles(roles)
     }
   end
 
@@ -55,6 +57,21 @@ defmodule Soundboard.Discord.GuildCache do
       session_id: map_get(voice_state, "session_id")
     }
   end
+
+  defp normalize_roles(roles) when is_list(roles) do
+    roles
+    |> Enum.map(fn role ->
+      %{
+        id: map_get(role, "id"),
+        name: map_get(role, "name"),
+        position: map_get(role, "position") || 0
+      }
+    end)
+    |> Enum.filter(&(is_binary(&1.id) and is_binary(&1.name)))
+    |> Enum.sort_by(fn role -> {-role.position, String.downcase(role.name)} end)
+  end
+
+  defp normalize_roles(_), do: []
 
   defp map_get(map, key) when is_map(map) do
     case map do

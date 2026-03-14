@@ -7,6 +7,7 @@ defmodule SoundboardWeb.SoundboardLive do
   import UploadModal
   import SoundboardWeb.Components.Soundboard.TagComponents, only: [tag_filter_button: 1]
   alias Soundboard.{Favorites, PubSubTopics, Sounds}
+  alias Soundboard.Accounts.Permissions
   alias SoundboardWeb.Live.SoundboardLive.{EditFlow, UploadFlow}
   alias SoundboardWeb.Live.Support.{FlashHelpers, SoundPlayback}
   alias SoundboardWeb.Soundboard.SoundFilter
@@ -16,6 +17,8 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def mount(_params, session, socket) do
+    current_user = get_user_from_session(session)
+
     socket =
       if connected?(socket) do
         PubSubTopics.subscribe_files()
@@ -30,9 +33,10 @@ defmodule SoundboardWeb.SoundboardLive do
       socket
       |> mount_presence(session)
       |> assign(:current_path, "/")
-      |> assign(:current_user, get_user_from_session(session))
+      |> assign(:current_user, current_user)
+      |> assign(:can_upload_clips, Permissions.can_upload_clips?(current_user))
       |> assign_initial_state()
-      |> assign_favorites(get_user_from_session(session))
+      |> assign_favorites(current_user)
 
     if socket.assigns.flash do
       Process.send_after(self(), :clear_flash, 3000)
@@ -121,7 +125,11 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("save_upload", params, socket) do
-    UploadFlow.save(socket, params, &Phoenix.LiveView.consume_uploaded_entries/3)
+    if can_upload_clips?(socket) do
+      UploadFlow.save(socket, params, &Phoenix.LiveView.consume_uploaded_entries/3)
+    else
+      {:noreply, upload_forbidden_flash(socket)}
+    end
   end
 
   @impl true
@@ -131,7 +139,11 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("show_upload_modal", _params, socket) do
-    UploadFlow.show_modal(socket)
+    if can_upload_clips?(socket) do
+      UploadFlow.show_modal(socket)
+    else
+      {:noreply, upload_forbidden_flash(socket)}
+    end
   end
 
   @impl true
@@ -355,5 +367,17 @@ defmodule SoundboardWeb.SoundboardLive do
 
   defp handle_progress(:audio, _entry, socket) do
     {:noreply, socket}
+  end
+
+  defp can_upload_clips?(socket) do
+    Permissions.can_upload_clips?(socket.assigns[:current_user])
+  end
+
+  defp upload_forbidden_flash(socket) do
+    Phoenix.LiveView.put_flash(
+      socket,
+      :error,
+      "Your Discord role does not allow uploading clips."
+    )
   end
 end

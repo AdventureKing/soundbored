@@ -12,14 +12,26 @@
       </span>
     </h1>
     <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 w-full sm:w-auto">
-      <button
-        phx-click="show_upload_modal"
-        class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white font-medium rounded-md
-               hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors
-               dark:focus:ring-offset-gray-900 text-sm sm:text-base"
-      >
-        Add Sound
-      </button>
+      <%= if @can_upload_clips do %>
+        <button
+          phx-click="show_upload_modal"
+          class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white font-medium rounded-md
+                 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors
+                 dark:focus:ring-offset-gray-900 text-sm sm:text-base"
+        >
+          Add Sound
+        </button>
+      <% else %>
+        <button
+          type="button"
+          disabled
+          class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 bg-gray-300 text-gray-600 font-medium rounded-md
+                 cursor-not-allowed text-sm sm:text-base dark:bg-gray-700 dark:text-gray-400"
+          title="Your Discord role does not allow clip uploads"
+        >
+          Add Sound
+        </button>
+      <% end %>
       <button
         phx-click="play_random"
         class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 rounded-md text-sm sm:text-base font-medium transition-colors

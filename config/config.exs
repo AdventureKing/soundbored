@@ -7,6 +7,14 @@
 # General application configuration
 import Config
 
+config :soundboard,
+  required_discord_guild_id: nil,
+  discord_role_guild_id: nil,
+  discord_upload_role_ids: [],
+  discord_play_role_ids: [],
+  discord_settings_admin_role_id: nil,
+  default_playback_cooldown_seconds: 600
+
 # config :soundboard,
 #   ecto_repos: [Soundboard.Repo],
 #   generators: [timestamp_type: :utc_datetime],
@@ -90,5 +98,5 @@ config :soundboard,
 # Add this with your other configs
 config :ueberauth, Ueberauth,
   providers: [
-    discord: {Ueberauth.Strategy.Discord, [default_scope: "identify"]}
+    discord: {Ueberauth.Strategy.Discord, [default_scope: "identify guilds guilds.members.read"]}
   ]

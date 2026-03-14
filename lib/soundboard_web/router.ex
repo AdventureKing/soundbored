@@ -36,6 +36,7 @@ defmodule SoundboardWeb.Router do
   scope "/auth", SoundboardWeb do
     pipe_through [:browser]
 
+    get "/denied/not-in-guild", AuthController, :not_in_guild
     get "/:provider", AuthController, :request
     get "/:provider/callback", AuthController, :callback
     delete "/logout", AuthController, :logout
@@ -46,6 +47,7 @@ defmodule SoundboardWeb.Router do
     pipe_through [:browser, :auth, :ensure_authenticated_user, :require_browser_basic_auth]
 
     live "/", SoundboardLive
+    live "/permissions", PermissionsLive
     live "/stats", StatsLive
     live "/favorites", FavoritesLive
     live "/settings", SettingsLive

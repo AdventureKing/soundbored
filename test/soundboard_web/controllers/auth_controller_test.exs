@@ -2,6 +2,7 @@ defmodule SoundboardWeb.AuthControllerTest do
   use SoundboardWeb.ConnCase
   alias Soundboard.{Accounts.User, Repo}
   import ExUnit.CaptureLog
+  import Mock
 
   setup %{conn: conn} do
     # Clean up users before each test
@@ -20,8 +21,11 @@ defmodule SoundboardWeb.AuthControllerTest do
       client_secret: "test_client_secret"
     )
 
+    Application.put_env(:soundboard, :required_discord_guild_id, "guild-1")
+
     on_exit(fn ->
       Application.delete_env(:ueberauth, Ueberauth.Strategy.Discord.OAuth)
+      Application.delete_env(:soundboard, :required_discord_guild_id)
     end)
 
     {:ok, conn: conn}
@@ -47,11 +51,20 @@ defmodule SoundboardWeb.AuthControllerTest do
     end
 
     test "callback/2 creates new user on successful auth", %{conn: conn} do
-      auth_data = %{
+      auth_data = %Ueberauth.Auth{
         uid: "12345",
-        info: %{
+        info: %Ueberauth.Auth.Info{
           nickname: "TestUser",
           image: "test_avatar.jpg"
+        },
+        credentials: %Ueberauth.Auth.Credentials{
+          token: "valid-token"
+        },
+        extra: %Ueberauth.Auth.Extra{
+          raw_info: %{
+            guilds: [%{"id" => "guild-1"}],
+            member: %{"roles" => ["clip-uploader", "tester"]}
+          }
         }
       }
 
@@ -67,6 +80,7 @@ defmodule SoundboardWeb.AuthControllerTest do
       assert user
       assert user.username == "TestUser"
       assert user.avatar == "test_avatar.jpg"
+      assert user.discord_roles == ["clip-uploader", "tester"]
     end
 
     test "callback/2 uses existing user if found", %{conn: conn} do
@@ -79,7 +93,8 @@ defmodule SoundboardWeb.AuthControllerTest do
         |> User.changeset(%{
           discord_id: "12345",
           username: "ExistingUser",
-          avatar: "old_avatar.jpg"
+          avatar: "old_avatar.jpg",
+          discord_roles: ["old-role"]
         })
         |> Repo.insert()
 
@@ -88,6 +103,15 @@ defmodule SoundboardWeb.AuthControllerTest do
         info: %{
           nickname: "TestUser",
           image: "test_avatar.jpg"
+        },
+        credentials: %{
+          token: "valid-token"
+        },
+        extra: %{
+          raw_info: %{
+            guilds: [%{"id" => "guild-1"}],
+            member: %{"roles" => ["new-role", "tester"]}
+          }
         }
       }
 
@@ -102,6 +126,52 @@ defmodule SoundboardWeb.AuthControllerTest do
       assert get_session(conn, :user_id) == existing_user.id
       # Only increased by the one we created
       assert final_count == initial_count + 1
+
+      refreshed_user = Repo.get!(User, existing_user.id)
+      assert refreshed_user.username == "TestUser"
+      assert refreshed_user.avatar == "test_avatar.jpg"
+      assert refreshed_user.discord_roles == ["new-role", "tester"]
+    end
+
+    test "callback/2 rejects users who are not in the required guild", %{conn: conn} do
+      auth_data = %{
+        uid: "67890",
+        info: %{
+          nickname: "TestUser",
+          image: "test_avatar.jpg"
+        },
+        credentials: %{
+          token: "valid-token"
+        }
+      }
+
+      log =
+        capture_log(fn ->
+          with_mock :httpc,
+            request: fn
+              :get, _url, _headers, _options ->
+                {:ok, {{~c"HTTP/1.1", 200, ~c"OK"}, [], ~c"[{\"id\":\"other-guild\"}]"}}
+            end do
+            conn =
+              conn
+              |> assign(:ueberauth_auth, auth_data)
+              |> get(~p"/auth/discord/callback")
+
+            assert redirected_to(conn) == "/auth/denied/not-in-guild"
+          end
+        end)
+
+      assert log =~ "Discord OAuth membership check failed"
+    end
+
+    test "not_in_guild/2 shows a dedicated denied page", %{conn: conn} do
+      conn = get(conn, ~p"/auth/denied/not-in-guild")
+
+      response_body = html_response(conn, 403)
+
+      assert response_body =~ "Access denied"
+      assert response_body =~ "not in the required guild"
+      refute response_body =~ "Required guild ID:"
     end
 
     test "callback/2 handles auth failures", %{conn: conn} do

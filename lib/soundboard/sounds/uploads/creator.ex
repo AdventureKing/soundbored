@@ -64,7 +64,7 @@ defmodule Soundboard.Sounds.Uploads.Creator do
   end
 
   defp broadcast_updates do
-    PubSubTopics.broadcast_files_updated()
+    PubSubTopics.broadcast_files_updated(self())
     Stats.broadcast_stats_update()
   end
 end

@@ -15,8 +15,14 @@ defmodule Soundboard.PubSubTopics do
   def subscribe_playback, do: PubSub.subscribe(Soundboard.PubSub, @playback_topic)
   def subscribe_stats, do: PubSub.subscribe(Soundboard.PubSub, @stats_topic)
 
-  def broadcast_files_updated do
+  def broadcast_files_updated(sender \\ nil)
+
+  def broadcast_files_updated(nil) do
     PubSub.broadcast(Soundboard.PubSub, @files_topic, {:files_updated})
+  end
+
+  def broadcast_files_updated(sender) do
+    PubSub.broadcast_from(Soundboard.PubSub, sender, @files_topic, {:files_updated})
   end
 
   def broadcast_stats_updated do

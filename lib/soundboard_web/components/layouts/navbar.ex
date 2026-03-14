@@ -4,6 +4,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
   """
   use Phoenix.LiveComponent
   use SoundboardWeb, :html
+  alias Soundboard.Accounts.Permissions
 
   @impl true
   def mount(socket) do
@@ -38,6 +39,14 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                 Stats
               </.nav_link>
               <%= if @current_user do %>
+                <.nav_link
+                  navigate="/permissions"
+                  active={current_page?(@current_path, "/permissions")}
+                >
+                  Permissions
+                </.nav_link>
+              <% end %>
+              <%= if show_settings_link?(@current_user) do %>
                 <.nav_link
                   navigate="/settings"
                   active={current_page?(@current_path, "/settings")}
@@ -135,6 +144,14 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           </.mobile_nav_link>
           <%= if @current_user do %>
             <.mobile_nav_link
+              navigate="/permissions"
+              active={current_page?(@current_path, "/permissions")}
+            >
+              Permissions
+            </.mobile_nav_link>
+          <% end %>
+          <%= if show_settings_link?(@current_user) do %>
+            <.mobile_nav_link
               navigate="/settings"
               active={current_page?(@current_path, "/settings")}
             >
@@ -217,4 +234,6 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
   end
 
   defp current_page?(current_path, path), do: current_path == path
+
+  defp show_settings_link?(current_user), do: Permissions.can_manage_settings?(current_user)
 end

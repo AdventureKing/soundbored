@@ -45,7 +45,8 @@ defmodule Soundboard.UploadsPathTest do
     base = Path.join(System.tmp_dir!(), "soundboard-safe-uploads")
     Application.put_env(:soundboard, :uploads_dir, base)
 
-    assert {:ok, ^base} = UploadsPath.safe_joined_path(["."])
+    assert {:ok, resolved_base} = UploadsPath.safe_joined_path(["."])
+    assert Path.expand(resolved_base) == Path.expand(base)
 
     assert {:ok, safe_path} = UploadsPath.safe_joined_path(["nested", "clip.mp3"])
     assert safe_path == Path.join([base, "nested", "clip.mp3"]) |> Path.expand()

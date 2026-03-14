@@ -6,8 +6,9 @@ defmodule SoundboardWeb.API.SoundControllerTest do
 
   import Mock
 
-  alias Soundboard.Accounts.{ApiTokens, User}
+  alias Soundboard.Accounts.{ApiTokens, RoleCooldown, User}
   alias Soundboard.{Repo, Sound, Tag, UserSoundSetting}
+  alias Soundboard.Stats.Play
 
   setup %{conn: conn} do
     user = insert_user()
@@ -265,6 +266,25 @@ defmodule SoundboardWeb.API.SoundControllerTest do
 
       assert json_response(conn, 401)
     end
+
+    test "returns forbidden when uploader role does not match", %{conn: conn} do
+      original = Application.get_env(:soundboard, :discord_upload_role_ids, [])
+      Application.put_env(:soundboard, :discord_upload_role_ids, ["role-required"])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_upload_role_ids, original)
+      end)
+
+      conn =
+        post(conn, ~p"/api/sounds", %{
+          "source_type" => "url",
+          "name" => "forbidden_by_role",
+          "url" => "https://example.com/nope.mp3"
+        })
+
+      assert %{"error" => "Your Discord role does not allow uploading clips"} =
+               json_response(conn, 403)
+    end
   end
 
   describe "play" do
@@ -328,6 +348,52 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       conn = build_conn()
       conn = post(conn, ~p"/api/sounds/1/play")
       assert json_response(conn, 401)
+    end
+
+    test "returns forbidden when player role does not match", %{conn: conn, sound: sound} do
+      original = Application.get_env(:soundboard, :discord_play_role_ids, [])
+      Application.put_env(:soundboard, :discord_play_role_ids, ["role-player"])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_play_role_ids, original)
+      end)
+
+      conn = post(conn, ~p"/api/sounds/#{sound.id}/play")
+
+      assert %{"error" => "Your Discord role does not allow playing clips"} =
+               json_response(conn, 403)
+    end
+
+    test "returns too many requests when user is still on cooldown", %{
+      conn: conn,
+      sound: sound,
+      user: user
+    } do
+      user
+      |> User.changeset(%{discord_roles: ["role-fast"]})
+      |> Repo.update!()
+
+      Repo.insert!(
+        RoleCooldown.changeset(%RoleCooldown{}, %{role_id: "role-fast", cooldown_seconds: 60})
+      )
+
+      Repo.insert!(
+        Play.changeset(%Play{}, %{
+          played_filename: sound.filename,
+          sound_id: sound.id,
+          user_id: user.id
+        })
+      )
+
+      with_mock Soundboard.AudioPlayer, play_sound: fn _filename, _actor -> :ok end do
+        conn = post(conn, ~p"/api/sounds/#{sound.id}/play")
+        response = json_response(conn, 429)
+
+        assert response["error"] =~ "You are on cooldown"
+        assert is_integer(response["retry_after_seconds"])
+        assert response["retry_after_seconds"] > 0
+        assert_not_called(Soundboard.AudioPlayer.play_sound(:_, :_))
+      end
     end
   end
 
