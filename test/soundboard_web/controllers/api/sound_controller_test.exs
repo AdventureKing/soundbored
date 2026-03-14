@@ -108,7 +108,8 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       conn =
         post(conn, ~p"/api/sounds", %{
           "name" => name,
-          "url" => "https://example.com/inferred.mp3"
+          "url" => "https://example.com/inferred.mp3",
+          "tags" => ["inferred"]
         })
 
       assert %{"data" => data} = json_response(conn, 201)
@@ -161,7 +162,8 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       conn =
         post(conn, ~p"/api/sounds", %{
           "name" => name,
-          "file" => upload
+          "file" => upload,
+          "tags" => ["inferred-local"]
         })
 
       assert %{"data" => data} = json_response(conn, 201)
@@ -180,6 +182,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
           "source_type" => "url",
           "name" => first_name,
           "url" => "https://example.com/first.mp3",
+          "tags" => ["join"],
           "is_join_sound" => "true"
         })
 
@@ -188,6 +191,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
           "source_type" => "url",
           "name" => second_name,
           "url" => "https://example.com/second.mp3",
+          "tags" => ["join"],
           "is_join_sound" => "true"
         })
 
@@ -205,7 +209,8 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       conn_missing_name =
         post(conn, ~p"/api/sounds", %{
           "source_type" => "url",
-          "url" => "https://example.com/missing-name.mp3"
+          "url" => "https://example.com/missing-name.mp3",
+          "tags" => ["missing-name"]
         })
 
       assert %{"errors" => errors} = json_response(conn_missing_name, 422)
@@ -214,7 +219,8 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       conn_missing_url =
         post(conn, ~p"/api/sounds", %{
           "source_type" => "url",
-          "name" => "missing_url"
+          "name" => "missing_url",
+          "tags" => ["missing-url"]
         })
 
       assert %{"errors" => errors} = json_response(conn_missing_url, 422)
@@ -223,11 +229,24 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       conn_missing_file =
         post(conn, ~p"/api/sounds", %{
           "source_type" => "local",
-          "name" => "missing_file"
+          "name" => "missing_file",
+          "tags" => ["missing-file"]
         })
 
       assert %{"errors" => errors} = json_response(conn_missing_file, 422)
       assert "Please select a file" in errors["file"]
+    end
+
+    test "returns validation error when tags are missing", %{conn: conn} do
+      conn_missing_tags =
+        post(conn, ~p"/api/sounds", %{
+          "source_type" => "url",
+          "name" => "missing_tags",
+          "url" => "https://example.com/missing-tags.mp3"
+        })
+
+      assert %{"errors" => errors} = json_response(conn_missing_tags, 422)
+      assert "must include at least one tag" in errors["tags"]
     end
 
     test "returns validation error for duplicate filename", %{conn: conn, user: user} do
@@ -247,7 +266,8 @@ defmodule SoundboardWeb.API.SoundControllerTest do
         post(conn, ~p"/api/sounds", %{
           "source_type" => "url",
           "name" => duplicate_name,
-          "url" => "https://example.com/new.mp3"
+          "url" => "https://example.com/new.mp3",
+          "tags" => ["duplicate"]
         })
 
       assert %{"errors" => errors} = json_response(conn, 422)

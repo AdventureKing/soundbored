@@ -10,6 +10,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModalTest do
 
     assert html =~ "Add Sound"
     assert html =~ "Source Type"
+    assert html =~ "At least one tag is required."
     assert html =~ "Enter a URL first to name it."
   end
 

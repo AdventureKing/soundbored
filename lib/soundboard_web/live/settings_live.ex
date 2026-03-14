@@ -611,11 +611,11 @@ defmodule SoundboardWeb.SettingsLive do
             </div>
             <div class="text-xs text-gray-600 dark:text-gray-400">
               Upload endpoint: <code class="font-mono">POST /api/sounds</code>. Required fields:
-              <code class="font-mono">name</code>
+              <code class="font-mono">name</code>, <code class="font-mono">tags</code>,
               plus either <code class="font-mono">file</code>
               (local multipart)
               or <code class="font-mono">url</code>
-              (<code class="font-mono">source_type=url</code>). Optional: <code class="font-mono">tags</code>,
+              (<code class="font-mono">source_type=url</code>). Optional:
               <code class="font-mono">volume</code>
               (0-150), <code class="font-mono">is_join_sound</code>, <code class="font-mono">is_leave_sound</code>.
             </div>

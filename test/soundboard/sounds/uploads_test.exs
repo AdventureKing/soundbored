@@ -26,21 +26,23 @@ defmodule Soundboard.Sounds.UploadsTest do
       assert {:ok, _params} =
                user
                |> request(%{
-                 source_type: "url",
-                 name: "validated_url",
-                 url: "https://example.com/sound.mp3"
-               })
+                  source_type: "url",
+                  name: "validated_url",
+                  url: "https://example.com/sound.mp3",
+                  tags: ["validated"]
+                })
                |> Uploads.validate()
     end
 
     test "requires a url for url uploads", %{user: user} do
       assert {:error, changeset} =
-               user
-               |> request(%{
-                 source_type: "url",
-                 name: "validated_url"
-               })
-               |> Uploads.validate()
+                user
+                |> request(%{
+                  source_type: "url",
+                  name: "validated_url",
+                  tags: ["missing-url"]
+                })
+                |> Uploads.validate()
 
       assert "can't be blank" in errors_on(changeset).url
     end
@@ -56,27 +58,42 @@ defmodule Soundboard.Sounds.UploadsTest do
         |> Repo.insert()
 
       assert {:error, changeset} =
-               user
-               |> request(%{
-                 source_type: "local",
-                 name: "duplicate_name",
-                 upload: %{filename: "dup.mp3"}
-               })
-               |> Uploads.validate()
+                user
+                |> request(%{
+                  source_type: "local",
+                  name: "duplicate_name",
+                  tags: ["duplicate"],
+                  upload: %{filename: "dup.mp3"}
+                })
+                |> Uploads.validate()
 
       assert "has already been taken" in errors_on(changeset).filename
     end
 
     test "requires a local file selection for local uploads", %{user: user} do
       assert {:error, changeset} =
+                user
+                |> request(%{
+                  source_type: "local",
+                  name: "missing_file",
+                  tags: ["missing-file"]
+                })
+                |> Uploads.validate()
+
+      assert "Please select a file" in errors_on(changeset).file
+    end
+
+    test "requires at least one tag", %{user: user} do
+      assert {:error, changeset} =
                user
                |> request(%{
-                 source_type: "local",
-                 name: "missing_file"
+                 source_type: "url",
+                 name: "missing_tags",
+                 url: "https://example.com/sound.mp3"
                })
                |> Uploads.validate()
 
-      assert "Please select a file" in errors_on(changeset).file
+      assert "must include at least one tag" in errors_on(changeset).tags
     end
   end
 
@@ -127,13 +144,14 @@ defmodule Soundboard.Sounds.UploadsTest do
       name = "upload_events_#{System.unique_integer([:positive])}"
 
       assert {:ok, _sound} =
-               user
-               |> request(%{
-                 source_type: "url",
-                 name: name,
-                 url: "https://example.com/events.mp3"
-               })
-               |> Uploads.create()
+                user
+                |> request(%{
+                  source_type: "url",
+                  name: name,
+                  url: "https://example.com/events.mp3",
+                  tags: ["events"]
+                })
+                |> Uploads.create()
 
       assert_receive {:files_event, {:files_updated}}
       assert_receive {:stats_updated}
@@ -147,13 +165,14 @@ defmodule Soundboard.Sounds.UploadsTest do
       on_exit(fn -> File.rm(tmp_path) end)
 
       assert {:ok, sound} =
-               user
-               |> request(%{
-                 source_type: "local",
-                 name: name,
-                 upload: %{path: tmp_path, filename: "local.wav"}
-               })
-               |> Uploads.create()
+                user
+                |> request(%{
+                  source_type: "local",
+                  name: name,
+                  tags: ["local"],
+                  upload: %{path: tmp_path, filename: "local.wav"}
+                })
+                |> Uploads.create()
 
       copied_path = Path.join(uploads_dir(), sound.filename)
       assert File.exists?(copied_path)
@@ -166,24 +185,26 @@ defmodule Soundboard.Sounds.UploadsTest do
       second_name = "second_join_#{System.unique_integer([:positive])}"
 
       assert {:ok, first_sound} =
-               user
-               |> request(%{
-                 source_type: "url",
-                 name: first_name,
-                 url: "https://example.com/first.mp3",
-                 is_join_sound: true
-               })
-               |> Uploads.create()
+                user
+                |> request(%{
+                  source_type: "url",
+                  name: first_name,
+                  url: "https://example.com/first.mp3",
+                  tags: ["join"],
+                  is_join_sound: true
+                })
+                |> Uploads.create()
 
       assert {:ok, second_sound} =
-               user
-               |> request(%{
-                 source_type: "url",
-                 name: second_name,
-                 url: "https://example.com/second.mp3",
-                 is_join_sound: true
-               })
-               |> Uploads.create()
+                user
+                |> request(%{
+                  source_type: "url",
+                  name: second_name,
+                  url: "https://example.com/second.mp3",
+                  tags: ["join"],
+                  is_join_sound: true
+                })
+                |> Uploads.create()
 
       first_setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: first_sound.id)
       second_setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: second_sound.id)
@@ -194,12 +215,13 @@ defmodule Soundboard.Sounds.UploadsTest do
 
     test "returns error when local file is missing", %{user: user} do
       assert {:error, changeset} =
-               user
-               |> request(%{
-                 source_type: "local",
-                 name: "missing_file"
-               })
-               |> Uploads.create()
+                user
+                |> request(%{
+                  source_type: "local",
+                  name: "missing_file",
+                  tags: ["missing-file"]
+                })
+                |> Uploads.create()
 
       assert "Please select a file" in errors_on(changeset).file
     end
@@ -219,13 +241,14 @@ defmodule Soundboard.Sounds.UploadsTest do
       on_exit(fn -> File.rm(tmp_path) end)
 
       assert {:error, changeset} =
-               user
-               |> request(%{
-                 source_type: "local",
-                 name: "duplicate_name",
-                 upload: %{path: tmp_path, filename: "dup.mp3"}
-               })
-               |> Uploads.create()
+                user
+                |> request(%{
+                  source_type: "local",
+                  name: "duplicate_name",
+                  tags: ["duplicate"],
+                  upload: %{path: tmp_path, filename: "dup.mp3"}
+                })
+                |> Uploads.create()
 
       assert "has already been taken" in errors_on(changeset).filename
     end
