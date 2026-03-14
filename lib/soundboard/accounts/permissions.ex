@@ -78,20 +78,6 @@ defmodule Soundboard.Accounts.Permissions do
     |> normalize_role_ids()
   end
 
-  defp user_role_ids(%User{discord_roles: roles}), do: normalize_role_ids(roles)
-  defp user_role_ids(%{discord_roles: roles}) when is_list(roles), do: normalize_role_ids(roles)
-  defp user_role_ids(_), do: []
-
-  defp normalize_role_ids(role_ids) when is_list(role_ids) do
-    role_ids
-    |> Enum.map(&to_string/1)
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.uniq()
-  end
-
-  defp normalize_role_ids(_), do: []
-
   def configured_role_ids(:manage_settings) do
     :soundboard
     |> Application.get_env(:discord_settings_admin_role_id)
@@ -111,6 +97,20 @@ defmodule Soundboard.Accounts.Permissions do
         []
     end
   end
+
+  defp user_role_ids(%User{discord_roles: roles}), do: normalize_role_ids(roles)
+  defp user_role_ids(%{discord_roles: roles}) when is_list(roles), do: normalize_role_ids(roles)
+  defp user_role_ids(_), do: []
+
+  defp normalize_role_ids(role_ids) when is_list(role_ids) do
+    role_ids
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp normalize_role_ids(_), do: []
 
   defp decision(permission, allowed?, reason, user_roles, required_roles) do
     %{

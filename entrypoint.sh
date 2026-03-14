@@ -2,9 +2,7 @@
 set -e
 # Run migrations
 echo "Running database migrations..."
-if ! mix ecto.migrate; then
-  echo "WARNING: Database migrations failed; continuing startup anyway."
-fi
+mix ecto.migrate
 
 # Start Phoenix server in foreground
 # Using exec ensures proper signal handling and process management
