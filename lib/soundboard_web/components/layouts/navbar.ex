@@ -236,7 +236,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
 
   defp navbar_row_classes(users) do
     if multi_row_user_pills?(users) do
-      "flex justify-between min-h-24 py-2"
+      "flex justify-between h-16 sm:min-h-24 sm:py-2"
     else
       "flex justify-between h-16"
     end

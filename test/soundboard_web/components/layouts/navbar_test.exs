@@ -131,7 +131,7 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
         presences: presences
       )
 
-    assert html =~ "flex justify-between min-h-24 py-2"
+    assert html =~ "flex justify-between h-16 sm:min-h-24 sm:py-2"
     assert html =~ "text-sm text-gray-600 dark:text-gray-400 grid grid-flow-col grid-rows-2"
   end
 end
