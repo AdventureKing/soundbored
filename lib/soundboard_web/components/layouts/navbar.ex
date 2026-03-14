@@ -26,7 +26,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           <div class="flex">
             <div class="flex-shrink-0 flex items-center">
               <span class="text-xl font-bold text-gray-800 dark:text-white">
-                <.link navigate="/">BeeBot 🐝</.link>
+                <.link navigate="/">BeeBot &#x1F41D;</.link>
               </span>
             </div>
 
@@ -57,7 +57,15 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
             </div>
           </div>
 
-          <div class="hidden sm:ml-6 sm:flex sm:items-center">
+          <div class="hidden sm:ml-6 sm:flex sm:items-center sm:gap-3">
+            <%= if @current_user do %>
+              <.link
+                href={~p"/auth/discord"}
+                class="inline-flex items-center rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+              >
+                Re-auth
+              </.link>
+            <% end %>
             <div class={desktop_user_pills_classes(users)}>
               <%= users
                   |> Enum.map(fn user -> %>
@@ -155,6 +163,14 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
             >
               Settings
             </.mobile_nav_link>
+          <% end %>
+          <%= if @current_user do %>
+            <.link
+              href={~p"/auth/discord"}
+              class="block pl-4 pr-4 py-3 border-l-4 border-transparent text-base font-medium leading-relaxed tracking-wide text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Re-auth
+            </.link>
           <% end %>
         </div>
 

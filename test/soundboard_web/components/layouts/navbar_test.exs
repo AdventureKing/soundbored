@@ -29,6 +29,7 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
     assert html =~ "Sounds"
     assert html =~ "Favorites"
     assert html =~ "Stats"
+    refute html =~ "Re-auth"
     refute html =~ "Permissions"
     refute html =~ "Settings"
   end
@@ -55,6 +56,8 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
 
     assert html =~ "Permissions"
     assert html =~ "Settings"
+    assert html =~ "Re-auth"
+    assert html =~ "/auth/discord"
     assert html =~ "user-alice"
     assert html =~ "user-bob"
 
@@ -89,6 +92,7 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
       )
 
     assert html =~ "Permissions"
+    assert html =~ "Re-auth"
     refute html =~ "Settings"
   end
 
