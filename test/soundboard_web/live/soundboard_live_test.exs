@@ -199,9 +199,17 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert_in_delta updated_sound.volume, 0.8, 0.0001
     end
 
-    test "shared sounds can be edited by any signed-in user but only deleted by the uploader", %{
-      conn: conn
+    test "shared sounds can be edited by any signed-in user and deleted by settings admins", %{
+      conn: conn,
+      user: user
     } do
+      original_admin_user_ids = Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
+
+      on_exit(fn ->
+        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+      end)
+
       {:ok, other_user} =
         %User{}
         |> User.changeset(%{
@@ -230,7 +238,17 @@ defmodule SoundboardWeb.SoundboardLiveTest do
         |> render_click()
 
       assert rendered =~ "Edit Sound"
-      refute rendered =~ "Delete Sound"
+      assert rendered =~ "Delete Sound"
+
+      view
+      |> element("[phx-click='show_delete_confirm']")
+      |> render_click()
+
+      view
+      |> element("[phx-click='delete_sound']")
+      |> render_click()
+
+      assert Repo.get(Sound, other_sound.id) == nil
     end
 
     test "edit validation preserves the current sound extension when checking duplicates", %{

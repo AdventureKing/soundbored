@@ -128,7 +128,7 @@ defmodule SoundboardWeb.Live.SoundboardLive.EditFlow do
   def delete_sound(socket) do
     edit = state(socket)
 
-    case Sounds.delete_sound(edit.current_sound, edit.current_user_id) do
+    case Sounds.delete_sound(edit.current_sound, socket.assigns[:current_user]) do
       :ok ->
         {:noreply,
          socket
@@ -139,8 +139,11 @@ defmodule SoundboardWeb.Live.SoundboardLive.EditFlow do
       {:error, :forbidden} ->
         {:noreply,
          socket
-         |> update_state(&%{&1 | show_delete_confirm: false})
-         |> Phoenix.LiveView.put_flash(:error, "You can only delete your own sounds")}
+          |> update_state(&%{&1 | show_delete_confirm: false})
+          |> Phoenix.LiveView.put_flash(
+            :error,
+            "You can only delete your own sounds unless you are a settings admin"
+          )}
 
       {:error, _changeset} ->
         {:noreply,

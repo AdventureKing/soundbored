@@ -2,12 +2,13 @@ defmodule Soundboard.Sounds.Management do
   @moduledoc """
   Domain-level sound update/delete operations used by LiveViews.
 
-  Sound metadata edits are collaborative for signed-in users, while deletion
-  remains restricted to the original uploader. Per-user join/leave preferences
-  are stored separately so editors keep their own settings without taking over
-  sound ownership.
+  Sound metadata edits are collaborative for signed-in users. Deletion is
+  allowed for the original uploader and settings admins. Per-user join/leave
+  preferences are stored separately so editors keep their own settings without
+  taking over sound ownership.
   """
 
+  alias Soundboard.Accounts.Permissions
   alias Soundboard.{AudioPlayer, Repo, Sound, UploadsPath, Volume}
   require Logger
 
@@ -50,10 +51,10 @@ defmodule Soundboard.Sounds.Management do
     end)
   end
 
-  def delete_sound(%Sound{} = sound, user_id) do
+  def delete_sound(%Sound{} = sound, actor) do
     db_sound = Repo.get!(Sound, sound.id)
 
-    with true <- db_sound.user_id == user_id,
+    with true <- can_delete_sound?(db_sound, actor),
          {:ok, _deleted_sound} <- Repo.delete(db_sound) do
       AudioPlayer.invalidate_cache(db_sound.filename)
       maybe_remove_local_file(db_sound)
@@ -70,6 +71,22 @@ defmodule Soundboard.Sounds.Management do
   end
 
   defp maybe_remove_local_file(_), do: :ok
+
+  defp can_delete_sound?(%Sound{user_id: owner_id}, %{id: actor_id} = actor)
+       when is_integer(actor_id) do
+    actor_id == owner_id or Permissions.can_manage_settings?(actor)
+  end
+
+  defp can_delete_sound?(%Sound{user_id: owner_id}, actor_id) when is_integer(actor_id) do
+    if actor_id == owner_id do
+      true
+    else
+      Repo.get(Soundboard.Accounts.User, actor_id)
+      |> Permissions.can_manage_settings?()
+    end
+  end
+
+  defp can_delete_sound?(_, _), do: false
 
   defp maybe_rename_local_file(%{source_type: "local"} = sound, old_path, new_path) do
     cond do

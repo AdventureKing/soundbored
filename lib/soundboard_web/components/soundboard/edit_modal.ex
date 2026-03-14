@@ -3,6 +3,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
   The edit modal component.
   """
   use Phoenix.Component
+  alias Soundboard.Accounts.Permissions
   alias Soundboard.Volume
   alias SoundboardWeb.Components.Soundboard.{TagComponents, VolumeControl}
 
@@ -213,7 +214,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                   >
                     Save Changes
                   </button>
-                  <%= if @current_sound.user_id == @current_user.id do %>
+                  <%= if can_delete_sound?(@current_sound, @current_user) do %>
                     <button
                       type="button"
                       phx-click="show_delete_confirm"
@@ -231,4 +232,11 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
     </div>
     """
   end
+
+  defp can_delete_sound?(%{user_id: owner_id}, %{id: user_id} = current_user)
+       when is_integer(owner_id) and is_integer(user_id) do
+    owner_id == user_id or Permissions.can_manage_settings?(current_user)
+  end
+
+  defp can_delete_sound?(_sound, _current_user), do: false
 end

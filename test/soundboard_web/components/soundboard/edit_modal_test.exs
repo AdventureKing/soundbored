@@ -5,6 +5,16 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
 
   alias SoundboardWeb.Components.Soundboard.EditModal
 
+  setup do
+    original_admin_user_ids = Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+    on_exit(fn ->
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+    end)
+
+    :ok
+  end
+
   test "renders edit form with local file metadata" do
     html = render_component(&EditModal.edit_modal/1, edit_assigns())
 
@@ -42,6 +52,20 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
       )
 
     refute html =~ "Delete Sound"
+  end
+
+  test "shows delete for settings admins even when they are not the owner" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-user-id"])
+
+    html =
+      render_component(
+        &EditModal.edit_modal/1,
+        edit_assigns(%{
+          current_user: %{id: 2, discord_id: "admin-user-id"}
+        })
+      )
+
+    assert html =~ "Delete Sound"
   end
 
   defp edit_assigns(overrides \\ %{}) do
