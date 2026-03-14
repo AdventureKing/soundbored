@@ -23,10 +23,7 @@ defmodule Soundboard.AudioPlayerTest do
       %State{
         voice_channel: {"guild-1", "channel-1"},
         current_playback: nil,
-        pending_request: nil,
-        interrupting: false,
-        interrupt_watchdog_ref: nil,
-        interrupt_watchdog_attempt: 0
+        pending_requests: []
       }
     end)
 

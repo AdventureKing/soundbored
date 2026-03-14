@@ -93,7 +93,7 @@ defmodule SoundboardWeb.PermissionsLive do
         </div>
       </section>
 
-      <section class="space-y-3">
+      <section :if={@settings_permission.allowed?} class="space-y-3">
         <header class="space-y-1">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Settings Access</h2>
           <p class="text-sm text-gray-600 dark:text-gray-400">

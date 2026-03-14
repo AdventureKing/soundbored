@@ -39,13 +39,13 @@ defmodule SoundboardWeb.PermissionsLiveTest do
     %{conn: authed_conn, user: user}
   end
 
-  test "shows play, upload, and settings permission sections", %{conn: conn} do
+  test "shows play and upload permission sections", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/permissions")
 
     assert html =~ "Permissions"
     assert html =~ "Clip Playback"
     assert html =~ "Clip Upload"
-    assert html =~ "Settings Access"
+    refute html =~ "Settings Access"
   end
 
   test "allows opening permissions page for non-admin users", %{conn: conn} do
@@ -57,6 +57,28 @@ defmodule SoundboardWeb.PermissionsLiveTest do
     assert html =~ "Clip Upload"
     assert html =~ "Allowed uploader role IDs:"
     assert html =~ "Allowed"
+    refute html =~ "Settings Access"
+  end
+
+  test "shows settings access section for configured settings admins", %{conn: conn} do
+    {:ok, admin_user} =
+      %User{}
+      |> User.changeset(%{
+        username: "permissions_admin_#{System.unique_integer([:positive])}",
+        discord_id: "settings-admin-user",
+        avatar: "admin.jpg",
+        discord_roles: ["member"]
+      })
+      |> Repo.insert()
+
+    admin_conn =
+      conn
+      |> Map.replace!(:secret_key_base, SoundboardWeb.Endpoint.config(:secret_key_base))
+      |> init_test_session(%{user_id: admin_user.id})
+
+    {:ok, _view, html} = live(admin_conn, "/permissions")
+
     assert html =~ "Settings Access"
+    assert html =~ "Allowed settings admin user IDs:"
   end
 end
