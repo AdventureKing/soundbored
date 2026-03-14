@@ -39,6 +39,8 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert html =~ "Soundboard"
       # Check for the main content instead of a specific container
       assert html =~ "SoundBored"
+      assert html =~ "Cooldown"
+      assert html =~ "playback-cooldown-timer"
     end
 
     test "can search sounds", %{conn: conn} do

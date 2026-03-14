@@ -54,6 +54,35 @@ defmodule Soundboard.PlaybackCooldownTest do
     assert details.remaining_seconds <= 600
   end
 
+  test "returns active cooldown end timestamp in milliseconds when cooldown is active" do
+    user = insert_user(%{discord_roles: ["role-a"]})
+    sound = insert_sound(user)
+
+    Repo.insert!(
+      RoleCooldown.changeset(%RoleCooldown{}, %{role_id: "role-a", cooldown_seconds: 30})
+    )
+
+    insert_play(user, sound)
+
+    assert is_integer(cooldown_end_ms = PlaybackCooldown.active_cooldown_end_unix_ms(user))
+    assert cooldown_end_ms > System.system_time(:millisecond)
+  end
+
+  test "returns nil cooldown end timestamp when cooldown has expired" do
+    user = insert_user(%{discord_roles: ["role-a"]})
+    sound = insert_sound(user)
+
+    Repo.insert!(
+      RoleCooldown.changeset(%RoleCooldown{}, %{role_id: "role-a", cooldown_seconds: 15})
+    )
+
+    play = insert_play(user, sound)
+    old_timestamp = NaiveDateTime.add(NaiveDateTime.utc_now(), -20, :second)
+    Repo.update_all(from(p in Play, where: p.id == ^play.id), set: [inserted_at: old_timestamp])
+
+    assert is_nil(PlaybackCooldown.active_cooldown_end_unix_ms(user))
+  end
+
   defp insert_user(attrs) do
     base_attrs = %{
       username: "cooldown_user_#{System.unique_integer([:positive])}",

@@ -6,7 +6,7 @@ defmodule SoundboardWeb.SoundboardLive do
   import DeleteModal
   import UploadModal
   import SoundboardWeb.Components.Soundboard.TagComponents, only: [tag_filter_button: 1]
-  alias Soundboard.{Favorites, PubSubTopics, Sounds}
+  alias Soundboard.{Favorites, PlaybackCooldown, PubSubTopics, Sounds}
   alias Soundboard.Accounts.Permissions
   alias SoundboardWeb.Live.SoundboardLive.{EditFlow, UploadFlow}
   alias SoundboardWeb.Live.Support.{FlashHelpers, SoundPlayback}
@@ -37,6 +37,7 @@ defmodule SoundboardWeb.SoundboardLive do
       |> assign(:can_upload_clips, Permissions.can_upload_clips?(current_user))
       |> assign_initial_state()
       |> assign_favorites(current_user)
+      |> refresh_cooldown_timer()
 
     if socket.assigns.flash do
       Process.send_after(self(), :clear_flash, 3000)
@@ -49,6 +50,7 @@ defmodule SoundboardWeb.SoundboardLive do
     socket
     |> assign(:uploaded_files, [])
     |> assign(:loading_sounds, true)
+    |> assign(:cooldown_end_ms, nil)
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
@@ -327,7 +329,10 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_info({:sound_played, %{filename: _, played_by: _} = event}, socket) do
-    {:noreply, FlashHelpers.flash_sound_played(socket, event)}
+    {:noreply,
+     socket
+     |> FlashHelpers.flash_sound_played(event)
+     |> maybe_refresh_cooldown_timer(event.played_by)}
   end
 
   @impl true
@@ -372,6 +377,23 @@ defmodule SoundboardWeb.SoundboardLive do
   defp can_upload_clips?(socket) do
     Permissions.can_upload_clips?(socket.assigns[:current_user])
   end
+
+  defp refresh_cooldown_timer(socket) do
+    assign(
+      socket,
+      :cooldown_end_ms,
+      PlaybackCooldown.active_cooldown_end_unix_ms(socket.assigns[:current_user])
+    )
+  end
+
+  defp maybe_refresh_cooldown_timer(socket, played_by) when is_binary(played_by) do
+    case socket.assigns[:current_user] do
+      %{username: ^played_by} -> refresh_cooldown_timer(socket)
+      _ -> socket
+    end
+  end
+
+  defp maybe_refresh_cooldown_timer(socket, _played_by), do: socket
 
   defp upload_forbidden_flash(socket) do
     Phoenix.LiveView.put_flash(

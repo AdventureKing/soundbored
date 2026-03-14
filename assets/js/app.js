@@ -29,6 +29,15 @@ const roundTo = (value, decimals = 4) => {
   const factor = Math.pow(10, decimals)
   return Math.round(value * factor) / factor
 }
+const padNumber = (value, width = 2) => String(value).padStart(width, "0")
+
+const formatCooldownDuration = (remainingMs) => {
+  const total = Math.max(0, Math.ceil(remainingMs))
+  const minutes = Math.floor(total / 60000)
+  const seconds = Math.floor((total % 60000) / 1000)
+  const milliseconds = total % 1000
+  return `${padNumber(minutes)}:${padNumber(seconds)}.${padNumber(milliseconds, 3)}`
+}
 
 const MAX_VOLUME_PERCENT_DEFAULT = 150
 const BOOST_CAP = 1.5
@@ -256,6 +265,58 @@ Hooks.LocalPlayer = {
       playIcon.classList.remove("hidden")
       stopIcon.classList.add("hidden")
     }
+  }
+}
+
+Hooks.CooldownTimer = {
+  mounted() {
+    this.valueEl = this.el.querySelector("[data-role='cooldown-value']") || this.el
+    this.endMs = null
+    this.frame = null
+    this.tick = this.tick.bind(this)
+    this.syncFromDataset()
+  },
+  updated() {
+    this.syncFromDataset()
+  },
+  destroyed() {
+    this.stopTicking()
+  },
+  parseEndMs() {
+    const raw = this.el.dataset.cooldownEndMs
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  },
+  syncFromDataset() {
+    this.endMs = this.parseEndMs()
+    this.stopTicking()
+    this.tick()
+  },
+  stopTicking() {
+    if (this.frame) {
+      cancelAnimationFrame(this.frame)
+      this.frame = null
+    }
+  },
+  tick() {
+    if (!this.valueEl) {
+      return
+    }
+
+    if (!this.endMs) {
+      this.valueEl.textContent = "Ready"
+      return
+    }
+
+    const remaining = this.endMs - Date.now()
+
+    if (remaining <= 0) {
+      this.valueEl.textContent = "Ready"
+      return
+    }
+
+    this.valueEl.textContent = formatCooldownDuration(remaining)
+    this.frame = requestAnimationFrame(this.tick)
   }
 }
 
