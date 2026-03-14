@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+
 # Run migrations
 echo "Running database migrations..."
 mix ecto.migrate
