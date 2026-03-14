@@ -41,6 +41,34 @@ const formatCooldownDuration = (remainingMs) => {
 
 const MAX_VOLUME_PERCENT_DEFAULT = 150
 const BOOST_CAP = 1.5
+const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
+const BUZZ_MODE_CLASS = "buzz-mode"
+
+const applyBuzzMode = (enabled) => {
+  document.documentElement.classList.toggle(BUZZ_MODE_CLASS, enabled)
+  if (document.body) {
+    document.body.classList.toggle(BUZZ_MODE_CLASS, enabled)
+  }
+
+  document.querySelectorAll("[data-buzz-toggle]").forEach((button) => {
+    button.setAttribute("aria-pressed", enabled ? "true" : "false")
+    button.textContent = enabled ? "Buzz Mode: On" : "Buzz Mode: Off"
+  })
+}
+
+const readBuzzModePreference = () => {
+  try {
+    return window.localStorage.getItem(BUZZ_MODE_STORAGE_KEY) === "on"
+  } catch (_err) {
+    return false
+  }
+}
+
+const saveBuzzModePreference = (enabled) => {
+  try {
+    window.localStorage.setItem(BUZZ_MODE_STORAGE_KEY, enabled ? "on" : "off")
+  } catch (_err) {}
+}
 
 const getAudioContextCtor = () => window.AudioContext || window.webkitAudioContext || null
 
@@ -709,6 +737,29 @@ Hooks.CopyButton = {
         }, 1500)
       }
     }
+    this.el.addEventListener("click", this.handleClick)
+  },
+  destroyed() {
+    this.el.removeEventListener("click", this.handleClick)
+  }
+}
+
+Hooks.BuzzModeToggle = {
+  mounted() {
+    if (!window.__buzzModeInitialized) {
+      applyBuzzMode(readBuzzModePreference())
+      window.__buzzModeInitialized = true
+    } else {
+      applyBuzzMode(readBuzzModePreference())
+    }
+
+    this.handleClick = (event) => {
+      event.preventDefault()
+      const nextEnabled = !readBuzzModePreference()
+      saveBuzzModePreference(nextEnabled)
+      applyBuzzMode(nextEnabled)
+    }
+
     this.el.addEventListener("click", this.handleClick)
   },
   destroyed() {
