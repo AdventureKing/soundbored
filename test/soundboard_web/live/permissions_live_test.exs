@@ -7,16 +7,18 @@ defmodule SoundboardWeb.PermissionsLiveTest do
   setup %{conn: conn} do
     original_upload_roles = Application.get_env(:soundboard, :discord_upload_role_ids, [])
     original_play_roles = Application.get_env(:soundboard, :discord_play_role_ids, [])
-    original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
+
+    original_admin_user_ids =
+      Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
 
     Application.put_env(:soundboard, :discord_upload_role_ids, ["uploader-role"])
     Application.put_env(:soundboard, :discord_play_role_ids, ["player-role"])
-    Application.put_env(:soundboard, :discord_settings_admin_role_id, "settings-admin")
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["settings-admin-user"])
 
     on_exit(fn ->
       Application.put_env(:soundboard, :discord_upload_role_ids, original_upload_roles)
       Application.put_env(:soundboard, :discord_play_role_ids, original_play_roles)
-      Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
     end)
 
     {:ok, user} =

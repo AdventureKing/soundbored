@@ -12,7 +12,7 @@ config :soundboard,
   discord_role_guild_id: nil,
   discord_upload_role_ids: [],
   discord_play_role_ids: [],
-  discord_settings_admin_role_id: nil,
+  discord_settings_admin_user_ids: [],
   default_playback_cooldown_seconds: 600
 
 # config :soundboard,

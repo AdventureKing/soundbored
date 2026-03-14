@@ -15,7 +15,10 @@ defmodule SoundboardWeb.PermissionsLive do
      |> assign(:current_user, current_user)
      |> assign(:play_permission, Permissions.permission_decision(current_user, :play_clips))
      |> assign(:upload_permission, Permissions.permission_decision(current_user, :upload_clips))
-     |> assign(:settings_permission, Permissions.permission_decision(current_user, :manage_settings))}
+     |> assign(
+       :settings_permission,
+       Permissions.permission_decision(current_user, :manage_settings)
+     )}
   end
 
   @impl true
@@ -47,11 +50,11 @@ defmodule SoundboardWeb.PermissionsLive do
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
               <span class="font-semibold">Your role IDs:</span>
-              {format_role_ids(@play_permission.user_roles)}
+              {format_ids(@play_permission.user_ids)}
             </div>
             <div>
               <span class="font-semibold">Allowed player role IDs:</span>
-              {format_role_ids(@play_permission.required_roles)}
+              {format_ids(@play_permission.required_ids)}
             </div>
           </div>
         </div>
@@ -80,11 +83,11 @@ defmodule SoundboardWeb.PermissionsLive do
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
               <span class="font-semibold">Your role IDs:</span>
-              {format_role_ids(@upload_permission.user_roles)}
+              {format_ids(@upload_permission.user_ids)}
             </div>
             <div>
               <span class="font-semibold">Allowed uploader role IDs:</span>
-              {format_role_ids(@upload_permission.required_roles)}
+              {format_ids(@upload_permission.required_ids)}
             </div>
           </div>
         </div>
@@ -94,7 +97,7 @@ defmodule SoundboardWeb.PermissionsLive do
         <header class="space-y-1">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Settings Access</h2>
           <p class="text-sm text-gray-600 dark:text-gray-400">
-            Only users with the admin settings role can open Settings.
+            Only users with an allowed Discord user ID can open Settings.
           </p>
         </header>
 
@@ -112,12 +115,12 @@ defmodule SoundboardWeb.PermissionsLive do
 
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
-              <span class="font-semibold">Your role IDs:</span>
-              {format_role_ids(@settings_permission.user_roles)}
+              <span class="font-semibold">Your Discord user ID:</span>
+              {format_ids(@settings_permission.user_ids)}
             </div>
             <div>
-              <span class="font-semibold">Required settings admin role ID:</span>
-              {format_role_ids(@settings_permission.required_roles)}
+              <span class="font-semibold">Allowed settings admin user IDs:</span>
+              {format_ids(@settings_permission.required_ids)}
             </div>
           </div>
         </div>
@@ -159,15 +162,15 @@ defmodule SoundboardWeb.PermissionsLive do
   end
 
   defp settings_permission_message(%{reason: :role_match}) do
-    "You have the configured admin role for settings access."
+    "Your Discord user ID is in the configured settings admin user ID list."
   end
 
-  defp settings_permission_message(%{reason: :missing_required_role, required_roles: []}) do
-    "No settings admin role is configured."
+  defp settings_permission_message(%{reason: :missing_required_role, required_ids: []}) do
+    "No settings admin user IDs are configured."
   end
 
   defp settings_permission_message(%{reason: :missing_required_role}) do
-    "You do not have the configured admin role for settings access."
+    "Your Discord user ID is not in the configured settings admin user ID list."
   end
 
   defp settings_permission_message(%{reason: :no_user}) do
@@ -177,6 +180,6 @@ defmodule SoundboardWeb.PermissionsLive do
   defp status_class(true), do: "text-green-700 dark:text-green-400 font-semibold"
   defp status_class(false), do: "text-red-700 dark:text-red-400 font-semibold"
 
-  defp format_role_ids([]), do: "none"
-  defp format_role_ids(role_ids), do: Enum.join(role_ids, ", ")
+  defp format_ids([]), do: "none"
+  defp format_ids(ids), do: Enum.join(ids, ", ")
 end
