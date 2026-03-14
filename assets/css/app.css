@@ -85,6 +85,19 @@ body.buzz-mode {
   background-color: #101010 !important;
 }
 
+.buzz-mode .shadow,
+.buzz-mode .shadow-sm,
+.buzz-mode .shadow-md,
+.buzz-mode .rounded-lg.bg-white,
+.buzz-mode .rounded-lg.bg-gray-800,
+.buzz-mode .rounded-xl.bg-white,
+.buzz-mode .rounded-xl.bg-gray-800 {
+  border: 1px solid rgba(248, 216, 74, 0.75) !important;
+  box-shadow:
+    0 0 0 1px rgba(248, 216, 74, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.55) !important;
+}
+
 .buzz-mode .border-gray-200,
 .buzz-mode .border-gray-300,
 .buzz-mode .border-gray-600,
