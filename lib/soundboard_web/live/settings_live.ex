@@ -1,8 +1,8 @@
 defmodule SoundboardWeb.SettingsLive do
   use SoundboardWeb, :live_view
   use SoundboardWeb.Live.Support.PresenceLive
-  alias Soundboard.Accounts.Permissions
-  alias Soundboard.Accounts.ApiTokens
+  alias Soundboard.Accounts.{ApiTokens, Permissions, RoleCooldowns}
+  alias Soundboard.Discord.GuildCache
   alias Soundboard.PublicURL
 
   @impl true
@@ -17,9 +17,11 @@ defmodule SoundboardWeb.SettingsLive do
         |> assign(:current_user, current_user)
         |> assign(:tokens, [])
         |> assign(:new_token, nil)
+        |> assign(:role_cooldown_rows, [])
+        |> assign(:role_cooldown_role_ids, [])
         |> assign(:base_url, PublicURL.current())
 
-      {:ok, load_tokens(socket)}
+      {:ok, socket |> load_role_cooldown_rows() |> load_tokens()}
     else
       {:ok,
        socket
@@ -61,6 +63,26 @@ defmodule SoundboardWeb.SettingsLive do
     end
   end
 
+  @impl true
+  def handle_event("save_role_cooldowns", %{"cooldowns" => cooldown_inputs}, socket) do
+    case RoleCooldowns.replace_for_roles(
+           socket.assigns[:role_cooldown_role_ids] || [],
+           cooldown_inputs
+         ) do
+      :ok ->
+        {:noreply,
+         socket |> load_role_cooldown_rows() |> put_flash(:info, "Role cooldowns saved")}
+
+      {:error, {:invalid_cooldown, message}} ->
+        {:noreply, put_flash(socket, :error, message)}
+    end
+  end
+
+  @impl true
+  def handle_event("save_role_cooldowns", _params, socket) do
+    {:noreply, put_flash(socket, :error, "Invalid cooldown submission")}
+  end
+
   defp load_tokens(%{assigns: %{current_user: nil}} = socket), do: socket
 
   defp load_tokens(%{assigns: %{current_user: user}} = socket) do
@@ -78,11 +100,185 @@ defmodule SoundboardWeb.SettingsLive do
     |> assign(:example_token, example)
   end
 
+  defp load_role_cooldown_rows(socket) do
+    cooldowns = RoleCooldowns.cooldown_by_role_id()
+
+    cached_rows =
+      safe_cached_guilds()
+      |> filter_to_target_guild()
+      |> Enum.flat_map(fn guild ->
+        List.wrap(guild[:roles])
+        |> Enum.map(fn role ->
+          role_id = role[:id]
+
+          %{
+            guild_name: guild[:name] || "Unknown guild",
+            role_id: role_id,
+            role_name: role[:name] || "Unknown role",
+            cooldown_seconds: Map.get(cooldowns, role_id),
+            sort_position: role[:position] || 0
+          }
+        end)
+      end)
+      |> Enum.filter(&(is_binary(&1.role_id) and &1.role_id != ""))
+      |> Enum.sort_by(fn row ->
+        {String.downcase(row.guild_name), -row.sort_position, String.downcase(row.role_name)}
+      end)
+      |> Enum.uniq_by(& &1.role_id)
+
+    cached_role_ids = MapSet.new(Enum.map(cached_rows, & &1.role_id))
+
+    uncached_rows =
+      cooldowns
+      |> Map.keys()
+      |> Enum.reject(&MapSet.member?(cached_role_ids, &1))
+      |> Enum.sort()
+      |> Enum.map(fn role_id ->
+        %{
+          guild_name: "Not in cache",
+          role_id: role_id,
+          role_name: "(unknown role)",
+          cooldown_seconds: Map.get(cooldowns, role_id),
+          sort_position: -1
+        }
+      end)
+
+    rows = cached_rows ++ uncached_rows
+    role_ids = Enum.map(rows, & &1.role_id)
+
+    socket
+    |> assign(:role_cooldown_rows, rows)
+    |> assign(:role_cooldown_role_ids, role_ids)
+  end
+
+  defp safe_cached_guilds do
+    GuildCache.all()
+  rescue
+    _ -> []
+  end
+
+  defp filter_to_target_guild(guilds) do
+    case configured_role_guild_id() do
+      nil ->
+        guilds
+
+      guild_id ->
+        matched = Enum.filter(guilds, &(to_string(&1.id) == guild_id))
+        if matched == [], do: guilds, else: matched
+    end
+  end
+
+  defp configured_role_guild_id do
+    :soundboard
+    |> Application.get_env(:discord_role_guild_id)
+    |> normalize_optional_discord_id()
+    |> case do
+      nil ->
+        :soundboard
+        |> Application.get_env(:required_discord_guild_id)
+        |> normalize_optional_discord_id()
+
+      guild_id ->
+        guild_id
+    end
+  end
+
+  defp normalize_optional_discord_id(nil), do: nil
+
+  defp normalize_optional_discord_id(value) when is_binary(value),
+    do: value |> String.trim() |> empty_to_nil()
+
+  defp normalize_optional_discord_id(value) when is_integer(value), do: Integer.to_string(value)
+  defp normalize_optional_discord_id(_), do: nil
+
+  defp empty_to_nil(""), do: nil
+  defp empty_to_nil(value), do: value
+
   @impl true
   def render(assigns) do
     ~H"""
     <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Settings</h1>
+
+      <section aria-labelledby="role-cooldowns-heading" class="space-y-3">
+        <header class="space-y-1">
+          <h2 id="role-cooldowns-heading" class="text-xl font-semibold text-gray-800 dark:text-gray-100">
+            Role Cooldowns
+          </h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Set playback cooldowns per Discord role. Users with multiple roles get the lowest cooldown.
+            Default cooldown is 10 minutes.
+          </p>
+        </header>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
+          <%= if @role_cooldown_rows == [] do %>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              No guild roles are available in cache yet. Keep the bot connected to Discord, then refresh.
+            </p>
+          <% else %>
+            <form phx-submit="save_role_cooldowns" class="space-y-4">
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                  <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Guild
+                      </th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role ID
+                      </th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cooldown (seconds)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <%= for row <- @role_cooldown_rows do %>
+                      <tr>
+                        <td class="px-4 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                          {row.guild_name}
+                        </td>
+                        <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                          {row.role_name}
+                        </td>
+                        <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono">
+                          {row.role_id}
+                        </td>
+                        <td class="px-4 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputmode="numeric"
+                            name={"cooldowns[#{row.role_id}]"}
+                            value={row.cooldown_seconds || ""}
+                            class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="text-xs text-gray-600 dark:text-gray-400">
+                Leave blank (or set to 0) to use the default cooldown (10 minutes) for that role.
+              </p>
+
+              <button
+                type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+              >
+                Save Cooldowns
+              </button>
+            </form>
+          <% end %>
+        </div>
+      </section>
 
       <section aria-labelledby="api-tokens-heading" class="space-y-6">
         <header class="space-y-2">

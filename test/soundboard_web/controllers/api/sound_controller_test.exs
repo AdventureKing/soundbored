@@ -6,8 +6,9 @@ defmodule SoundboardWeb.API.SoundControllerTest do
 
   import Mock
 
-  alias Soundboard.Accounts.{ApiTokens, User}
+  alias Soundboard.Accounts.{ApiTokens, RoleCooldown, User}
   alias Soundboard.{Repo, Sound, Tag, UserSoundSetting}
+  alias Soundboard.Stats.Play
 
   setup %{conn: conn} do
     user = insert_user()
@@ -361,6 +362,38 @@ defmodule SoundboardWeb.API.SoundControllerTest do
 
       assert %{"error" => "Your Discord role does not allow playing clips"} =
                json_response(conn, 403)
+    end
+
+    test "returns too many requests when user is still on cooldown", %{
+      conn: conn,
+      sound: sound,
+      user: user
+    } do
+      user
+      |> User.changeset(%{discord_roles: ["role-fast"]})
+      |> Repo.update!()
+
+      Repo.insert!(
+        RoleCooldown.changeset(%RoleCooldown{}, %{role_id: "role-fast", cooldown_seconds: 60})
+      )
+
+      Repo.insert!(
+        Play.changeset(%Play{}, %{
+          played_filename: sound.filename,
+          sound_id: sound.id,
+          user_id: user.id
+        })
+      )
+
+      with_mock Soundboard.AudioPlayer, play_sound: fn _filename, _actor -> :ok end do
+        conn = post(conn, ~p"/api/sounds/#{sound.id}/play")
+        response = json_response(conn, 429)
+
+        assert response["error"] =~ "You are on cooldown"
+        assert is_integer(response["retry_after_seconds"])
+        assert response["retry_after_seconds"] > 0
+        refute_called(Soundboard.AudioPlayer.play_sound(:_, :_))
+      end
     end
   end
 

@@ -1,7 +1,8 @@
 defmodule SoundboardWeb.SettingsLiveTest do
   use SoundboardWeb.ConnCase
   import Phoenix.LiveViewTest
-  alias Soundboard.Accounts.{ApiTokens, User}
+  import Mock
+  alias Soundboard.Accounts.{ApiTokens, RoleCooldown, User}
   alias Soundboard.Repo
 
   setup %{conn: conn} do
@@ -69,6 +70,41 @@ defmodule SoundboardWeb.SettingsLiveTest do
     assert html =~ "tags[]"
     assert html =~ "is_join_sound"
     assert html =~ "is_leave_sound"
+  end
+
+  test "lists guild roles and saves per-role cooldowns", %{conn: conn} do
+    guilds = [
+      %{
+        id: "guild-1",
+        name: "Guild One",
+        channels: %{},
+        voice_states: [],
+        roles: [
+          %{id: "role-fast", name: "Fast Role", position: 10},
+          %{id: "role-slow", name: "Slow Role", position: 5}
+        ]
+      }
+    ]
+
+    with_mock Soundboard.Discord.GuildCache, all: fn -> guilds end do
+      {:ok, view, html} = live(conn, "/settings")
+
+      assert html =~ "Role Cooldowns"
+      assert html =~ "Fast Role"
+      assert html =~ "Slow Role"
+
+      view
+      |> element("form[phx-submit=\"save_role_cooldowns\"]")
+      |> render_submit(%{
+        "cooldowns" => %{
+          "role-fast" => "5",
+          "role-slow" => "30"
+        }
+      })
+    end
+
+    assert Repo.get_by(RoleCooldown, role_id: "role-fast").cooldown_seconds == 5
+    assert Repo.get_by(RoleCooldown, role_id: "role-slow").cooldown_seconds == 30
   end
 
   test "redirects when user is missing configured settings admin role", %{conn: conn} do

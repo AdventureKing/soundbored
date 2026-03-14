@@ -5,13 +5,21 @@ defmodule SoundboardWeb.Live.Support.SoundPlayback do
 
   alias Soundboard.Accounts.Permissions
   alias Soundboard.Accounts.User
+  alias Soundboard.PlaybackCooldown
 
   def play(socket, sound_name) do
     case socket.assigns[:current_user] do
-      %User{username: username} ->
+      %User{id: user_id, username: username} = user ->
         if Permissions.can_play_clips?(socket.assigns[:current_user]) do
-          Soundboard.AudioPlayer.play_sound(sound_name, username)
-          {:noreply, socket}
+          case PlaybackCooldown.check(user) do
+            :ok ->
+              actor = %{display_name: username, user_id: user_id}
+              Soundboard.AudioPlayer.play_sound(sound_name, actor)
+              {:noreply, socket}
+
+            {:error, details} ->
+              {:noreply, put_flash(socket, :error, PlaybackCooldown.message(details))}
+          end
         else
           {:noreply, put_flash(socket, :error, "Your Discord role does not allow playing clips")}
         end

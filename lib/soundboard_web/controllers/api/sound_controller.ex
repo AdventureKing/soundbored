@@ -2,6 +2,7 @@ defmodule SoundboardWeb.API.SoundController do
   use SoundboardWeb, :controller
 
   alias Soundboard.Accounts.Permissions
+  alias Soundboard.PlaybackCooldown
   alias Soundboard.{Repo, Sound, Sounds}
 
   def index(conn, _params) do
@@ -51,20 +52,31 @@ defmodule SoundboardWeb.API.SoundController do
           {:ok, user} ->
             case require_play_permission(user) do
               :ok ->
-                actor = %{display_name: user.username, user_id: user.id}
+                case PlaybackCooldown.check(user) do
+                  :ok ->
+                    actor = %{display_name: user.username, user_id: user.id}
 
-                Soundboard.AudioPlayer.play_sound(sound.filename, actor)
+                    Soundboard.AudioPlayer.play_sound(sound.filename, actor)
 
-                conn
-                |> put_status(:accepted)
-                |> json(%{
-                  data: %{
-                    status: "accepted",
-                    message: "Playback request accepted for #{sound.filename}",
-                    requested_by: actor.display_name,
-                    sound: %{id: sound.id, filename: sound.filename}
-                  }
-                })
+                    conn
+                    |> put_status(:accepted)
+                    |> json(%{
+                      data: %{
+                        status: "accepted",
+                        message: "Playback request accepted for #{sound.filename}",
+                        requested_by: actor.display_name,
+                        sound: %{id: sound.id, filename: sound.filename}
+                      }
+                    })
+
+                  {:error, details} ->
+                    conn
+                    |> put_status(:too_many_requests)
+                    |> json(%{
+                      error: PlaybackCooldown.message(details),
+                      retry_after_seconds: details.remaining_seconds
+                    })
+                end
 
               {:error, :insufficient_role} ->
                 conn
