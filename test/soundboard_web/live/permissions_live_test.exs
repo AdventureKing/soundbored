@@ -1,6 +1,7 @@
 defmodule SoundboardWeb.PermissionsLiveTest do
   use SoundboardWeb.ConnCase
   import Phoenix.LiveViewTest
+  import Mock
   alias Soundboard.Accounts.User
   alias Soundboard.Repo
 
@@ -49,15 +50,35 @@ defmodule SoundboardWeb.PermissionsLiveTest do
   end
 
   test "allows opening permissions page for non-admin users", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/permissions")
+    guilds = [
+      %{
+        id: "guild-1",
+        name: "Guild One",
+        channels: %{},
+        voice_states: [],
+        roles: [
+          %{id: "member", name: "Member", position: 30},
+          %{id: "player-role", name: "Player", position: 20},
+          %{id: "uploader-role", name: "Uploader", position: 10}
+        ]
+      }
+    ]
 
-    assert html =~ "Clip Playback"
-    assert html =~ "Allowed player role IDs:"
-    assert html =~ "Not allowed"
-    assert html =~ "Clip Upload"
-    assert html =~ "Allowed uploader role IDs:"
-    assert html =~ "Allowed"
-    refute html =~ "Settings Access"
+    with_mock Soundboard.Discord.GuildCache, all: fn -> guilds end do
+      {:ok, _view, html} = live(conn, "/permissions")
+
+      assert html =~ "Clip Playback"
+      assert html =~ "Allowed player roles:"
+      assert html =~ "Player"
+      assert html =~ "Not allowed"
+      assert html =~ "Clip Upload"
+      assert html =~ "Allowed uploader roles:"
+      assert html =~ "Uploader"
+      assert html =~ "Allowed"
+      refute html =~ "Allowed player role IDs:"
+      refute html =~ "Allowed uploader role IDs:"
+      refute html =~ "Settings Access"
+    end
   end
 
   test "shows settings access section for configured settings admins", %{conn: conn} do

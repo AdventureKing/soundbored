@@ -3,6 +3,7 @@ defmodule SoundboardWeb.PermissionsLive do
   use SoundboardWeb.Live.Support.PresenceLive
 
   alias Soundboard.Accounts.Permissions
+  alias Soundboard.Discord.GuildCache
 
   @impl true
   def mount(_params, session, socket) do
@@ -13,6 +14,7 @@ defmodule SoundboardWeb.PermissionsLive do
      |> mount_presence(session)
      |> assign(:current_path, "/permissions")
      |> assign(:current_user, current_user)
+     |> assign(:role_name_map, role_name_map())
      |> assign(:play_permission, Permissions.permission_decision(current_user, :play_clips))
      |> assign(:upload_permission, Permissions.permission_decision(current_user, :upload_clips))
      |> assign(
@@ -31,7 +33,7 @@ defmodule SoundboardWeb.PermissionsLive do
         <header class="space-y-1">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Clip Playback</h2>
           <p class="text-sm text-gray-600 dark:text-gray-400">
-            Play access is decided from your Discord role IDs.
+            Play access is decided from your Discord roles.
           </p>
         </header>
 
@@ -49,12 +51,12 @@ defmodule SoundboardWeb.PermissionsLive do
 
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
-              <span class="font-semibold">Your role IDs:</span>
-              {format_ids(@play_permission.user_ids)}
+              <span class="font-semibold">Your roles:</span>
+              {format_role_names(@play_permission.user_ids, @role_name_map)}
             </div>
             <div>
-              <span class="font-semibold">Allowed player role IDs:</span>
-              {format_ids(@play_permission.required_ids)}
+              <span class="font-semibold">Allowed player roles:</span>
+              {format_role_names(@play_permission.required_ids, @role_name_map)}
             </div>
           </div>
         </div>
@@ -64,7 +66,7 @@ defmodule SoundboardWeb.PermissionsLive do
         <header class="space-y-1">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Clip Upload</h2>
           <p class="text-sm text-gray-600 dark:text-gray-400">
-            Upload access is decided from your Discord role IDs.
+            Upload access is decided from your Discord roles.
           </p>
         </header>
 
@@ -82,12 +84,12 @@ defmodule SoundboardWeb.PermissionsLive do
 
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
-              <span class="font-semibold">Your role IDs:</span>
-              {format_ids(@upload_permission.user_ids)}
+              <span class="font-semibold">Your roles:</span>
+              {format_role_names(@upload_permission.user_ids, @role_name_map)}
             </div>
             <div>
-              <span class="font-semibold">Allowed uploader role IDs:</span>
-              {format_ids(@upload_permission.required_ids)}
+              <span class="font-semibold">Allowed uploader roles:</span>
+              {format_role_names(@upload_permission.required_ids, @role_name_map)}
             </div>
           </div>
         </div>
@@ -134,11 +136,11 @@ defmodule SoundboardWeb.PermissionsLive do
   end
 
   defp permission_message(%{reason: :role_match}) do
-    "At least one of your Discord role IDs matches the configured uploader roles."
+    "At least one of your Discord roles matches the configured uploader roles."
   end
 
   defp permission_message(%{reason: :missing_required_role}) do
-    "None of your Discord role IDs match the configured uploader roles."
+    "None of your Discord roles match the configured uploader roles."
   end
 
   defp permission_message(%{reason: :no_user}) do
@@ -150,11 +152,11 @@ defmodule SoundboardWeb.PermissionsLive do
   end
 
   defp play_permission_message(%{reason: :role_match}) do
-    "At least one of your Discord role IDs matches the configured player roles."
+    "At least one of your Discord roles matches the configured player roles."
   end
 
   defp play_permission_message(%{reason: :missing_required_role}) do
-    "None of your Discord role IDs match the configured player roles."
+    "None of your Discord roles match the configured player roles."
   end
 
   defp play_permission_message(%{reason: :no_user}) do
@@ -180,6 +182,78 @@ defmodule SoundboardWeb.PermissionsLive do
   defp status_class(true), do: "text-green-700 dark:text-green-400 font-semibold"
   defp status_class(false), do: "text-red-700 dark:text-red-400 font-semibold"
 
+  defp format_role_names([], _role_name_map), do: "none"
+
+  defp format_role_names(role_ids, role_name_map) when is_map(role_name_map) do
+    role_ids
+    |> Enum.map(&Map.get(role_name_map, &1, "(unknown role)"))
+    |> Enum.join(", ")
+  end
+
+  defp format_role_names(role_ids, _role_name_map), do: Enum.join(role_ids, ", ")
+
   defp format_ids([]), do: "none"
   defp format_ids(ids), do: Enum.join(ids, ", ")
+
+  defp role_name_map do
+    safe_cached_guilds()
+    |> filter_to_target_guild()
+    |> Enum.flat_map(&List.wrap(&1[:roles]))
+    |> Enum.reduce(%{}, fn role, acc ->
+      role_id = role[:id]
+      role_name = role[:name]
+
+      if is_binary(role_id) and role_id != "" and is_binary(role_name) and role_name != "" do
+        Map.put(acc, role_id, role_name)
+      else
+        acc
+      end
+    end)
+  end
+
+  defp safe_cached_guilds do
+    GuildCache.all()
+  rescue
+    _ -> []
+  end
+
+  defp filter_to_target_guild(guilds) do
+    case configured_role_guild_id() do
+      nil ->
+        guilds
+
+      guild_id ->
+        matched = Enum.filter(guilds, &(to_string(&1.id) == guild_id))
+        if matched == [], do: guilds, else: matched
+    end
+  end
+
+  defp configured_role_guild_id do
+    :soundboard
+    |> Application.get_env(:discord_role_guild_id)
+    |> normalize_optional_discord_id()
+    |> case do
+      nil ->
+        :soundboard
+        |> Application.get_env(:required_discord_guild_id)
+        |> normalize_optional_discord_id()
+
+      guild_id ->
+        guild_id
+    end
+  end
+
+  defp normalize_optional_discord_id(nil), do: nil
+
+  defp normalize_optional_discord_id(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> empty_to_nil()
+  end
+
+  defp normalize_optional_discord_id(value) when is_integer(value), do: Integer.to_string(value)
+  defp normalize_optional_discord_id(_), do: nil
+
+  defp empty_to_nil(""), do: nil
+  defp empty_to_nil(value), do: value
 end
