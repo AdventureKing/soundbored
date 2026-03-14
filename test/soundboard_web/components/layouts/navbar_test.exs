@@ -80,4 +80,43 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
     assert html =~ "Permissions"
     refute html =~ "Settings"
   end
+
+  test "uses single-row desktop user pills layout when fewer than 6 users are visible" do
+    presences =
+      for i <- 1..5, into: %{} do
+        username = "user#{i}"
+        {Integer.to_string(i), %{metas: [%{user: %{username: username, avatar: "#{username}.png"}}]}}
+      end
+
+    html =
+      render_component(Navbar,
+        id: "navbar",
+        current_path: "/",
+        current_user: nil,
+        presences: presences
+      )
+
+    assert html =~ "flex justify-between h-16"
+    assert html =~ "text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"
+    refute html =~ "grid grid-flow-col grid-rows-2"
+  end
+
+  test "uses two-row desktop user pills layout when 6 or more users are visible" do
+    presences =
+      for i <- 1..6, into: %{} do
+        username = "user#{i}"
+        {Integer.to_string(i), %{metas: [%{user: %{username: username, avatar: "#{username}.png"}}]}}
+      end
+
+    html =
+      render_component(Navbar,
+        id: "navbar",
+        current_path: "/",
+        current_user: nil,
+        presences: presences
+      )
+
+    assert html =~ "flex justify-between min-h-24 py-2"
+    assert html =~ "text-sm text-gray-600 dark:text-gray-400 grid grid-flow-col grid-rows-2"
+  end
 end
