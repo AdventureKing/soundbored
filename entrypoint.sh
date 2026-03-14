@@ -2,6 +2,7 @@
 
 # Run migrations
 echo "Running database migrations..."
+mix ecto.create || true
 mix ecto.migrate
 
 # Start Phoenix server in foreground
