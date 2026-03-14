@@ -272,9 +272,12 @@ Hooks.CooldownTimer = {
   mounted() {
     this.valueEl = this.el.querySelector("[data-role='cooldown-value']") || this.el
     this.endMs = null
+    this.baseRemainingMs = null
+    this.startedAt = null
+    this.lastSignature = null
     this.frame = null
     this.tick = this.tick.bind(this)
-    this.syncFromDataset()
+    this.syncFromDataset(true)
   },
   updated() {
     this.syncFromDataset()
@@ -287,9 +290,25 @@ Hooks.CooldownTimer = {
     const parsed = Number(raw)
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null
   },
-  syncFromDataset() {
-    this.endMs = this.parseEndMs()
+  parseRemainingMs() {
+    const raw = this.el.dataset.cooldownRemainingMs
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+  },
+  syncFromDataset(force = false) {
+    const endMs = this.parseEndMs()
+    const remainingMs = this.parseRemainingMs()
+    const signature = `${endMs ?? ""}|${remainingMs ?? ""}`
+
+    if (!force && signature === this.lastSignature) {
+      return
+    }
+
+    this.lastSignature = signature
     this.stopTicking()
+    this.endMs = endMs
+    this.baseRemainingMs = remainingMs
+    this.startedAt = remainingMs !== null ? performance.now() : null
     this.tick()
   },
   stopTicking() {
@@ -304,11 +323,16 @@ Hooks.CooldownTimer = {
     }
 
     if (!this.endMs) {
-      this.valueEl.textContent = "Ready"
-      return
+      if (this.baseRemainingMs === null || this.startedAt === null) {
+        this.valueEl.textContent = "Ready"
+        return
+      }
     }
 
-    const remaining = this.endMs - Date.now()
+    const remaining =
+      this.baseRemainingMs !== null && this.startedAt !== null
+        ? this.baseRemainingMs - (performance.now() - this.startedAt)
+        : this.endMs - Date.now()
 
     if (remaining <= 0) {
       this.valueEl.textContent = "Ready"

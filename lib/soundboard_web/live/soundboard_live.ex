@@ -51,6 +51,7 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:uploaded_files, [])
     |> assign(:loading_sounds, true)
     |> assign(:cooldown_end_ms, nil)
+    |> assign(:cooldown_remaining_ms, nil)
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
@@ -379,11 +380,11 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   defp refresh_cooldown_timer(socket) do
-    assign(
-      socket,
-      :cooldown_end_ms,
-      PlaybackCooldown.active_cooldown_end_unix_ms(socket.assigns[:current_user])
-    )
+    cooldown_end_ms = PlaybackCooldown.active_cooldown_end_unix_ms(socket.assigns[:current_user])
+
+    socket
+    |> assign(:cooldown_end_ms, cooldown_end_ms)
+    |> assign(:cooldown_remaining_ms, remaining_ms_from_end(cooldown_end_ms))
   end
 
   defp maybe_refresh_cooldown_timer(socket, played_by) when is_binary(played_by) do
@@ -394,6 +395,12 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   defp maybe_refresh_cooldown_timer(socket, _played_by), do: socket
+
+  defp remaining_ms_from_end(nil), do: nil
+
+  defp remaining_ms_from_end(end_ms) when is_integer(end_ms) do
+    max(end_ms - System.system_time(:millisecond), 0)
+  end
 
   defp upload_forbidden_flash(socket) do
     Phoenix.LiveView.put_flash(
