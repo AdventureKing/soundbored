@@ -3,9 +3,12 @@ defmodule Soundboard.Accounts.RoleCooldowns do
   Role cooldown configuration and effective cooldown helpers.
   """
 
+  require Logger
+
   import Ecto.Query
 
   alias Soundboard.Accounts.{RoleCooldown, User}
+  alias Ecto.Adapters.SQL
   alias Soundboard.Repo
 
   @default_cooldown_seconds 600
@@ -27,8 +30,12 @@ defmodule Soundboard.Accounts.RoleCooldowns do
 
   @spec list() :: [RoleCooldown.t()]
   def list do
-    from(rc in RoleCooldown, order_by: [asc: rc.role_id])
-    |> Repo.all()
+    if role_cooldowns_table_exists?() do
+      from(rc in RoleCooldown, order_by: [asc: rc.role_id])
+      |> Repo.all()
+    else
+      []
+    end
   end
 
   @spec cooldown_by_role_id() :: cooldown_map()
@@ -72,31 +79,35 @@ defmodule Soundboard.Accounts.RoleCooldowns do
   @spec replace_for_roles([term()], map()) :: :ok | {:error, replace_error()}
   def replace_for_roles(role_ids, cooldown_inputs)
       when is_list(role_ids) and is_map(cooldown_inputs) do
-    normalized_role_ids = normalize_role_ids(role_ids)
+    unless role_cooldowns_table_exists?() do
+      {:error, {:invalid_cooldown, "Role cooldowns table is missing. Run database migrations."}}
+    else
+      normalized_role_ids = normalize_role_ids(role_ids)
 
-    Repo.transaction(fn ->
-      existing =
-        from(rc in RoleCooldown, where: rc.role_id in ^normalized_role_ids)
-        |> Repo.all()
-        |> Map.new(&{&1.role_id, &1})
+      Repo.transaction(fn ->
+        existing =
+          from(rc in RoleCooldown, where: rc.role_id in ^normalized_role_ids)
+          |> Repo.all()
+          |> Map.new(&{&1.role_id, &1})
 
-      Enum.each(normalized_role_ids, fn role_id ->
-        case parse_cooldown_input(Map.get(cooldown_inputs, role_id)) do
-          {:ok, cooldown_seconds} ->
-            upsert_role_cooldown(existing[role_id], role_id, cooldown_seconds)
+        Enum.each(normalized_role_ids, fn role_id ->
+          case parse_cooldown_input(Map.get(cooldown_inputs, role_id)) do
+            {:ok, cooldown_seconds} ->
+              upsert_role_cooldown(existing[role_id], role_id, cooldown_seconds)
 
-          :clear ->
-            maybe_delete(existing[role_id])
+            :clear ->
+              maybe_delete(existing[role_id])
 
-          {:error, message} ->
-            Repo.rollback({:invalid_cooldown, message})
-        end
+            {:error, message} ->
+              Repo.rollback({:invalid_cooldown, message})
+          end
+        end)
       end)
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:error, {:invalid_cooldown, _} = reason} -> {:error, reason}
-      {:error, reason} -> {:error, {:invalid_cooldown, inspect(reason)}}
+      |> case do
+        {:ok, _} -> :ok
+        {:error, {:invalid_cooldown, _} = reason} -> {:error, reason}
+        {:error, reason} -> {:error, {:invalid_cooldown, inspect(reason)}}
+      end
     end
   end
 
@@ -151,5 +162,34 @@ defmodule Soundboard.Accounts.RoleCooldowns do
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()
+  end
+
+  defp role_cooldowns_table_exists? do
+    case Repo.__adapter__() do
+      Ecto.Adapters.SQLite3 ->
+        case SQL.query(
+               Repo,
+               "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'role_cooldowns' LIMIT 1",
+               []
+             ) do
+          {:ok, %{num_rows: num_rows}} when num_rows > 0 ->
+            true
+
+          {:ok, _} ->
+            false
+
+          {:error, reason} ->
+            Logger.warning("Could not check role_cooldowns table in SQLite: #{inspect(reason)}")
+            false
+        end
+
+      _other_adapter ->
+        # For non-SQLite adapters in tests or future deployments, keep prior behavior.
+        true
+    end
+  rescue
+    error ->
+      Logger.warning("Role cooldown table check failed: #{inspect(error)}")
+      false
   end
 end
