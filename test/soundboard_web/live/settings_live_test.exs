@@ -6,11 +6,11 @@ defmodule SoundboardWeb.SettingsLiveTest do
   alias Soundboard.Repo
 
   setup %{conn: conn} do
-    original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
-    Application.put_env(:soundboard, :discord_settings_admin_role_id, "settings-admin")
+    original_admin_user_ids =
+      Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
 
     on_exit(fn ->
-      Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
     end)
 
     {:ok, user} =
@@ -19,9 +19,11 @@ defmodule SoundboardWeb.SettingsLiveTest do
         username: "apitok_user_#{System.unique_integer([:positive])}",
         discord_id: Integer.to_string(System.unique_integer([:positive])),
         avatar: "test.jpg",
-        discord_roles: ["settings-admin"]
+        discord_roles: ["member"]
       })
       |> Repo.insert()
+
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
 
     authed_conn =
       conn
@@ -182,7 +184,7 @@ defmodule SoundboardWeb.SettingsLiveTest do
     end
   end
 
-  test "redirects when user is missing configured settings admin role", %{conn: conn} do
+  test "redirects when user is missing configured settings admin user ID", %{conn: conn} do
     {:ok, non_admin} =
       %User{}
       |> User.changeset(%{

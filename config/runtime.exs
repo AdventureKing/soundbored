@@ -47,7 +47,10 @@ if config_env() == :dev do
   discord_role_guild_id = env!("DISCORD_ROLE_GUILD_ID", :string, required_discord_guild_id)
   discord_upload_role_ids = env!("DISCORD_UPLOAD_ROLE_IDS", :string, "") |> parse_role_ids.()
   discord_play_role_ids = env!("DISCORD_PLAY_ROLE_IDS", :string, "") |> parse_role_ids.()
-  discord_settings_admin_role_id = env!("DISCORD_SETTINGS_ADMIN_ROLE_ID", :string, nil)
+
+  discord_settings_admin_user_ids =
+    env!("DISCORD_SETTINGS_ADMIN_USER_ID", :string, "") |> parse_role_ids.()
+
   discord_token = env!("DISCORD_TOKEN", :string!, nil)
   client_id = env!("DISCORD_CLIENT_ID", :string!, nil)
   client_secret = env!("DISCORD_CLIENT_SECRET", :string!, nil)
@@ -97,7 +100,7 @@ if config_env() == :dev do
     discord_role_guild_id: discord_role_guild_id,
     discord_upload_role_ids: discord_upload_role_ids,
     discord_play_role_ids: discord_play_role_ids,
-    discord_settings_admin_role_id: discord_settings_admin_role_id,
+    discord_settings_admin_user_ids: discord_settings_admin_user_ids,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,
@@ -190,11 +193,14 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
     client_id: env!("DISCORD_CLIENT_ID", :string!),
     client_secret: env!("DISCORD_CLIENT_SECRET", :string!),
     redirect_uri: callback_url
+
   required_discord_guild_id = env!("DISCORD_REQUIRED_GUILD_ID", :string, nil)
   discord_role_guild_id = env!("DISCORD_ROLE_GUILD_ID", :string, required_discord_guild_id)
   discord_upload_role_ids = env!("DISCORD_UPLOAD_ROLE_IDS", :string, "") |> parse_role_ids.()
   discord_play_role_ids = env!("DISCORD_PLAY_ROLE_IDS", :string, "") |> parse_role_ids.()
-  discord_settings_admin_role_id = env!("DISCORD_SETTINGS_ADMIN_ROLE_ID", :string, nil)
+
+  discord_settings_admin_user_ids =
+    env!("DISCORD_SETTINGS_ADMIN_USER_ID", :string, "") |> parse_role_ids.()
 
   # Configure Discord bot token
   discord_token = env!("DISCORD_TOKEN", :string!)
@@ -217,7 +223,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
     discord_role_guild_id: discord_role_guild_id,
     discord_upload_role_ids: discord_upload_role_ids,
     discord_play_role_ids: discord_play_role_ids,
-    discord_settings_admin_role_id: discord_settings_admin_role_id,
+    discord_settings_admin_user_ids: discord_settings_admin_user_ids,
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,

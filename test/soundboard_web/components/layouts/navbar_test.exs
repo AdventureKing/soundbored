@@ -6,10 +6,11 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
   alias SoundboardWeb.Components.Layouts.Navbar
 
   setup do
-    original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
+    original_admin_user_ids =
+      Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
 
     on_exit(fn ->
-      Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
     end)
 
     :ok
@@ -33,13 +34,18 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
   end
 
   test "renders permissions/settings links and deduplicated presences for admin users" do
-    Application.put_env(:soundboard, :discord_settings_admin_role_id, "settings-admin")
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["owner-1"])
 
     html =
       render_component(Navbar,
         id: "navbar",
         current_path: "/settings",
-        current_user: %{id: 1, username: "owner", discord_roles: ["settings-admin"]},
+        current_user: %{
+          id: 1,
+          discord_id: "owner-1",
+          username: "owner",
+          discord_roles: ["member"]
+        },
         presences: %{
           "1" => %{metas: [%{user: %{username: "alice", avatar: "alice.png"}}]},
           "2" => %{metas: [%{user: %{username: "alice", avatar: "alice.png"}}]},
@@ -66,18 +72,66 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
     refute socket.assigns.show_mobile_menu
   end
 
-  test "hides settings link when admin role is configured and user does not have it" do
-    Application.put_env(:soundboard, :discord_settings_admin_role_id, "settings-admin")
+  test "hides settings link when admin user IDs are configured and user is not included" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["owner-1"])
 
     html =
       render_component(Navbar,
         id: "navbar",
         current_path: "/",
-        current_user: %{id: 1, username: "owner", discord_roles: ["member"]},
+        current_user: %{
+          id: 1,
+          discord_id: "owner-2",
+          username: "owner",
+          discord_roles: ["member"]
+        },
         presences: %{}
       )
 
     assert html =~ "Permissions"
     refute html =~ "Settings"
+  end
+
+  test "uses single-row desktop user pills layout when fewer than 6 users are visible" do
+    presences =
+      for i <- 1..5, into: %{} do
+        username = "user#{i}"
+
+        {Integer.to_string(i),
+         %{metas: [%{user: %{username: username, avatar: "#{username}.png"}}]}}
+      end
+
+    html =
+      render_component(Navbar,
+        id: "navbar",
+        current_path: "/",
+        current_user: nil,
+        presences: presences
+      )
+
+    assert html =~ "flex justify-between h-16"
+    assert html =~ "text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"
+    refute html =~ "grid grid-flow-col grid-rows-2"
+  end
+
+  test "uses two-row desktop user pills layout when 6 or more users are visible" do
+    presences =
+      for i <- 1..6, into: %{} do
+        username = "user#{i}"
+
+        {Integer.to_string(i),
+         %{metas: [%{user: %{username: username, avatar: "#{username}.png"}}]}}
+      end
+
+    html =
+      render_component(Navbar,
+        id: "navbar",
+        current_path: "/",
+        current_user: nil,
+        presences: presences
+      )
+
+    assert html =~ "flex justify-between h-16 sm:min-h-24 sm:py-2"
+    assert html =~ "text-sm text-gray-600 dark:text-gray-400 grid grid-flow-col grid-rows-2"
   end
 end

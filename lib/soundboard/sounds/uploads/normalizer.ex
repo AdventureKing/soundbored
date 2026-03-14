@@ -43,22 +43,29 @@ defmodule Soundboard.Sounds.Uploads.Normalizer do
          default_volume_percent: default_volume_percent,
          upload: upload
        }) do
-    if blank?(name) do
-      {:error, add_error(change(%Sound{}), :filename, "can't be blank")}
-    else
-      {:ok,
-       %{
-         user: user,
-         source_type: source_type,
-         name: name,
-         url: url,
-         tags: normalize_tags(tags),
-         volume:
-           Volume.percent_to_decimal(volume, normalize_default_volume(default_volume_percent)),
-         is_join_sound: to_boolean(is_join_sound),
-         is_leave_sound: to_boolean(is_leave_sound),
-         upload: upload
-       }}
+    normalized_tags = normalize_tags(tags)
+
+    cond do
+      blank?(name) ->
+        {:error, add_error(change(%Sound{}), :filename, "can't be blank")}
+
+      normalized_tags == [] ->
+        {:error, add_error(change(%Sound{}), :tags, "must include at least one tag")}
+
+      true ->
+        {:ok,
+         %{
+           user: user,
+           source_type: source_type,
+           name: name,
+           url: url,
+           tags: normalized_tags,
+           volume:
+             Volume.percent_to_decimal(volume, normalize_default_volume(default_volume_percent)),
+           is_join_sound: to_boolean(is_join_sound),
+           is_leave_sound: to_boolean(is_leave_sound),
+           upload: upload
+         }}
     end
   end
 
@@ -73,12 +80,34 @@ defmodule Soundboard.Sounds.Uploads.Normalizer do
   defp normalize_tags(tags) when is_binary(tags) do
     tags
     |> String.split(",", trim: true)
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&normalize_tag_item/1)
+    |> Enum.reject(&is_nil/1)
   end
 
-  defp normalize_tags(tags) when is_list(tags), do: tags
+  defp normalize_tags(tags) when is_list(tags) do
+    tags
+    |> Enum.map(&normalize_tag_item/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
   defp normalize_tags(_), do: []
+
+  defp normalize_tag_item(%Soundboard.Tag{} = tag), do: tag
+
+  defp normalize_tag_item(%{id: _} = tag), do: tag
+  defp normalize_tag_item(%{"id" => _} = tag), do: tag
+
+  defp normalize_tag_item(%{name: name}) when is_binary(name), do: normalize_tag_item(name)
+  defp normalize_tag_item(%{"name" => name}) when is_binary(name), do: normalize_tag_item(name)
+
+  defp normalize_tag_item(tag) when is_binary(tag) do
+    case tag |> String.trim() |> String.downcase() do
+      "" -> nil
+      normalized -> normalized
+    end
+  end
+
+  defp normalize_tag_item(_), do: nil
 
   defp normalize_source_type(source_type, upload, url) when is_binary(source_type) do
     case source_type |> String.trim() |> String.downcase() do

@@ -7,12 +7,14 @@ defmodule Soundboard.Accounts.PermissionsTest do
   setup do
     original_upload_roles = Application.get_env(:soundboard, :discord_upload_role_ids, [])
     original_play_roles = Application.get_env(:soundboard, :discord_play_role_ids, [])
-    original_admin_role = Application.get_env(:soundboard, :discord_settings_admin_role_id)
+
+    original_admin_user_ids =
+      Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
 
     on_exit(fn ->
       Application.put_env(:soundboard, :discord_upload_role_ids, original_upload_roles)
       Application.put_env(:soundboard, :discord_play_role_ids, original_play_roles)
-      Application.put_env(:soundboard, :discord_settings_admin_role_id, original_admin_role)
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
     end)
 
     :ok
@@ -72,26 +74,26 @@ defmodule Soundboard.Accounts.PermissionsTest do
     refute Permissions.can_play_clips?(user)
   end
 
-  test "denies settings access when admin role is not configured" do
-    Application.put_env(:soundboard, :discord_settings_admin_role_id, nil)
+  test "denies settings access when admin user IDs are not configured" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, [])
 
-    user = %User{discord_roles: []}
+    user = %User{discord_id: "1001", discord_roles: []}
 
     refute Permissions.can_manage_settings?(user)
   end
 
-  test "allows settings access when user has configured admin role" do
-    Application.put_env(:soundboard, :discord_settings_admin_role_id, "admin-role")
+  test "allows settings access when user has configured admin user ID" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["1001", "1002"])
 
-    user = %User{discord_roles: ["member", "admin-role"]}
+    user = %User{discord_id: "1002", discord_roles: ["member"]}
 
     assert Permissions.can_manage_settings?(user)
   end
 
-  test "denies settings access when user does not have configured admin role" do
-    Application.put_env(:soundboard, :discord_settings_admin_role_id, "admin-role")
+  test "denies settings access when user lacks configured admin user ID" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["1001", "1002"])
 
-    user = %User{discord_roles: ["member"]}
+    user = %User{discord_id: "9999", discord_roles: ["member"]}
 
     refute Permissions.can_manage_settings?(user)
   end

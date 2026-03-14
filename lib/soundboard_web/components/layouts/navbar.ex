@@ -20,8 +20,9 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
   def render(assigns) do
     ~H"""
     <nav class="fixed w-full top-0 left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50">
+      <% users = visible_users(@presences) %>
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
+        <div class={navbar_row_classes(users)}>
           <div class="flex">
             <div class="flex-shrink-0 flex items-center">
               <span class="text-xl font-bold text-gray-800 dark:text-white">
@@ -58,8 +59,8 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           </div>
 
           <div class="hidden sm:ml-6 sm:flex sm:items-center">
-            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <%= visible_users(@presences)
+            <div class={desktop_user_pills_classes(users)}>
+              <%= users
                   |> Enum.map(fn user -> %>
                 <div class="flex items-center gap-1">
                   <span
@@ -161,7 +162,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
         </div>
         <div class="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
           <div class="space-y-2 px-4">
-            <%= visible_users(@presences)
+            <%= users
                 |> Enum.map(fn user -> %>
               <div class="flex items-center gap-2 py-2">
                 <span
@@ -232,6 +233,26 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
     end)
     |> Enum.uniq_by(& &1.username)
   end
+
+  defp navbar_row_classes(users) do
+    if multi_row_user_pills?(users) do
+      "flex justify-between h-16 sm:min-h-24 sm:py-2"
+    else
+      "flex justify-between h-16"
+    end
+  end
+
+  defp desktop_user_pills_classes(users) do
+    base_classes = "text-sm text-gray-600 dark:text-gray-400"
+
+    if multi_row_user_pills?(users) do
+      base_classes <> " grid grid-flow-col grid-rows-2 gap-x-2 gap-y-1 auto-cols-max"
+    else
+      base_classes <> " flex items-center gap-2"
+    end
+  end
+
+  defp multi_row_user_pills?(users), do: length(users) >= 6
 
   defp current_page?(current_path, path), do: current_path == path
 

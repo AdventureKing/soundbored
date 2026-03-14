@@ -1,9 +1,11 @@
 defmodule Soundboard.Accounts.Permissions do
   @moduledoc """
-  Role-based permission checks for account actions.
+  Discord permission checks for account actions.
 
   Discord role IDs are stored on users during OAuth and compared against
-  configured role IDs per permission.
+  configured role IDs for upload/play permissions.
+
+  Settings access is controlled via configured Discord user IDs.
   """
 
   alias Soundboard.Accounts.User
@@ -19,8 +21,8 @@ defmodule Soundboard.Accounts.Permissions do
           permission: permission(),
           allowed?: boolean(),
           reason: decision_reason(),
-          user_roles: [String.t()],
-          required_roles: [String.t()]
+          user_ids: [String.t()],
+          required_ids: [String.t()]
         }
 
   @spec can?(User.t() | nil, permission()) :: boolean()
@@ -38,25 +40,26 @@ defmodule Soundboard.Accounts.Permissions do
   def can_manage_settings?(user), do: can?(user, :manage_settings)
 
   @spec permission_decision(User.t() | nil, permission()) :: decision()
-  def permission_decision(user, permission) when permission in [:upload_clips, :play_clips, :manage_settings] do
-    required_roles = configured_role_ids(permission)
-    user_roles = user_role_ids(user)
+  def permission_decision(user, permission)
+      when permission in [:upload_clips, :play_clips, :manage_settings] do
+    required_ids = configured_required_ids(permission)
+    user_ids = user_ids_for_permission(user, permission)
 
     cond do
       is_nil(user) ->
-        decision(permission, false, :no_user, user_roles, required_roles)
+        decision(permission, false, :no_user, user_ids, required_ids)
 
-      required_roles == [] and permission in [:upload_clips, :play_clips] ->
-        decision(permission, true, :allowed_by_default, user_roles, required_roles)
+      required_ids == [] and permission in [:upload_clips, :play_clips] ->
+        decision(permission, true, :allowed_by_default, user_ids, required_ids)
 
-      required_roles == [] and permission == :manage_settings ->
-        decision(permission, false, :missing_required_role, user_roles, required_roles)
+      required_ids == [] and permission == :manage_settings ->
+        decision(permission, false, :missing_required_role, user_ids, required_ids)
 
-      Enum.any?(user_roles, &(&1 in required_roles)) ->
-        decision(permission, true, :role_match, user_roles, required_roles)
+      Enum.any?(user_ids, &(&1 in required_ids)) ->
+        decision(permission, true, :role_match, user_ids, required_ids)
 
       true ->
-        decision(permission, false, :missing_required_role, user_roles, required_roles)
+        decision(permission, false, :missing_required_role, user_ids, required_ids)
     end
   end
 
@@ -65,60 +68,65 @@ defmodule Soundboard.Accounts.Permissions do
     decision(:upload_clips, false, :missing_required_role, user_role_ids(user), [])
   end
 
-  @spec configured_role_ids(permission()) :: [String.t()]
-  def configured_role_ids(:upload_clips) do
+  @spec configured_required_ids(permission()) :: [String.t()]
+  def configured_required_ids(:upload_clips) do
     :soundboard
     |> Application.get_env(:discord_upload_role_ids, [])
-    |> normalize_role_ids()
+    |> normalize_discord_ids()
   end
 
-  def configured_role_ids(:play_clips) do
+  def configured_required_ids(:play_clips) do
     :soundboard
     |> Application.get_env(:discord_play_role_ids, [])
-    |> normalize_role_ids()
+    |> normalize_discord_ids()
   end
 
-  def configured_role_ids(:manage_settings) do
+  def configured_required_ids(:manage_settings) do
     :soundboard
-    |> Application.get_env(:discord_settings_admin_role_id)
-    |> case do
-      value when is_binary(value) ->
-        value
-        |> String.trim()
-        |> case do
-          "" -> []
-          role_id -> [role_id]
-        end
-
-      value when is_integer(value) ->
-        [Integer.to_string(value)]
-
-      _ ->
-        []
-    end
+    |> Application.get_env(:discord_settings_admin_user_ids, [])
+    |> normalize_discord_ids()
   end
 
-  defp user_role_ids(%User{discord_roles: roles}), do: normalize_role_ids(roles)
-  defp user_role_ids(%{discord_roles: roles}) when is_list(roles), do: normalize_role_ids(roles)
+  defp user_ids_for_permission(user, :manage_settings), do: user_discord_id(user)
+  defp user_ids_for_permission(user, _permission), do: user_role_ids(user)
+
+  defp user_role_ids(%User{discord_roles: roles}), do: normalize_discord_ids(roles)
+
+  defp user_role_ids(%{discord_roles: roles}) when is_list(roles),
+    do: normalize_discord_ids(roles)
+
   defp user_role_ids(_), do: []
 
-  defp normalize_role_ids(role_ids) when is_list(role_ids) do
-    role_ids
+  defp user_discord_id(%User{discord_id: discord_id}), do: normalize_discord_ids(discord_id)
+  defp user_discord_id(%{discord_id: discord_id}), do: normalize_discord_ids(discord_id)
+  defp user_discord_id(_), do: []
+
+  defp normalize_discord_ids(discord_ids) when is_list(discord_ids) do
+    discord_ids
     |> Enum.map(&to_string/1)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()
   end
 
-  defp normalize_role_ids(_), do: []
+  defp normalize_discord_ids(discord_ids) when is_binary(discord_ids) do
+    discord_ids
+    |> String.split(",", trim: true)
+    |> normalize_discord_ids()
+  end
 
-  defp decision(permission, allowed?, reason, user_roles, required_roles) do
+  defp normalize_discord_ids(discord_ids) when is_integer(discord_ids),
+    do: [Integer.to_string(discord_ids)]
+
+  defp normalize_discord_ids(_), do: []
+
+  defp decision(permission, allowed?, reason, user_ids, required_ids) do
     %{
       permission: permission,
       allowed?: allowed?,
       reason: reason,
-      user_roles: user_roles,
-      required_roles: required_roles
+      user_ids: user_ids,
+      required_ids: required_ids
     }
   end
 end
