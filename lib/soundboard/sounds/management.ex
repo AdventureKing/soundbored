@@ -8,7 +8,7 @@ defmodule Soundboard.Sounds.Management do
   taking over sound ownership.
   """
 
-  alias Soundboard.Accounts.Permissions
+  alias Soundboard.Accounts.{Permissions, User}
   alias Soundboard.{AudioPlayer, Repo, Sound, UploadsPath, Volume}
   require Logger
 
@@ -21,12 +21,19 @@ defmodule Soundboard.Sounds.Management do
       old_path = UploadsPath.file_path(db_sound.filename)
       new_filename = params["filename"] <> Path.extname(db_sound.filename)
       new_path = UploadsPath.file_path(new_filename)
+      can_manage_internal_cooldown = can_manage_internal_cooldown?(user_id)
 
       sound_params = %{
         filename: new_filename,
         source_type: params["source_type"] || db_sound.source_type,
         url: params["url"],
         user_id: db_sound.user_id || user_id,
+        internal_cooldown_seconds:
+          internal_cooldown_seconds_param(
+            params,
+            db_sound.internal_cooldown_seconds,
+            can_manage_internal_cooldown
+          ),
         volume:
           params["volume"]
           |> Volume.percent_to_decimal(Volume.decimal_to_percent(db_sound.volume))
@@ -144,4 +151,20 @@ defmodule Soundboard.Sounds.Management do
         Repo.rollback(changeset)
     end
   end
+
+  defp can_manage_internal_cooldown?(user_id) when is_integer(user_id) do
+    Repo.get(User, user_id)
+    |> Permissions.can_manage_settings?()
+  end
+
+  defp can_manage_internal_cooldown?(_), do: false
+
+  defp internal_cooldown_seconds_param(params, current_value, true) do
+    case Map.fetch(params, "internal_cooldown_seconds") do
+      {:ok, value} -> value
+      :error -> current_value
+    end
+  end
+
+  defp internal_cooldown_seconds_param(_params, current_value, false), do: current_value
 end

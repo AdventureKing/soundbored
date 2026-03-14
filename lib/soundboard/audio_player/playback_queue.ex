@@ -4,6 +4,7 @@ defmodule Soundboard.AudioPlayer.PlaybackQueue do
   require Logger
 
   alias Soundboard.AudioPlayer.{PlaybackEngine, SoundLibrary, State}
+  alias Soundboard.ClipCooldown
 
   @type play_request :: %{
           guild_id: String.t(),
@@ -17,20 +18,26 @@ defmodule Soundboard.AudioPlayer.PlaybackQueue do
   @spec build_request({String.t(), String.t()}, String.t(), term()) ::
           {:ok, play_request()} | {:error, String.t()}
   def build_request({guild_id, channel_id}, sound_name, actor) do
-    case SoundLibrary.get_sound_path(sound_name) do
-      {:ok, {path_or_url, volume}} ->
-        {:ok,
-         %{
-           guild_id: guild_id,
-           channel_id: channel_id,
-           sound_name: sound_name,
-           path_or_url: path_or_url,
-           volume: volume,
-           actor: actor
-         }}
+    case ClipCooldown.check(sound_name) do
+      :ok ->
+        case SoundLibrary.get_sound_path(sound_name) do
+          {:ok, {path_or_url, volume}} ->
+            {:ok,
+             %{
+               guild_id: guild_id,
+               channel_id: channel_id,
+               sound_name: sound_name,
+               path_or_url: path_or_url,
+               volume: volume,
+               actor: actor
+             }}
 
-      {:error, reason} ->
-        {:error, reason}
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:error, details} ->
+        {:error, ClipCooldown.message(details)}
     end
   end
 

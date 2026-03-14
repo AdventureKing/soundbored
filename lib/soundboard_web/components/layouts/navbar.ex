@@ -26,13 +26,12 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           <div class="flex">
             <div class="flex-shrink-0 flex items-center">
               <span class="text-xl font-bold text-gray-800 dark:text-white">
-                <.link navigate="/">SoundBored</.link>
+                <.link navigate="/">BeeBot 🐝</.link>
               </span>
             </div>
+
             <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <.nav_link navigate="/" active={current_page?(@current_path, "/")}>
-                Sounds
-              </.nav_link>
+              <.nav_link navigate="/" active={current_page?(@current_path, "/")}>Sounds</.nav_link>
               <.nav_link navigate="/favorites" active={current_page?(@current_path, "/favorites")}>
                 Favorites
               </.nav_link>
@@ -76,8 +75,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                       src={user.avatar}
                       class="w-4 h-4 rounded-full"
                       alt={"#{user.username}'s avatar"}
-                    />
-                    {user.username}
+                    /> {user.username}
                   </span>
                 </div>
               <% end) %>
@@ -130,8 +128,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           </div>
         </div>
       </div>
-      
-    <!-- Mobile menu -->
+      <!-- Mobile menu -->
       <div class={["sm:hidden", (!@show_mobile_menu && "hidden") || "block"]} id="mobile-menu">
         <div class="pt-2 pb-3 space-y-1">
           <.mobile_nav_link navigate="/" active={current_page?(@current_path, "/")}>
@@ -160,6 +157,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
             </.mobile_nav_link>
           <% end %>
         </div>
+
         <div class="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
           <div class="space-y-2 px-4">
             <%= users
@@ -178,8 +176,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                     src={user.avatar}
                     class="w-5 h-5 rounded-full"
                     alt={"#{user.username}'s avatar"}
-                  />
-                  <span class="truncate">{user.username}</span>
+                  /> <span class="truncate">{user.username}</span>
                 </span>
               </div>
             <% end) %>

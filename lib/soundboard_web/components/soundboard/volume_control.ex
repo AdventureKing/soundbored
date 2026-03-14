@@ -26,9 +26,7 @@ defmodule SoundboardWeb.Components.Soundboard.VolumeControl do
       data-max-percent={@max_percent}
       {@rest}
     >
-      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {@label}
-      </label>
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{@label}</label>
       <input
         type="hidden"
         name={@input_name}
@@ -47,10 +45,11 @@ defmodule SoundboardWeb.Components.Soundboard.VolumeControl do
           class="volume-slider w-full accent-blue-600"
         />
       </div>
+
       <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-        <span>0%</span>
-        <span>{@max_percent}%</span>
+        <span>0%</span> <span>{@max_percent}%</span>
       </div>
+
       <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
         <span data-role="volume-display">{@value}%</span>
         <button

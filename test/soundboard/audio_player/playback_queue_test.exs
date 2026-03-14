@@ -35,8 +35,11 @@ defmodule Soundboard.AudioPlayer.PlaybackQueueTest do
   end
 
   test "build_request returns a normalized playback request" do
-    with_mock Soundboard.AudioPlayer.SoundLibrary,
-      get_sound_path: fn "intro.mp3" -> {:ok, {"/tmp/intro.mp3", 0.8}} end do
+    with_mocks([
+      {Soundboard.ClipCooldown, [], [check: fn "intro.mp3" -> :ok end]},
+      {Soundboard.AudioPlayer.SoundLibrary, [],
+       [get_sound_path: fn "intro.mp3" -> {:ok, {"/tmp/intro.mp3", 0.8}} end]}
+    ]) do
       assert {:ok,
               %{
                 guild_id: "guild-1",
@@ -50,10 +53,27 @@ defmodule Soundboard.AudioPlayer.PlaybackQueueTest do
   end
 
   test "build_request returns lookup errors unchanged" do
-    with_mock Soundboard.AudioPlayer.SoundLibrary,
-      get_sound_path: fn "missing.mp3" -> {:error, "Sound not found"} end do
+    with_mocks([
+      {Soundboard.ClipCooldown, [], [check: fn "missing.mp3" -> :ok end]},
+      {Soundboard.AudioPlayer.SoundLibrary, [],
+       [get_sound_path: fn "missing.mp3" -> {:error, "Sound not found"} end]}
+    ]) do
       assert {:error, "Sound not found"} =
                PlaybackQueue.build_request({"guild-1", "channel-9"}, "missing.mp3", "System")
+    end
+  end
+
+  test "build_request returns clip cooldown errors as user-friendly messages" do
+    with_mock Soundboard.ClipCooldown,
+      check: fn "intro.mp3" ->
+        {:error,
+         %{cooldown_seconds: 10, remaining_seconds: 5, last_played_at: NaiveDateTime.utc_now()}}
+      end,
+      message: fn _details -> "That clip is on cooldown. Try again in 5s." end do
+      assert {:error, message} =
+               PlaybackQueue.build_request({"guild-1", "channel-9"}, "intro.mp3", "System")
+
+      assert message =~ "That clip is on cooldown"
     end
   end
 

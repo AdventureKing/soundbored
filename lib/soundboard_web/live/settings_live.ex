@@ -114,7 +114,8 @@ defmodule SoundboardWeb.SettingsLive do
         :asc
       end
 
-    {:noreply, socket |> assign(:role_cooldown_sort_by, field) |> assign(:role_cooldown_sort_dir, sort_dir)}
+    {:noreply,
+     socket |> assign(:role_cooldown_sort_by, field) |> assign(:role_cooldown_sort_dir, sort_dir)}
   end
 
   @impl true
@@ -269,7 +270,9 @@ defmodule SoundboardWeb.SettingsLive do
     end)
   end
 
-  defp cooldown_input_value(value) when is_integer(value) and value > 0, do: Integer.to_string(value)
+  defp cooldown_input_value(value) when is_integer(value) and value > 0,
+    do: Integer.to_string(value)
+
   defp cooldown_input_value(_), do: ""
 
   defp parse_role_cooldown_sort_field(field) when is_binary(field) do
@@ -300,15 +303,18 @@ defmodule SoundboardWeb.SettingsLive do
   end
 
   defp role_cooldown_field_sort_key(row, :guild_name) do
-    {String.downcase(row.guild_name || ""), String.downcase(row.role_name || ""), row.role_id || ""}
+    {String.downcase(row.guild_name || ""), String.downcase(row.role_name || ""),
+     row.role_id || ""}
   end
 
   defp role_cooldown_field_sort_key(row, :role_name) do
-    {String.downcase(row.role_name || ""), String.downcase(row.guild_name || ""), row.role_id || ""}
+    {String.downcase(row.role_name || ""), String.downcase(row.guild_name || ""),
+     row.role_id || ""}
   end
 
   defp role_cooldown_field_sort_key(row, :role_id) do
-    {row.role_id || "", String.downcase(row.role_name || ""), String.downcase(row.guild_name || "")}
+    {row.role_id || "", String.downcase(row.role_name || ""),
+     String.downcase(row.guild_name || "")}
   end
 
   defp role_cooldown_field_sort_key(row, :cooldown_seconds) do
@@ -333,7 +339,10 @@ defmodule SoundboardWeb.SettingsLive do
 
       <section aria-labelledby="role-cooldowns-heading" class="space-y-3">
         <header class="space-y-1">
-          <h2 id="role-cooldowns-heading" class="text-xl font-semibold text-gray-800 dark:text-gray-100">
+          <h2
+            id="role-cooldowns-heading"
+            class="text-xl font-semibold text-gray-800 dark:text-gray-100"
+          >
             Role Cooldowns
           </h2>
           <p class="text-sm text-gray-600 dark:text-gray-400">
@@ -349,7 +358,12 @@ defmodule SoundboardWeb.SettingsLive do
             </p>
           <% else %>
             <% filtered_rows = filtered_role_cooldown_rows(@role_cooldown_rows, @role_cooldown_filter) %>
-            <% sorted_rows = sorted_role_cooldown_rows(filtered_rows, @role_cooldown_sort_by, @role_cooldown_sort_dir) %>
+            <% sorted_rows =
+              sorted_role_cooldown_rows(
+                filtered_rows,
+                @role_cooldown_sort_by,
+                @role_cooldown_sort_dir
+              ) %>
             <form phx-change="filter_role_cooldowns" class="max-w-md">
               <label
                 for="role-cooldown-filter"
@@ -610,8 +624,7 @@ defmodule SoundboardWeb.SettingsLive do
               </div>
             </div>
             <div class="text-xs text-gray-600 dark:text-gray-400">
-              Upload endpoint: <code class="font-mono">POST /api/sounds</code>. Required fields:
-              <code class="font-mono">name</code>, <code class="font-mono">tags</code>,
+              Upload endpoint: <code class="font-mono">POST /api/sounds</code>. Required fields: <code class="font-mono">name</code>, <code class="font-mono">tags</code>,
               plus either <code class="font-mono">file</code>
               (local multipart)
               or <code class="font-mono">url</code>

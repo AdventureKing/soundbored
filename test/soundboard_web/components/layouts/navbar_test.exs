@@ -25,7 +25,7 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
         presences: %{}
       )
 
-    assert html =~ "SoundBored"
+    assert html =~ "BeeBot"
     assert html =~ "Sounds"
     assert html =~ "Favorites"
     assert html =~ "Stats"

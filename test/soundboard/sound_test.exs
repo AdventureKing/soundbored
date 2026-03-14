@@ -85,6 +85,23 @@ defmodule Soundboard.SoundTest do
                &String.contains?(&1, "greater than or equal")
              )
     end
+
+    test "validates internal cooldown is not negative" do
+      user = insert_user()
+
+      changeset =
+        Sound.changeset(%Sound{}, %{
+          filename: "cooldown.mp3",
+          source_type: "local",
+          user_id: user.id,
+          internal_cooldown_seconds: -1
+        })
+
+      assert Enum.any?(
+               errors_on(changeset).internal_cooldown_seconds,
+               &String.contains?(&1, "greater than or equal")
+             )
+    end
   end
 
   setup do

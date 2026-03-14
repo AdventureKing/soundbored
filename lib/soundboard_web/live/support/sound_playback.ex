@@ -5,6 +5,7 @@ defmodule SoundboardWeb.Live.Support.SoundPlayback do
 
   alias Soundboard.Accounts.Permissions
   alias Soundboard.Accounts.User
+  alias Soundboard.ClipCooldown
   alias Soundboard.PlaybackCooldown
 
   def play(socket, sound_name) do
@@ -13,9 +14,15 @@ defmodule SoundboardWeb.Live.Support.SoundPlayback do
         if Permissions.can_play_clips?(socket.assigns[:current_user]) do
           case PlaybackCooldown.check(user) do
             :ok ->
-              actor = %{display_name: username, user_id: user_id}
-              Soundboard.AudioPlayer.play_sound(sound_name, actor)
-              {:noreply, socket}
+              case ClipCooldown.check(sound_name) do
+                :ok ->
+                  actor = %{display_name: username, user_id: user_id}
+                  Soundboard.AudioPlayer.play_sound(sound_name, actor)
+                  {:noreply, socket}
+
+                {:error, details} ->
+                  {:noreply, put_flash(socket, :error, ClipCooldown.message(details))}
+              end
 
             {:error, details} ->
               {:noreply, put_flash(socket, :error, PlaybackCooldown.message(details))}

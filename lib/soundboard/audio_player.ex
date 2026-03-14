@@ -66,10 +66,10 @@ defmodule Soundboard.AudioPlayer do
 
     {:ok,
      %{
-        state
-        | current_playback: nil,
-          pending_requests: []
-      }}
+       state
+       | current_playback: nil,
+         pending_requests: []
+     }}
   end
 
   @impl true

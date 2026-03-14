@@ -1,6 +1,7 @@
 <div class="max-w-6xl mx-auto px-4 py-8">
   <div class="flex justify-between items-center mb-8">
     <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Favorites</h1>
+
     <div class="text-sm text-gray-600 dark:text-gray-400">
       {length(@favorites)}/{@max_favorites} favorites
     </div>
@@ -10,9 +11,11 @@
     <%= if @sounds_with_tags == [] do %>
       <div class="flex flex-col items-center justify-center py-16">
         <div class="text-6xl mb-4">😢</div>
+
         <h3 class="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">
           You currently have no favorites
         </h3>
+
         <p class="text-gray-500 dark:text-gray-400">
           Click the heart icon on any sound to add it to your favorites
         </p>
@@ -30,7 +33,6 @@
                      dark:focus:ring-offset-gray-800 pointer-events-auto"
             >
             </button>
-
             <div class="relative z-10 p-4 flex flex-col min-h-[120px] pointer-events-none">
               <div class="text-gray-800 dark:text-gray-200 font-medium break-all">
                 {display_name(sound.filename)}
@@ -105,9 +107,7 @@
     <% end %>
   <% else %>
     <div class="text-center py-12">
-      <p class="text-gray-600 dark:text-gray-400">
-        Please log in to manage your favorites
-      </p>
+      <p class="text-gray-600 dark:text-gray-400">Please log in to manage your favorites</p>
     </div>
   <% end %>
 </div>

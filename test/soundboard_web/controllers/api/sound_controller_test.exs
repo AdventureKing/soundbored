@@ -35,6 +35,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
         assert is_integer(sound_data["id"])
         assert is_binary(sound_data["filename"])
         assert is_list(sound_data["tags"])
+        assert is_integer(sound_data["internal_cooldown_seconds"])
         assert sound_data["inserted_at"]
         assert sound_data["updated_at"]
       end)
@@ -410,6 +411,36 @@ defmodule SoundboardWeb.API.SoundControllerTest do
         response = json_response(conn, 429)
 
         assert response["error"] =~ "You are on cooldown"
+        assert is_integer(response["retry_after_seconds"])
+        assert response["retry_after_seconds"] > 0
+        assert_not_called(Soundboard.AudioPlayer.play_sound(:_, :_))
+      end
+    end
+
+    test "returns too many requests when clip internal cooldown is active", %{
+      conn: conn,
+      sound: sound
+    } do
+      other_user = insert_user()
+
+      sound =
+        sound
+        |> Sound.changeset(%{internal_cooldown_seconds: 120})
+        |> Repo.update!()
+
+      Repo.insert!(
+        Play.changeset(%Play{}, %{
+          played_filename: sound.filename,
+          sound_id: sound.id,
+          user_id: other_user.id
+        })
+      )
+
+      with_mock Soundboard.AudioPlayer, play_sound: fn _filename, _actor -> :ok end do
+        conn = post(conn, ~p"/api/sounds/#{sound.id}/play")
+        response = json_response(conn, 429)
+
+        assert response["error"] =~ "That clip is on cooldown"
         assert is_integer(response["retry_after_seconds"])
         assert response["retry_after_seconds"] > 0
         assert_not_called(Soundboard.AudioPlayer.play_sound(:_, :_))

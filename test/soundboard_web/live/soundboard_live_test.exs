@@ -38,7 +38,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
       assert html =~ "Soundboard"
       # Check for the main content instead of a specific container
-      assert html =~ "SoundBored"
+      assert html =~ "BeeBot"
       assert html =~ "Cooldown"
       assert html =~ "playback-cooldown-timer"
     end
@@ -205,11 +205,17 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       conn: conn,
       user: user
     } do
-      original_admin_user_ids = Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+      original_admin_user_ids =
+        Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
 
       on_exit(fn ->
-        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
       end)
 
       {:ok, other_user} =
@@ -490,7 +496,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       Soundboard.PubSubTopics.broadcast_files_updated()
 
       # Just verify the view is still alive
-      assert render(view) =~ "SoundBored"
+      assert render(view) =~ "BeeBot"
     end
   end
 

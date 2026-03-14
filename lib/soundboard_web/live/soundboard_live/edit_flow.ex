@@ -139,11 +139,11 @@ defmodule SoundboardWeb.Live.SoundboardLive.EditFlow do
       {:error, :forbidden} ->
         {:noreply,
          socket
-          |> update_state(&%{&1 | show_delete_confirm: false})
-          |> Phoenix.LiveView.put_flash(
-            :error,
-            "You can only delete your own sounds unless you are a settings admin"
-          )}
+         |> update_state(&%{&1 | show_delete_confirm: false})
+         |> Phoenix.LiveView.put_flash(
+           :error,
+           "You can only delete your own sounds unless you are a settings admin"
+         )}
 
       {:error, _changeset} ->
         {:noreply,

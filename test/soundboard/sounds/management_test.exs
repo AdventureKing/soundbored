@@ -8,7 +8,8 @@ defmodule Soundboard.Sounds.ManagementTest do
   alias Soundboard.Sounds.Management
 
   setup do
-    original_admin_user_ids = Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+    original_admin_user_ids =
+      Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
 
     on_exit(fn ->
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
@@ -125,6 +126,56 @@ defmodule Soundboard.Sounds.ManagementTest do
     setting = Repo.get_by!(UserSoundSetting, user_id: editor.id, sound_id: updated_sound.id)
     assert setting.is_join_sound
     refute setting.is_leave_sound
+  end
+
+  test "update_sound/3 ignores internal cooldown changes from non-admin editors", %{user: user} do
+    sound = insert_local_sound(user, "cooldown_ignore_#{System.unique_integer([:positive])}.mp3")
+
+    {:ok, editor} =
+      %User{}
+      |> User.changeset(%{
+        username: "non_admin_editor_#{System.unique_integer([:positive])}",
+        discord_id: Integer.to_string(System.unique_integer([:positive])),
+        avatar: "avatar.png"
+      })
+      |> Repo.insert()
+
+    params = %{
+      "filename" => Path.basename(sound.filename, Path.extname(sound.filename)),
+      "source_type" => "local",
+      "url" => nil,
+      "volume" => "100",
+      "internal_cooldown_seconds" => "45"
+    }
+
+    assert {:ok, updated_sound} = Management.update_sound(sound, editor.id, params)
+    assert updated_sound.internal_cooldown_seconds == 0
+  end
+
+  test "update_sound/3 allows settings admins to change internal cooldown", %{user: user} do
+    sound = insert_local_sound(user, "cooldown_admin_#{System.unique_integer([:positive])}.mp3")
+
+    {:ok, admin} =
+      %User{}
+      |> User.changeset(%{
+        username: "cooldown_admin_#{System.unique_integer([:positive])}",
+        discord_id: Integer.to_string(System.unique_integer([:positive])),
+        avatar: "avatar.png"
+      })
+      |> Repo.insert()
+
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, [admin.discord_id])
+
+    params = %{
+      "filename" => Path.basename(sound.filename, Path.extname(sound.filename)),
+      "source_type" => "local",
+      "url" => nil,
+      "volume" => "100",
+      "internal_cooldown_seconds" => "45"
+    }
+
+    assert {:ok, updated_sound} = Management.update_sound(sound, admin.id, params)
+    assert updated_sound.internal_cooldown_seconds == 45
   end
 
   test "delete_sound/2 is forbidden for non-owner non-admin users", %{user: user} do
