@@ -15,6 +15,11 @@ defmodule Soundboard.PublicURLTest do
              "http://localhost"
   end
 
+  test "from_uri_or_current/1 strips internal https :4000 port for public links" do
+    assert PublicURL.from_uri_or_current("https://soundboard.example:4000/settings") ==
+             "https://soundboard.example"
+  end
+
   test "from_uri_or_current/1 preserves non-default ports" do
     assert PublicURL.from_uri_or_current("http://localhost:4000/settings") ==
              "http://localhost:4000"
