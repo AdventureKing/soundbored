@@ -134,6 +134,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       {:ok, _view, html} = live(conn, "/")
 
       assert html =~ "Admin Stop + Clear Queue"
+      refute html =~ "Stop All"
     end
 
     test "hides admin stop and clear queue button for non-admins", %{conn: conn} do
@@ -149,6 +150,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       {:ok, _view, html} = live(conn, "/")
 
       refute html =~ "Admin Stop + Clear Queue"
+      refute html =~ "Stop All"
     end
 
     test "admin stop and clear queue button clears playback queue", %{conn: conn, user: user} do
