@@ -172,8 +172,8 @@ defmodule Soundboard.Sounds do
   @spec update_sound(Sound.t(), integer(), map()) :: {:ok, Sound.t()} | {:error, term()}
   def update_sound(sound, user_id, params), do: Management.update_sound(sound, user_id, params)
 
-  @spec delete_sound(Sound.t(), integer()) :: :ok | {:error, term()}
-  def delete_sound(sound, user_id), do: Management.delete_sound(sound, user_id)
+  @spec delete_sound(Sound.t(), User.t() | map() | integer() | nil) :: :ok | {:error, term()}
+  def delete_sound(sound, actor), do: Management.delete_sound(sound, actor)
 
   @spec new_create_request(User.t() | nil, map()) :: CreateRequest.t()
   def new_create_request(user, attrs), do: CreateRequest.new(user, attrs)

@@ -5,6 +5,17 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
 
   alias SoundboardWeb.Components.Soundboard.EditModal
 
+  setup do
+    original_admin_user_ids =
+      Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+    on_exit(fn ->
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+    end)
+
+    :ok
+  end
+
   test "renders edit form with local file metadata" do
     html = render_component(&EditModal.edit_modal/1, edit_assigns())
 
@@ -44,6 +55,43 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
     refute html =~ "Delete Sound"
   end
 
+  test "shows internal cooldown input for settings admins only" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-user-id"])
+
+    admin_html =
+      render_component(
+        &EditModal.edit_modal/1,
+        edit_assigns(%{
+          current_user: %{id: 2, discord_id: "admin-user-id"}
+        })
+      )
+
+    user_html =
+      render_component(
+        &EditModal.edit_modal/1,
+        edit_assigns(%{
+          current_user: %{id: 1, discord_id: "regular-user-id"}
+        })
+      )
+
+    assert admin_html =~ "Internal Cooldown (seconds)"
+    refute user_html =~ "Internal Cooldown (seconds)"
+  end
+
+  test "shows delete for settings admins even when they are not the owner" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-user-id"])
+
+    html =
+      render_component(
+        &EditModal.edit_modal/1,
+        edit_assigns(%{
+          current_user: %{id: 2, discord_id: "admin-user-id"}
+        })
+      )
+
+    assert html =~ "Delete Sound"
+  end
+
   defp edit_assigns(overrides \\ %{}) do
     base = %{
       current_sound: edit_sound(),
@@ -64,6 +112,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
       source_type: "local",
       url: nil,
       volume: 1.0,
+      internal_cooldown_seconds: 0,
       tags: [%{name: "funny"}],
       user_id: 1,
       user_sound_settings: [%{user_id: 1, is_join_sound: true, is_leave_sound: false}]

@@ -69,3 +69,96 @@ body {
 /* Show inline search spinner while server processes phx-change */
 .phx-change-loading .search-spinner { display: inline; }
 .phx-change-loading .search-icon { display: none; }
+
+/* Buzz Mode: high-contrast black/yellow palette */
+html.buzz-mode,
+body.buzz-mode {
+  background-color: #070707 !important;
+  color: #f8d84a !important;
+}
+
+.buzz-mode .bg-white,
+.buzz-mode .bg-gray-50,
+.buzz-mode .bg-gray-100,
+.buzz-mode .bg-gray-800,
+.buzz-mode .bg-gray-900 {
+  background-color: #101010 !important;
+}
+
+.buzz-mode .shadow,
+.buzz-mode .shadow-sm,
+.buzz-mode .shadow-md,
+.buzz-mode .rounded-lg.bg-white,
+.buzz-mode .rounded-lg.bg-gray-800,
+.buzz-mode .rounded-xl.bg-white,
+.buzz-mode .rounded-xl.bg-gray-800 {
+  border: 1px solid rgba(248, 216, 74, 0.75) !important;
+  box-shadow:
+    0 0 0 1px rgba(248, 216, 74, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.55) !important;
+}
+
+.buzz-mode .border-gray-200,
+.buzz-mode .border-gray-300,
+.buzz-mode .border-gray-600,
+.buzz-mode .border-gray-700 {
+  border-color: rgba(248, 216, 74, 0.45) !important;
+}
+
+.buzz-mode .text-gray-100,
+.buzz-mode .text-gray-200,
+.buzz-mode .text-gray-300,
+.buzz-mode .text-gray-400,
+.buzz-mode .text-gray-500,
+.buzz-mode .text-gray-600,
+.buzz-mode .text-gray-700,
+.buzz-mode .text-gray-800,
+.buzz-mode .text-gray-900,
+.buzz-mode .text-blue-700,
+.buzz-mode .text-blue-100,
+.buzz-mode .text-red-700,
+.buzz-mode .text-green-700 {
+  color: #f8d84a !important;
+}
+
+.buzz-mode .bg-blue-50,
+.buzz-mode .bg-blue-600,
+.buzz-mode .bg-blue-700,
+.buzz-mode .bg-amber-500,
+.buzz-mode .bg-amber-600,
+.buzz-mode .bg-red-600,
+.buzz-mode .bg-red-700,
+.buzz-mode .bg-green-600 {
+  background-color: #f2c500 !important;
+  color: #111111 !important;
+}
+
+.buzz-mode input,
+.buzz-mode select,
+.buzz-mode textarea,
+.buzz-mode pre,
+.buzz-mode code {
+  background-color: #0d0d0d !important;
+  color: #f8d84a !important;
+  border-color: rgba(248, 216, 74, 0.45) !important;
+}
+
+.buzz-mode .hover\:bg-gray-50:hover,
+.buzz-mode .hover\:bg-gray-100:hover,
+.buzz-mode .dark\:hover\:bg-gray-700:hover {
+  background-color: #1a1a1a !important;
+}
+
+.buzz-mode .hover\:text-gray-700:hover,
+.buzz-mode .hover\:text-gray-800:hover,
+.buzz-mode .dark\:hover\:text-gray-200:hover {
+  color: #ffe67d !important;
+}
+
+.buzz-mode a {
+  color: #ffe67d;
+}
+
+.buzz-mode a:hover {
+  color: #fff1a8;
+}

@@ -26,13 +26,12 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           <div class="flex">
             <div class="flex-shrink-0 flex items-center">
               <span class="text-xl font-bold text-gray-800 dark:text-white">
-                <.link navigate="/">SoundBored</.link>
+                <.link navigate="/">BeeBot &#x1F41D;</.link>
               </span>
             </div>
+
             <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <.nav_link navigate="/" active={current_page?(@current_path, "/")}>
-                Sounds
-              </.nav_link>
+              <.nav_link navigate="/" active={current_page?(@current_path, "/")}>Sounds</.nav_link>
               <.nav_link navigate="/favorites" active={current_page?(@current_path, "/favorites")}>
                 Favorites
               </.nav_link>
@@ -58,7 +57,25 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
             </div>
           </div>
 
-          <div class="hidden sm:ml-6 sm:flex sm:items-center">
+          <div class="hidden sm:ml-6 sm:flex sm:items-center sm:gap-3">
+            <button
+              id="buzz-mode-toggle-desktop"
+              type="button"
+              phx-hook="BuzzModeToggle"
+              data-buzz-toggle
+              class="inline-flex items-center rounded-md border border-amber-400 bg-gray-900 px-3 py-1.5 text-sm font-medium text-amber-300 shadow-sm transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+              aria-pressed="false"
+            >
+              Buzz Mode: Off
+            </button>
+            <%= if @current_user do %>
+              <.link
+                href={~p"/auth/discord"}
+                class="inline-flex items-center rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+              >
+                Re-auth
+              </.link>
+            <% end %>
             <div class={desktop_user_pills_classes(users)}>
               <%= users
                   |> Enum.map(fn user -> %>
@@ -76,8 +93,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                       src={user.avatar}
                       class="w-4 h-4 rounded-full"
                       alt={"#{user.username}'s avatar"}
-                    />
-                    {user.username}
+                    /> {user.username}
                   </span>
                 </div>
               <% end) %>
@@ -130,8 +146,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           </div>
         </div>
       </div>
-      
-    <!-- Mobile menu -->
+      <!-- Mobile menu -->
       <div class={["sm:hidden", (!@show_mobile_menu && "hidden") || "block"]} id="mobile-menu">
         <div class="pt-2 pb-3 space-y-1">
           <.mobile_nav_link navigate="/" active={current_page?(@current_path, "/")}>
@@ -159,7 +174,26 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
               Settings
             </.mobile_nav_link>
           <% end %>
+          <%= if @current_user do %>
+            <.link
+              href={~p"/auth/discord"}
+              class="block pl-4 pr-4 py-3 border-l-4 border-transparent text-base font-medium leading-relaxed tracking-wide text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Re-auth
+            </.link>
+          <% end %>
+          <button
+            id="buzz-mode-toggle-mobile"
+            type="button"
+            phx-hook="BuzzModeToggle"
+            data-buzz-toggle
+            class="block w-full text-left pl-4 pr-4 py-3 border-l-4 border-transparent text-base font-medium leading-relaxed tracking-wide text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200"
+            aria-pressed="false"
+          >
+            Buzz Mode: Off
+          </button>
         </div>
+
         <div class="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
           <div class="space-y-2 px-4">
             <%= users
@@ -178,8 +212,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                     src={user.avatar}
                     class="w-5 h-5 rounded-full"
                     alt={"#{user.username}'s avatar"}
-                  />
-                  <span class="truncate">{user.username}</span>
+                  /> <span class="truncate">{user.username}</span>
                 </span>
               </div>
             <% end) %>

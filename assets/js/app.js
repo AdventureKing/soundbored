@@ -29,9 +29,46 @@ const roundTo = (value, decimals = 4) => {
   const factor = Math.pow(10, decimals)
   return Math.round(value * factor) / factor
 }
+const padNumber = (value, width = 2) => String(value).padStart(width, "0")
+
+const formatCooldownDuration = (remainingMs) => {
+  const total = Math.max(0, Math.ceil(remainingMs))
+  const minutes = Math.floor(total / 60000)
+  const seconds = Math.floor((total % 60000) / 1000)
+  const milliseconds = total % 1000
+  return `${padNumber(minutes)}:${padNumber(seconds)}.${padNumber(milliseconds, 3)}`
+}
 
 const MAX_VOLUME_PERCENT_DEFAULT = 150
 const BOOST_CAP = 1.5
+const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
+const BUZZ_MODE_CLASS = "buzz-mode"
+
+const applyBuzzMode = (enabled) => {
+  document.documentElement.classList.toggle(BUZZ_MODE_CLASS, enabled)
+  if (document.body) {
+    document.body.classList.toggle(BUZZ_MODE_CLASS, enabled)
+  }
+
+  document.querySelectorAll("[data-buzz-toggle]").forEach((button) => {
+    button.setAttribute("aria-pressed", enabled ? "true" : "false")
+    button.textContent = enabled ? "Buzz Mode: On" : "Buzz Mode: Off"
+  })
+}
+
+const readBuzzModePreference = () => {
+  try {
+    return window.localStorage.getItem(BUZZ_MODE_STORAGE_KEY) === "on"
+  } catch (_err) {
+    return false
+  }
+}
+
+const saveBuzzModePreference = (enabled) => {
+  try {
+    window.localStorage.setItem(BUZZ_MODE_STORAGE_KEY, enabled ? "on" : "off")
+  } catch (_err) {}
+}
 
 const getAudioContextCtor = () => window.AudioContext || window.webkitAudioContext || null
 
@@ -256,6 +293,82 @@ Hooks.LocalPlayer = {
       playIcon.classList.remove("hidden")
       stopIcon.classList.add("hidden")
     }
+  }
+}
+
+Hooks.CooldownTimer = {
+  mounted() {
+    this.valueEl = this.el.querySelector("[data-role='cooldown-value']") || this.el
+    this.endMs = null
+    this.baseRemainingMs = null
+    this.startedAt = null
+    this.lastSignature = null
+    this.frame = null
+    this.tick = this.tick.bind(this)
+    this.syncFromDataset(true)
+  },
+  updated() {
+    this.syncFromDataset()
+  },
+  destroyed() {
+    this.stopTicking()
+  },
+  parseEndMs() {
+    const raw = this.el.dataset.cooldownEndMs
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  },
+  parseRemainingMs() {
+    const raw = this.el.dataset.cooldownRemainingMs
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+  },
+  syncFromDataset(force = false) {
+    const endMs = this.parseEndMs()
+    const remainingMs = this.parseRemainingMs()
+    const signature = `${endMs ?? ""}|${remainingMs ?? ""}`
+
+    if (!force && signature === this.lastSignature) {
+      return
+    }
+
+    this.lastSignature = signature
+    this.stopTicking()
+    this.endMs = endMs
+    this.baseRemainingMs = remainingMs
+    this.startedAt = remainingMs !== null ? performance.now() : null
+    this.tick()
+  },
+  stopTicking() {
+    if (this.frame) {
+      cancelAnimationFrame(this.frame)
+      this.frame = null
+    }
+  },
+  tick() {
+    if (!this.valueEl) {
+      return
+    }
+
+    if (!this.endMs) {
+      if (this.baseRemainingMs === null || this.startedAt === null) {
+        this.valueEl.textContent = "Ready"
+        return
+      }
+    }
+
+    const remaining =
+      this.baseRemainingMs !== null && this.startedAt !== null
+        ? this.baseRemainingMs - (performance.now() - this.startedAt)
+        : this.endMs - Date.now()
+
+    if (remaining <= 0) {
+      this.valueEl.textContent = "Ready"
+      return
+    }
+
+    this.valueEl.textContent = formatCooldownDuration(remaining)
+    this.frame = requestAnimationFrame(this.tick)
   }
 }
 
@@ -624,6 +737,29 @@ Hooks.CopyButton = {
         }, 1500)
       }
     }
+    this.el.addEventListener("click", this.handleClick)
+  },
+  destroyed() {
+    this.el.removeEventListener("click", this.handleClick)
+  }
+}
+
+Hooks.BuzzModeToggle = {
+  mounted() {
+    if (!window.__buzzModeInitialized) {
+      applyBuzzMode(readBuzzModePreference())
+      window.__buzzModeInitialized = true
+    } else {
+      applyBuzzMode(readBuzzModePreference())
+    }
+
+    this.handleClick = (event) => {
+      event.preventDefault()
+      const nextEnabled = !readBuzzModePreference()
+      saveBuzzModePreference(nextEnabled)
+      applyBuzzMode(nextEnabled)
+    }
+
     this.el.addEventListener("click", this.handleClick)
   },
   destroyed() {

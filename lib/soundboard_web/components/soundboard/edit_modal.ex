@@ -3,6 +3,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
   The edit modal component.
   """
   use Phoenix.Component
+  alias Soundboard.Accounts.Permissions
   alias Soundboard.Volume
   alias SoundboardWeb.Components.Soundboard.{TagComponents, VolumeControl}
 
@@ -64,8 +65,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                 <input type="hidden" name="sound_id" value={@current_sound.id} />
                 <input type="hidden" name="source_type" value={@current_sound.source_type} />
                 <input type="hidden" name="url" value={@current_sound.url} />
-                
-    <!-- Display current source type (non-editable) -->
+                <!-- Display current source type (non-editable) -->
                 <div class="mb-4 text-left">
                   <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">
                     Source
@@ -78,8 +78,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     <% end %>
                   </div>
                 </div>
-                
-    <!-- Name Input with error message -->
+                <!-- Name Input with error message -->
                 <div class="mb-4">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left">
                     Name
@@ -105,10 +104,8 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     <p class="mt-2 text-sm text-red-600 dark:text-red-400">{@edit_name_error}</p>
                   <% end %>
                 </div>
-
-                <% volume_percent = Volume.decimal_to_percent(@current_sound.volume) %>
-                <% preview_kind = if @current_sound.source_type == "url", do: "url", else: "existing" %>
-                <% preview_src =
+                <% volume_percent = Volume.decimal_to_percent(@current_sound.volume) %> <% preview_kind =
+                  if @current_sound.source_type == "url", do: "url", else: "existing" %> <% preview_src =
                   if preview_kind == "existing",
                     do: "/uploads/#{@current_sound.filename}",
                     else: @current_sound.url %>
@@ -120,6 +117,25 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                   data-preview-src={preview_src}
                   preview_disabled={is_nil(preview_src) or preview_src == ""}
                 />
+
+                <%= if Permissions.can_manage_settings?(@current_user) do %>
+                  <div class="mt-4 text-left">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Internal Cooldown (seconds)
+                    </label>
+                    <input
+                      type="number"
+                      name="internal_cooldown_seconds"
+                      min="0"
+                      step="1"
+                      value={@current_sound.internal_cooldown_seconds || 0}
+                      class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm sm:text-sm dark:text-gray-100 dark:bg-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Prevent anyone from replaying this clip until the cooldown expires.
+                    </p>
+                  </div>
+                <% end %>
                 
     <!-- Tags -->
                 <div class="text-left">
@@ -128,8 +144,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                   </label>
                   <TagComponents.tag_badge_list tags={@current_sound.tags} remove_event="remove_tag" />
                 </div>
-                
-    <!-- Tag Input -->
+                <!-- Tag Input -->
                 <div class="mt-2 relative">
                   <div>
                     <TagComponents.tag_input_field
@@ -157,8 +172,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     select_event="select_tag"
                   />
                 </div>
-                
-    <!-- Sound Settings -->
+                <!-- Sound Settings -->
                 <div class="mt-5 mb-4">
                   <div class="flex flex-col gap-3 text-left">
                     <% user_setting =
@@ -176,13 +190,13 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
                         />
                       </div>
+
                       <div class="ml-3 text-sm leading-6">
                         <span class="font-medium text-gray-900 dark:text-gray-100">
                           Play when I join voice
                         </span>
                       </div>
                     </label>
-
                     <label class="relative flex items-start">
                       <div class="flex h-6 items-center">
                         <input
@@ -193,6 +207,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
                         />
                       </div>
+
                       <div class="ml-3 text-sm leading-6">
                         <span class="font-medium text-gray-900 dark:text-gray-100">
                           Play when I leave voice
@@ -213,7 +228,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                   >
                     Save Changes
                   </button>
-                  <%= if @current_sound.user_id == @current_user.id do %>
+                  <%= if can_delete_sound?(@current_sound, @current_user) do %>
                     <button
                       type="button"
                       phx-click="show_delete_confirm"
@@ -231,4 +246,11 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
     </div>
     """
   end
+
+  defp can_delete_sound?(%{user_id: owner_id}, %{id: user_id} = current_user)
+       when is_integer(owner_id) and is_integer(user_id) do
+    owner_id == user_id or Permissions.can_manage_settings?(current_user)
+  end
+
+  defp can_delete_sound?(_sound, _current_user), do: false
 end

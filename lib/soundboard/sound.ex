@@ -19,6 +19,7 @@ defmodule Soundboard.Sound do
     field :source_type, :string, default: "local"
     field :description, :string
     field :volume, :float, default: 1.0
+    field :internal_cooldown_seconds, :integer, default: 0
     belongs_to :user, Soundboard.Accounts.User
     has_many :user_sound_settings, Soundboard.UserSoundSetting
 
@@ -38,11 +39,13 @@ defmodule Soundboard.Sound do
       :source_type,
       :description,
       :user_id,
-      :volume
+      :volume,
+      :internal_cooldown_seconds
     ])
     |> validate_required([:user_id])
     |> validate_source_type()
     |> validate_volume()
+    |> validate_internal_cooldown()
     |> unique_constraint(:filename, name: :sounds_filename_index)
     |> put_tags(attrs)
   end
@@ -81,6 +84,18 @@ defmodule Soundboard.Sound do
     |> case do
       %{changes: %{volume: volume}} = cs when is_nil(volume) ->
         put_change(cs, :volume, 1.0)
+
+      cs ->
+        cs
+    end
+  end
+
+  defp validate_internal_cooldown(changeset) do
+    changeset
+    |> validate_number(:internal_cooldown_seconds, greater_than_or_equal_to: 0)
+    |> case do
+      %{changes: %{internal_cooldown_seconds: cooldown}} = cs when is_nil(cooldown) ->
+        put_change(cs, :internal_cooldown_seconds, 0)
 
       cs ->
         cs

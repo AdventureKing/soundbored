@@ -2,6 +2,7 @@ defmodule SoundboardWeb.API.SoundController do
   use SoundboardWeb, :controller
 
   alias Soundboard.Accounts.Permissions
+  alias Soundboard.ClipCooldown
   alias Soundboard.PlaybackCooldown
   alias Soundboard.{Repo, Sound, Sounds}
 
@@ -54,20 +55,31 @@ defmodule SoundboardWeb.API.SoundController do
               :ok ->
                 case PlaybackCooldown.check(user) do
                   :ok ->
-                    actor = %{display_name: user.username, user_id: user.id}
+                    case ClipCooldown.check(sound) do
+                      :ok ->
+                        actor = %{display_name: user.username, user_id: user.id}
 
-                    Soundboard.AudioPlayer.play_sound(sound.filename, actor)
+                        Soundboard.AudioPlayer.play_sound(sound.filename, actor)
 
-                    conn
-                    |> put_status(:accepted)
-                    |> json(%{
-                      data: %{
-                        status: "accepted",
-                        message: "Playback request accepted for #{sound.filename}",
-                        requested_by: actor.display_name,
-                        sound: %{id: sound.id, filename: sound.filename}
-                      }
-                    })
+                        conn
+                        |> put_status(:accepted)
+                        |> json(%{
+                          data: %{
+                            status: "accepted",
+                            message: "Playback request accepted for #{sound.filename}",
+                            requested_by: actor.display_name,
+                            sound: %{id: sound.id, filename: sound.filename}
+                          }
+                        })
+
+                      {:error, details} ->
+                        conn
+                        |> put_status(:too_many_requests)
+                        |> json(%{
+                          error: ClipCooldown.message(details),
+                          retry_after_seconds: details.remaining_seconds
+                        })
+                    end
 
                   {:error, details} ->
                     conn
@@ -137,6 +149,7 @@ defmodule SoundboardWeb.API.SoundController do
       source_type: sound.source_type,
       url: sound.url,
       volume: sound.volume,
+      internal_cooldown_seconds: sound.internal_cooldown_seconds,
       description: sound.description,
       tags: Enum.map(sound.tags || [], & &1.name),
       is_join_sound: user_setting && user_setting.is_join_sound,

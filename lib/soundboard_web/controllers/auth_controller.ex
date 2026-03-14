@@ -104,7 +104,10 @@ defmodule SoundboardWeb.AuthController do
       |> case do
         %{} = extra ->
           raw_info = Map.get(extra, :raw_info) || Map.get(extra, "raw_info")
-          if is_map(raw_info), do: Map.get(raw_info, :guilds) || Map.get(raw_info, "guilds"), else: nil
+
+          if is_map(raw_info),
+            do: Map.get(raw_info, :guilds) || Map.get(raw_info, "guilds"),
+            else: nil
 
         _ ->
           nil
@@ -172,7 +175,9 @@ defmodule SoundboardWeb.AuthController do
       {~c"Accept", ~c"application/json"}
     ]
 
-    case :httpc.request(:get, {to_charlist(@discord_guilds_url), headers}, [], [body_format: :binary]) do
+    case :httpc.request(:get, {to_charlist(@discord_guilds_url), headers}, [],
+           body_format: :binary
+         ) do
       {:ok, {{_status_line, status, _reason_phrase}, _headers, body}} when status in 200..299 ->
         with {:ok, decoded} <- Jason.decode(to_string(body)),
              true <- is_list(decoded),
@@ -300,7 +305,7 @@ defmodule SoundboardWeb.AuthController do
 
     member_url = "#{@discord_member_base_url}/#{to_string(guild_id)}/member"
 
-    case :httpc.request(:get, {to_charlist(member_url), headers}, [], [body_format: :binary]) do
+    case :httpc.request(:get, {to_charlist(member_url), headers}, [], body_format: :binary) do
       {:ok, {{_status_line, status, _reason_phrase}, _headers, body}} when status in 200..299 ->
         with {:ok, decoded} <- Jason.decode(to_string(body)),
              roles when is_list(roles) <- Map.get(decoded, "roles") || Map.get(decoded, :roles) do

@@ -8,6 +8,13 @@ defmodule Soundboard.Sounds.ManagementTest do
   alias Soundboard.Sounds.Management
 
   setup do
+    original_admin_user_ids =
+      Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+    on_exit(fn ->
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+    end)
+
     {:ok, user} =
       %User{}
       |> User.changeset(%{
@@ -121,7 +128,57 @@ defmodule Soundboard.Sounds.ManagementTest do
     refute setting.is_leave_sound
   end
 
-  test "delete_sound/2 stays owner-only even when metadata edits are collaborative", %{user: user} do
+  test "update_sound/3 ignores internal cooldown changes from non-admin editors", %{user: user} do
+    sound = insert_local_sound(user, "cooldown_ignore_#{System.unique_integer([:positive])}.mp3")
+
+    {:ok, editor} =
+      %User{}
+      |> User.changeset(%{
+        username: "non_admin_editor_#{System.unique_integer([:positive])}",
+        discord_id: Integer.to_string(System.unique_integer([:positive])),
+        avatar: "avatar.png"
+      })
+      |> Repo.insert()
+
+    params = %{
+      "filename" => Path.basename(sound.filename, Path.extname(sound.filename)),
+      "source_type" => "local",
+      "url" => nil,
+      "volume" => "100",
+      "internal_cooldown_seconds" => "45"
+    }
+
+    assert {:ok, updated_sound} = Management.update_sound(sound, editor.id, params)
+    assert updated_sound.internal_cooldown_seconds == 0
+  end
+
+  test "update_sound/3 allows settings admins to change internal cooldown", %{user: user} do
+    sound = insert_local_sound(user, "cooldown_admin_#{System.unique_integer([:positive])}.mp3")
+
+    {:ok, admin} =
+      %User{}
+      |> User.changeset(%{
+        username: "cooldown_admin_#{System.unique_integer([:positive])}",
+        discord_id: Integer.to_string(System.unique_integer([:positive])),
+        avatar: "avatar.png"
+      })
+      |> Repo.insert()
+
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, [admin.discord_id])
+
+    params = %{
+      "filename" => Path.basename(sound.filename, Path.extname(sound.filename)),
+      "source_type" => "local",
+      "url" => nil,
+      "volume" => "100",
+      "internal_cooldown_seconds" => "45"
+    }
+
+    assert {:ok, updated_sound} = Management.update_sound(sound, admin.id, params)
+    assert updated_sound.internal_cooldown_seconds == 45
+  end
+
+  test "delete_sound/2 is forbidden for non-owner non-admin users", %{user: user} do
     sound = insert_local_sound(user, "locked_#{System.unique_integer([:positive])}.mp3")
 
     {:ok, intruder} =
@@ -135,6 +192,24 @@ defmodule Soundboard.Sounds.ManagementTest do
 
     assert {:error, :forbidden} = Management.delete_sound(sound, intruder.id)
     assert Repo.get!(Sound, sound.id)
+  end
+
+  test "delete_sound/2 allows settings admins to delete sounds they do not own", %{user: user} do
+    sound = insert_local_sound(user, "admin_delete_#{System.unique_integer([:positive])}.mp3")
+
+    {:ok, admin} =
+      %User{}
+      |> User.changeset(%{
+        username: "settings_admin_#{System.unique_integer([:positive])}",
+        discord_id: Integer.to_string(System.unique_integer([:positive])),
+        avatar: "avatar.png"
+      })
+      |> Repo.insert()
+
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, [admin.discord_id])
+
+    assert :ok = Management.delete_sound(sound, admin)
+    assert Repo.get(Sound, sound.id) == nil
   end
 
   defp insert_local_sound(user, filename) do

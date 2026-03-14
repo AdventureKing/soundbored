@@ -8,9 +8,6 @@ defmodule Soundboard.AudioPlayer do
   alias Soundboard.AudioPlayer.{Notifier, PlaybackQueue, SoundLibrary, VoiceSession}
   alias Soundboard.Discord.Voice
 
-  @interrupt_watchdog_ms 35
-  @interrupt_watchdog_max_attempts 20
-
   defmodule State do
     @moduledoc """
     The state of the audio player.
@@ -19,19 +16,13 @@ defmodule Soundboard.AudioPlayer do
     defstruct [
       :voice_channel,
       :current_playback,
-      :pending_request,
-      :interrupting,
-      :interrupt_watchdog_ref,
-      :interrupt_watchdog_attempt
+      :pending_requests
     ]
 
     @type t :: %__MODULE__{
             voice_channel: {String.t(), String.t()} | nil,
             current_playback: map() | nil,
-            pending_request: map() | nil,
-            interrupting: boolean() | nil,
-            interrupt_watchdog_ref: reference() | nil,
-            interrupt_watchdog_attempt: non_neg_integer() | nil
+            pending_requests: [map()]
           }
   end
 
@@ -45,6 +36,10 @@ defmodule Soundboard.AudioPlayer do
 
   def stop_sound do
     GenServer.cast(__MODULE__, :stop_sound)
+  end
+
+  def stop_and_clear_queue do
+    GenServer.cast(__MODULE__, :stop_and_clear_queue)
   end
 
   def set_voice_channel(guild_id, channel_id) do
@@ -77,10 +72,7 @@ defmodule Soundboard.AudioPlayer do
      %{
        state
        | current_playback: nil,
-         pending_request: nil,
-         interrupting: false,
-         interrupt_watchdog_ref: nil,
-         interrupt_watchdog_attempt: 0
+         pending_requests: []
      }}
   end
 
@@ -112,6 +104,16 @@ defmodule Soundboard.AudioPlayer do
     {:noreply, state}
   end
 
+  def handle_cast(:stop_and_clear_queue, state) do
+    if match?({_, _}, state.voice_channel) do
+      {guild_id, _channel_id} = state.voice_channel
+      Voice.stop(guild_id)
+    end
+
+    Notifier.sound_played("All sounds stopped and queue cleared", "System")
+    {:noreply, PlaybackQueue.clear_all(state)}
+  end
+
   def handle_cast({:playback_finished, guild_id}, state) do
     {:noreply, PlaybackQueue.handle_playback_finished(state, guild_id)}
   end
@@ -124,7 +126,7 @@ defmodule Soundboard.AudioPlayer do
   def handle_cast({:play_sound, sound_name, actor}, %{voice_channel: voice_channel} = state) do
     case PlaybackQueue.build_request(voice_channel, sound_name, actor) do
       {:ok, request} ->
-        {:noreply, PlaybackQueue.enqueue(state, request, @interrupt_watchdog_ms)}
+        {:noreply, PlaybackQueue.enqueue(state, request)}
 
       {:error, reason} ->
         Notifier.error(reason)
@@ -155,18 +157,6 @@ defmodule Soundboard.AudioPlayer do
         %{current_playback: %{task_ref: ref}} = state
       ) do
     {:noreply, PlaybackQueue.handle_task_down(state, reason)}
-  end
-
-  @impl true
-  def handle_info({:interrupt_watchdog, guild_id, attempt}, state) do
-    {:noreply,
-     PlaybackQueue.handle_interrupt_watchdog(
-       state,
-       guild_id,
-       attempt,
-       @interrupt_watchdog_max_attempts,
-       @interrupt_watchdog_ms
-     )}
   end
 
   @impl true

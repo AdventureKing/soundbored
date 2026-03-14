@@ -15,9 +15,11 @@ defmodule SoundboardWeb.Components.Soundboard.DeleteModal do
                 <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
                   Delete Sound
                 </h3>
+
                 <p class="text-gray-600 dark:text-gray-400 mb-4">
                   Are you sure you want to delete this sound? This action cannot be undone.
                 </p>
+
                 <div class="flex justify-end gap-3">
                   <button
                     phx-click="hide_delete_confirm"

@@ -125,6 +125,7 @@ defmodule SoundboardWeb.StatsLive do
     <div id="stats" class="max-w-6xl mx-auto px-4 py-8">
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Stats</h1>
+
         <div class="flex items-center gap-4">
           <button
             phx-click="previous_week"
@@ -138,9 +139,7 @@ defmodule SoundboardWeb.StatsLive do
               phx-submit="select_week"
               class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
             >
-              <label for="week-picker" class="whitespace-nowrap">
-                Week of
-              </label>
+              <label for="week-picker" class="whitespace-nowrap">Week of</label>
               <input
                 type="date"
                 id="week-picker"
@@ -151,10 +150,12 @@ defmodule SoundboardWeb.StatsLive do
                 class="border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </form>
+
             <span class="text-xs text-gray-500 dark:text-gray-400">
               {format_date_range(@selected_week)}
             </span>
           </div>
+
           <button
             phx-click="next_week"
             disabled={@selected_week == @current_week}
@@ -171,6 +172,7 @@ defmodule SoundboardWeb.StatsLive do
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Top Users</h2>
+
           <div class="space-y-2">
             <%= for {username, count} <- @top_users do %>
               <div class="flex justify-between items-center" id={"user-stat-#{username}"}>
@@ -183,10 +185,9 @@ defmodule SoundboardWeb.StatsLive do
                     src={get_user_avatar(username, @presences, @avatars_by_username)}
                     class="w-4 h-4 rounded-full"
                     alt={"#{username}'s avatar"}
-                  />
-                  {username}
+                  /> {username}
                 </span>
-                <span class="text-gray-600 dark:text-gray-400">{count} plays</span>
+                 <span class="text-gray-600 dark:text-gray-400">{count} plays</span>
               </div>
             <% end %>
           </div>
@@ -194,6 +195,7 @@ defmodule SoundboardWeb.StatsLive do
 
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Top Sounds</h2>
+
           <div class="space-y-3">
             <%= for {sound_name, count} <- @top_sounds do %>
               <div
@@ -207,11 +209,11 @@ defmodule SoundboardWeb.StatsLive do
                     <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                       {display_name(sound_name)}
                     </p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      {count} plays
-                    </p>
+
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{count} plays</p>
                   </div>
                 </div>
+
                 <div class="flex items-center gap-2">
                   <button
                     phx-click="toggle_favorite"
@@ -236,6 +238,7 @@ defmodule SoundboardWeb.StatsLive do
       <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Recent Plays</h2>
+
           <div class="space-y-3" id="recent_plays" phx-update="stream">
             <%= for {dom_id, play} <- @streams.recent_plays do %>
               <div
@@ -252,15 +255,16 @@ defmodule SoundboardWeb.StatsLive do
                       alt={play.username}
                     />
                   </div>
+
                   <div class="min-w-0">
                     <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                       {display_name(play.filename)}
                     </p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      {play.username}
-                    </p>
+
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{play.username}</p>
                   </div>
                 </div>
+
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {format_timestamp(play.timestamp)}
@@ -287,6 +291,7 @@ defmodule SoundboardWeb.StatsLive do
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
             Recently Uploaded
           </h2>
+
           <div class="space-y-3">
             <%= for {sound_name, username, timestamp} <- @recent_uploads do %>
               <div
@@ -303,15 +308,16 @@ defmodule SoundboardWeb.StatsLive do
                       alt={username}
                     />
                   </div>
+
                   <div class="min-w-0">
                     <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                       {display_name(sound_name)}
                     </p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                      {username}
-                    </p>
+
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{username}</p>
                   </div>
                 </div>
+
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {format_timestamp(timestamp)}

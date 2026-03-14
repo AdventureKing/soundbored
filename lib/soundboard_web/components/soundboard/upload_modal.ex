@@ -41,12 +41,11 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                 id="upload-form"
                 class="mt-4"
               >
-                <% source_ready = source_input_ready?(@source_type, @uploads.audio.entries, @url) %>
-                <% form_ready = form_ready?(@source_type, @uploads.audio.entries, @url, @upload_error) %>
-                <% local_upload_pending = local_upload_pending?(@source_type, @uploads.audio.entries) %>
-                <% url_upload_pending = url_upload_pending?(@source_type, @url) %>
-                
-    <!-- Source Type -->
+                <% source_ready = source_input_ready?(@source_type, @uploads.audio.entries, @url) %> <% form_ready =
+                  form_ready?(@source_type, @uploads.audio.entries, @url, @upload_error) %> <% local_upload_pending =
+                  local_upload_pending?(@source_type, @uploads.audio.entries) %> <% url_upload_pending =
+                  url_upload_pending?(@source_type, @url) %>
+                <!-- Source Type -->
                 <div class="mb-4">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left">
                     Source Type
@@ -59,6 +58,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                            dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="local" selected={@source_type == "local"}>Local File</option>
+
                     <option value="url" selected={@source_type == "url"}>URL</option>
                   </select>
                 </div>
@@ -104,8 +104,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                     />
                   </div>
                 <% end %>
-                
-    <!-- Details: shown but inputs are disabled until a file/URL is provided -->
+                <!-- Details: shown but inputs are disabled until a file/URL is provided -->
                   <!-- Name Input -->
                 <div class="mb-4">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left">
@@ -129,17 +128,18 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                       Select a file first to name it.
                     </p>
                   <% end %>
+
                   <%= if url_upload_pending do %>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       Enter a URL first to name it.
                     </p>
                   <% end %>
+
                   <%= if @upload_error do %>
                     <p class="mt-1 text-sm text-red-600 dark:text-red-400">{@upload_error}</p>
                   <% end %>
                 </div>
-                
-    <!-- Tags -->
+                <!-- Tags -->
                 <div class="text-left">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Tags
@@ -148,7 +148,6 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                     At least one tag is required.
                   </p>
                   <TagComponents.tag_badge_list tags={@upload_tags} remove_event="remove_upload_tag" />
-
                   <div class="mt-2 relative">
                     <div>
                       <TagComponents.tag_input_field
@@ -176,9 +175,8 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                     />
                   </div>
                 </div>
-
-                <% preview_kind = if @source_type == "local", do: "local-upload", else: "url" %>
-                <% preview_disabled = not source_ready %>
+                <% preview_kind = if @source_type == "local", do: "local-upload", else: "url" %> <% preview_disabled =
+                  not source_ready %>
                 <VolumeControl.volume_control
                   id="upload-volume-control"
                   value={@upload_volume}
@@ -191,8 +189,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                   data-preview-src={if preview_kind == "url", do: @url, else: nil}
                   preview_disabled={preview_disabled}
                 />
-                
-    <!-- Sound Settings -->
+                <!-- Sound Settings -->
                 <div class="mt-5 mb-4">
                   <div class="flex flex-col gap-3 text-left">
                     <label class="relative flex items-start">
@@ -207,13 +204,13 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 dark:border-gray-600 dark:focus:ring-offset-gray-800"
                         />
                       </div>
+
                       <div class="ml-3 text-sm leading-6">
                         <span class="font-medium text-gray-900 dark:text-gray-100">
                           Play when I join voice
                         </span>
                       </div>
                     </label>
-
                     <label class="relative flex items-start">
                       <div class="flex h-6 items-center">
                         <input
@@ -226,6 +223,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 dark:border-gray-600 dark:focus:ring-offset-gray-800"
                         />
                       </div>
+
                       <div class="ml-3 text-sm leading-6">
                         <span class="font-medium text-gray-900 dark:text-gray-100">
                           Play when I leave voice
