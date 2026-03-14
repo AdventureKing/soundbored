@@ -11,14 +11,8 @@ defmodule Soundboard.Repo.Migrations.CreateRoleCooldowns do
       end
 
       create(unique_index(:role_cooldowns, [:role_id]))
-
-      create(
-        constraint(
-          :role_cooldowns,
-          :cooldown_seconds_must_be_positive,
-          check: "cooldown_seconds > 0"
-        )
-      )
+      # SQLite does not support ALTER TABLE ADD CONSTRAINT in Ecto migrations.
+      # Positive cooldown validation is enforced by the RoleCooldown changeset.
     end
   end
 

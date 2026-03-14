@@ -392,7 +392,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
         assert response["error"] =~ "You are on cooldown"
         assert is_integer(response["retry_after_seconds"])
         assert response["retry_after_seconds"] > 0
-        refute_called(Soundboard.AudioPlayer.play_sound(:_, :_))
+        assert_not_called(Soundboard.AudioPlayer.play_sound(:_, :_))
       end
     end
   end

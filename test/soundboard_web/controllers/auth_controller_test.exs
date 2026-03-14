@@ -106,30 +106,31 @@ defmodule SoundboardWeb.AuthControllerTest do
         },
         credentials: %{
           token: "valid-token"
+        },
+        extra: %{
+          raw_info: %{
+            guilds: [%{"id" => "guild-1"}],
+            member: %{"roles" => ["new-role", "tester"]}
+          }
         }
       }
 
-      with_mock :httpc,
-        request: fn
-          :get, _url, _headers, _options ->
-            {:ok, {{~c"HTTP/1.1", 200, ~c"OK"}, [], ~c"[{\"id\":\"guild-1\"}]"}}
-        end do
-        conn =
-          conn
-          |> assign(:ueberauth_auth, auth_data)
-          |> get(~p"/auth/discord/callback")
+      conn =
+        conn
+        |> assign(:ueberauth_auth, auth_data)
+        |> get(~p"/auth/discord/callback")
 
-        final_count = Repo.aggregate(User, :count)
+      final_count = Repo.aggregate(User, :count)
 
-        assert redirected_to(conn) == "/"
-        assert get_session(conn, :user_id) == existing_user.id
-        # Only increased by the one we created
-        assert final_count == initial_count + 1
+      assert redirected_to(conn) == "/"
+      assert get_session(conn, :user_id) == existing_user.id
+      # Only increased by the one we created
+      assert final_count == initial_count + 1
 
-        refreshed_user = Repo.get!(User, existing_user.id)
-        assert refreshed_user.username == "TestUser"
-        assert refreshed_user.avatar == "test_avatar.jpg"
-      end
+      refreshed_user = Repo.get!(User, existing_user.id)
+      assert refreshed_user.username == "TestUser"
+      assert refreshed_user.avatar == "test_avatar.jpg"
+      assert refreshed_user.discord_roles == ["new-role", "tester"]
     end
 
     test "callback/2 rejects users who are not in the required guild", %{conn: conn} do
