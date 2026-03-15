@@ -147,6 +147,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                   <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     At least one tag is required.
                   </p>
+
                   <TagComponents.tag_badge_list tags={@upload_tags} remove_event="remove_upload_tag" />
                   <div class="mt-2 relative">
                     <div>

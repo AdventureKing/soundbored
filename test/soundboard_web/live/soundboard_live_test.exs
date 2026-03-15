@@ -36,7 +36,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
     test "mounts successfully with user session", %{conn: conn} do
       {:ok, _, html} = live(conn, "/")
 
-      assert html =~ "Soundboard"
+      assert html =~ "Sounds"
       # Check for the main content instead of a specific container
       assert html =~ "BeeBot"
       assert html =~ "Cooldown"
@@ -109,7 +109,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       {:ok, view, _html} = live(conn, "/")
 
       view
-      |> element("div.hidden.sm\\:flex button[phx-value-tag='funny']")
+      |> element("#tag-filter-panel button[phx-value-tag='funny']")
       |> render_click()
 
       with_mock Soundboard.AudioPlayer, play_sound: fn _, _ -> :ok end do
@@ -121,6 +121,27 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       end
     end
 
+    test "shows featured tags above regular tag filters", %{conn: conn, user: user} do
+      featured_tag =
+        %Tag{}
+        |> Tag.changeset(%{name: "featured", featured: true})
+        |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "featured.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [featured_tag]
+      })
+      |> Repo.insert!()
+
+      {:ok, view, html} = live(conn, "/")
+
+      assert html =~ "Featured Tags"
+      assert has_element?(view, "#featured-tag-panel button[phx-value-tag='featured']")
+    end
+
     test "shows admin stop and clear queue button for settings admins", %{conn: conn, user: user} do
       original_admin_user_ids =
         Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
@@ -128,7 +149,11 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
 
       on_exit(fn ->
-        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
       end)
 
       {:ok, _view, html} = live(conn, "/")
@@ -144,7 +169,11 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["different-admin"])
 
       on_exit(fn ->
-        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
       end)
 
       {:ok, _view, html} = live(conn, "/")
@@ -160,7 +189,11 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
 
       on_exit(fn ->
-        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
       end)
 
       {:ok, view, _html} = live(conn, "/")

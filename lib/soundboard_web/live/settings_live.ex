@@ -3,6 +3,7 @@ defmodule SoundboardWeb.SettingsLive do
   use SoundboardWeb.Live.Support.PresenceLive
   alias Soundboard.Accounts.{ApiTokens, Permissions, RoleCooldowns}
   alias Soundboard.Discord.GuildCache
+  alias Soundboard.Sounds.Tags
   alias Soundboard.PublicURL
   @role_cooldown_sort_fields [:guild_name, :role_name, :role_id, :cooldown_seconds]
 
@@ -23,9 +24,11 @@ defmodule SoundboardWeb.SettingsLive do
         |> assign(:role_cooldown_sort_dir, :asc)
         |> assign(:role_cooldown_rows, [])
         |> assign(:role_cooldown_role_ids, [])
+        |> assign(:available_tags, [])
+        |> assign(:featured_tag_ids, [])
         |> assign(:base_url, PublicURL.current())
 
-      {:ok, socket |> load_role_cooldown_rows() |> load_tokens()}
+      {:ok, socket |> load_role_cooldown_rows() |> load_tokens() |> load_featured_tags()}
     else
       {:ok,
        socket
@@ -123,6 +126,19 @@ defmodule SoundboardWeb.SettingsLive do
     {:noreply, socket}
   end
 
+  @impl true
+  def handle_event("save_featured_tags", params, socket) do
+    tag_ids = normalize_featured_tag_ids(Map.get(params, "featured_tag_ids", []))
+
+    case Tags.set_featured_tags(tag_ids) do
+      {:ok, _tags} ->
+        {:noreply, socket |> load_featured_tags() |> put_flash(:info, "Featured tags saved")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to save featured tags")}
+    end
+  end
+
   defp load_tokens(%{assigns: %{current_user: nil}} = socket), do: socket
 
   defp load_tokens(%{assigns: %{current_user: user}} = socket) do
@@ -138,6 +154,19 @@ defmodule SoundboardWeb.SettingsLive do
     socket
     |> assign(:tokens, tokens)
     |> assign(:example_token, example)
+  end
+
+  defp load_featured_tags(socket) do
+    tags = Tags.list_all()
+
+    featured_tag_ids =
+      tags
+      |> Enum.filter(& &1.featured)
+      |> Enum.map(&Integer.to_string(&1.id))
+
+    socket
+    |> assign(:available_tags, tags)
+    |> assign(:featured_tag_ids, featured_tag_ids)
   end
 
   defp load_role_cooldown_rows(socket) do
@@ -331,11 +360,64 @@ defmodule SoundboardWeb.SettingsLive do
     end
   end
 
+  defp normalize_featured_tag_ids(tag_ids) when is_list(tag_ids), do: tag_ids
+  defp normalize_featured_tag_ids(tag_id) when is_binary(tag_id), do: [tag_id]
+  defp normalize_featured_tag_ids(_), do: []
+
   @impl true
   def render(assigns) do
     ~H"""
     <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Settings</h1>
+
+      <section aria-labelledby="featured-tags-heading" class="space-y-3">
+        <header class="space-y-1">
+          <h2
+            id="featured-tags-heading"
+            class="text-xl font-semibold text-gray-800 dark:text-gray-100"
+          >
+            Featured Tags
+          </h2>
+
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Featured tags show at the top of the Sounds page above the regular tag filters.
+          </p>
+        </header>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
+          <%= if @available_tags == [] do %>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              No tags are available yet. Add tags to sounds first.
+            </p>
+          <% else %>
+            <form phx-submit="save_featured_tags" class="space-y-4">
+              <div class="max-h-64 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 p-3">
+                <div class="flex flex-wrap gap-2">
+                  <%= for tag <- @available_tags do %>
+                    <label class="inline-flex items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-sm text-gray-700 dark:text-gray-200">
+                      <input
+                        type="checkbox"
+                        name="featured_tag_ids[]"
+                        value={tag.id}
+                        checked={Integer.to_string(tag.id) in @featured_tag_ids}
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 dark:border-gray-600 dark:focus:ring-offset-gray-800"
+                      />
+                      <span>{tag.name}</span>
+                    </label>
+                  <% end %>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+              >
+                Save Featured Tags
+              </button>
+            </form>
+          <% end %>
+        </div>
+      </section>
 
       <section aria-labelledby="role-cooldowns-heading" class="space-y-3">
         <header class="space-y-1">
@@ -345,6 +427,7 @@ defmodule SoundboardWeb.SettingsLive do
           >
             Role Cooldowns
           </h2>
+
           <p class="text-sm text-gray-600 dark:text-gray-400">
             Set playback cooldowns per Discord role. Users with multiple roles get the lowest cooldown.
             Default cooldown is 10 minutes.
@@ -357,8 +440,7 @@ defmodule SoundboardWeb.SettingsLive do
               No guild roles are available in cache yet. Keep the bot connected to Discord, then refresh.
             </p>
           <% else %>
-            <% filtered_rows = filtered_role_cooldown_rows(@role_cooldown_rows, @role_cooldown_filter) %>
-            <% sorted_rows =
+            <% filtered_rows = filtered_role_cooldown_rows(@role_cooldown_rows, @role_cooldown_filter) %> <% sorted_rows =
               sorted_role_cooldown_rows(
                 filtered_rows,
                 @role_cooldown_sort_by,
@@ -381,11 +463,10 @@ defmodule SoundboardWeb.SettingsLive do
                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
               />
             </form>
+
             <form phx-submit="save_role_cooldowns" class="space-y-4">
               <%= if filtered_rows == [] do %>
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                  No roles match that filter.
-                </p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">No roles match that filter.</p>
               <% else %>
                 <div class="overflow-x-auto">
                   <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
@@ -408,6 +489,7 @@ defmodule SoundboardWeb.SettingsLive do
                             </span>
                           </button>
                         </th>
+
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <button
                             type="button"
@@ -425,6 +507,7 @@ defmodule SoundboardWeb.SettingsLive do
                             </span>
                           </button>
                         </th>
+
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <button
                             type="button"
@@ -442,6 +525,7 @@ defmodule SoundboardWeb.SettingsLive do
                             </span>
                           </button>
                         </th>
+
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <button
                             type="button"
@@ -461,18 +545,22 @@ defmodule SoundboardWeb.SettingsLive do
                         </th>
                       </tr>
                     </thead>
+
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                       <%= for row <- sorted_rows do %>
                         <tr>
                           <td class="px-4 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                             {row.guild_name}
                           </td>
+
                           <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
                             {row.role_name}
                           </td>
+
                           <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono">
                             {row.role_id}
                           </td>
+
                           <td class="px-4 py-2">
                             <input
                               type="number"
@@ -511,6 +599,7 @@ defmodule SoundboardWeb.SettingsLive do
           <h2 id="api-tokens-heading" class="text-xl font-semibold text-gray-800 dark:text-gray-100">
             API Tokens
           </h2>
+
           <p class="text-sm text-gray-600 dark:text-gray-400">
             Create a personal token to play sounds remotely. Requests authenticated with a token
             are attributed to your account and update your stats.
@@ -528,6 +617,7 @@ defmodule SoundboardWeb.SettingsLive do
                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
+
             <button
               type="submit"
               class="w-full sm:w-auto justify-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 flex items-center"
@@ -545,24 +635,30 @@ defmodule SoundboardWeb.SettingsLive do
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Label
                   </th>
+
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Token
                   </th>
+
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
+
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Used
                   </th>
+
                   <th class="px-4 py-2"></th>
                 </tr>
               </thead>
+
               <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                 <%= for token <- @tokens do %>
                   <tr class="text-sm">
                     <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
                       {token.label || "(no label)"}
                     </td>
+
                     <td class="px-4 py-2 align-top">
                       <div class="relative">
                         <button
@@ -577,12 +673,15 @@ defmodule SoundboardWeb.SettingsLive do
                         <pre class="p-2 pr-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap"><code class="text-gray-800 dark:text-gray-100 font-mono">{token.token}</code></pre>
                       </div>
                     </td>
+
                     <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {format_dt(token.inserted_at)}
                     </td>
+
                     <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {format_dt(token.last_used_at) || "—"}
                     </td>
+
                     <td class="px-4 py-2 text-right align-top">
                       <button
                         phx-click="revoke_token"
@@ -601,15 +700,18 @@ defmodule SoundboardWeb.SettingsLive do
 
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
           <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">How to call the API</h3>
+
           <p class="text-sm text-gray-700 dark:text-gray-300">
             Include your token in the Authorization header:
             <code class="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 font-mono">
               Authorization: Bearer {@example_token || "<token>"}
             </code>
           </p>
+
           <div class="space-y-4">
             <div>
               <div class="text-sm font-medium text-gray-700 dark:text-gray-300">List sounds</div>
+
               <div class="relative">
                 <button
                   id="copy-list-sounds"
@@ -623,6 +725,7 @@ defmodule SoundboardWeb.SettingsLive do
                 <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds</code></pre>
               </div>
             </div>
+
             <div class="text-xs text-gray-600 dark:text-gray-400">
               Upload endpoint: <code class="font-mono">POST /api/sounds</code>. Required fields: <code class="font-mono">name</code>, <code class="font-mono">tags</code>,
               plus either <code class="font-mono">file</code>
@@ -632,10 +735,12 @@ defmodule SoundboardWeb.SettingsLive do
               <code class="font-mono">volume</code>
               (0-150), <code class="font-mono">is_join_sound</code>, <code class="font-mono">is_leave_sound</code>.
             </div>
+
             <div>
               <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Upload local file (multipart/form-data)
               </div>
+
               <div class="relative">
                 <button
                   id="copy-upload-local"
@@ -658,10 +763,12 @@ defmodule SoundboardWeb.SettingsLive do
     {@base_url}/api/sounds</code></pre>
               </div>
             </div>
+
             <div>
               <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Upload from URL (JSON)
               </div>
+
               <div class="relative">
                 <button
                   id="copy-upload-url"
@@ -679,10 +786,12 @@ defmodule SoundboardWeb.SettingsLive do
     {@base_url}/api/sounds</code></pre>
               </div>
             </div>
+
             <div>
               <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Play a sound by ID
               </div>
+
               <div class="relative">
                 <button
                   id="copy-play-sound"
@@ -696,8 +805,10 @@ defmodule SoundboardWeb.SettingsLive do
                 <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/&lt;SOUND_ID&gt;/play</code></pre>
               </div>
             </div>
+
             <div>
               <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Stop all sounds</div>
+
               <div class="relative">
                 <button
                   id="copy-stop-sounds"

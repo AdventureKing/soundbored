@@ -3,6 +3,7 @@ defmodule Soundboard.Sounds.Tags do
   Domain helpers for searching, resolving, and persisting sound tags.
   """
 
+  import Ecto.Query
   import Ecto.Changeset
 
   alias Soundboard.{Repo, Sound, Tag}
@@ -17,6 +18,35 @@ defmodule Soundboard.Sounds.Tags do
     |> Enum.flat_map(& &1.tags)
     |> Enum.uniq_by(& &1.id)
     |> Enum.sort_by(& &1.name)
+  end
+
+  def featured_for_sounds(sounds) do
+    sounds
+    |> all_for_sounds()
+    |> Enum.filter(& &1.featured)
+  end
+
+  def list_all do
+    from(t in Tag, order_by: [asc: t.name])
+    |> Repo.all()
+  end
+
+  def set_featured_tags(tag_ids) when is_list(tag_ids) do
+    normalized_ids = normalize_tag_ids(tag_ids)
+
+    Repo.transaction(fn ->
+      from(t in Tag, where: t.featured == true)
+      |> Repo.update_all(set: [featured: false])
+
+      if normalized_ids != [] do
+        from(t in Tag, where: t.id in ^normalized_ids)
+        |> Repo.update_all(set: [featured: true])
+      end
+    end)
+    |> case do
+      {:ok, _} -> {:ok, list_all()}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   def count_sounds_with_tag(sounds, tag) do
@@ -99,5 +129,23 @@ defmodule Soundboard.Sounds.Tags do
       %Tag{} = tag -> {:ok, tag}
       nil -> {:error, add_error(change(%Sound{}), :tags, "is invalid")}
     end
+  end
+
+  defp normalize_tag_ids(tag_ids) do
+    tag_ids
+    |> Enum.flat_map(fn
+      id when is_integer(id) ->
+        [id]
+
+      id when is_binary(id) ->
+        case Integer.parse(String.trim(id)) do
+          {parsed, ""} when parsed > 0 -> [parsed]
+          _ -> []
+        end
+
+      _ ->
+        []
+    end)
+    |> Enum.uniq()
   end
 end

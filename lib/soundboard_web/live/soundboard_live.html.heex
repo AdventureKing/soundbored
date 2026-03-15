@@ -1,298 +1,357 @@
-<div class="max-w-6xl mx-auto px-4 py-8">
-  <div class="mb-6 flex justify-center">
-    <div
-      id="playback-cooldown-timer"
-      phx-hook="CooldownTimer"
-      data-cooldown-end-ms={@cooldown_end_ms || ""}
-      data-cooldown-remaining-ms={@cooldown_remaining_ms || ""}
-      class="inline-flex flex-col items-center rounded-xl border border-gray-200/80 bg-white/85 px-4 py-2 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/85"
-    >
-      <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        Cooldown
-      </span>
-      <span
-        data-role="cooldown-value"
-        class="font-mono text-lg font-bold text-gray-800 dark:text-gray-100"
-      >
-        Ready
-      </span>
-    </div>
-  </div>
-
-  <div class="flex flex-wrap items-start justify-between gap-4 mb-8">
-    <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100 flex-1 min-w-[200px]">
-      <span class="group relative cursor-default inline-block">
-        Sounds<div class="pointer-events-none fixed inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-[9999]">
-          <img
-            src="/images/kubernetes.gif"
-            alt="kubernetes"
-            class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] object-contain"
-          />
-        </div>
-      </span>
-    </h1>
-
-    <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 w-full sm:w-auto">
-      <%= if @can_upload_clips do %>
-        <button
-          phx-click="show_upload_modal"
-          class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white font-medium rounded-md
-                 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors
-                 dark:focus:ring-offset-gray-900 text-sm sm:text-base"
-        >
-          Add Sound
-        </button>
-      <% else %>
-        <button
-          type="button"
-          disabled
-          class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 bg-gray-300 text-gray-600 font-medium rounded-md
-                 cursor-not-allowed text-sm sm:text-base dark:bg-gray-700 dark:text-gray-400"
-          title="Your Discord role does not allow clip uploads"
-        >
-          Add Sound
-        </button>
-      <% end %>
-      <button
-        phx-click="play_random"
-        class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 rounded-md text-sm sm:text-base font-medium transition-colors
-               border border-blue-500/60 text-blue-600 dark:text-blue-300 hover:bg-blue-500/10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-      >
-        Play Random
-      </button>
-      <%= if @can_manage_settings do %>
-        <button
-          phx-click="admin_stop_and_clear_queue"
-          class="w-full sm:w-auto justify-center px-3 py-2 sm:px-4 sm:py-2 rounded-md text-sm sm:text-base font-medium transition-colors
-                 border border-amber-500/80 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-        >
-          Admin Stop + Clear Queue
-        </button>
-      <% end %>
-    </div>
-  </div>
-  <%!-- Search Bar --%>
-  <div class="mb-8">
-    <form phx-change="search" phx-submit="search" class="relative">
-      <input
-        type="text"
-        name="query"
-        value={@search_query}
-        placeholder="Search sounds..."
-        autofocus
-        phx-debounce="400"
-        class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm pl-4 pr-10 py-2
-               focus:border-blue-500 focus:ring-blue-500 sm:text-sm
-               dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
-        autocomplete="off"
-      />
-      <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-        <svg
-          class="search-icon h-5 w-5 text-gray-400 dark:text-gray-500"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-            clip-rule="evenodd"
-          />
-        </svg>
-        <svg
-          class="search-spinner hidden animate-spin h-5 w-5 text-gray-400 dark:text-gray-500"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-          </circle>
-
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z">
-          </path>
-        </svg>
+<div class="w-full py-6 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-0 lg:pr-6">
+  <% tags = all_tags(@uploaded_files) %>
+  <% featured_tags = featured_tags(@uploaded_files) %>
+  <% sorted_tags =
+    Enum.sort_by(tags, fn tag ->
+      {
+        -SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag),
+        String.downcase(to_string(Map.get(tag, :name, "")))
+      }
+    end) %>
+  <% sorted_featured_tags =
+    Enum.sort_by(featured_tags, fn tag ->
+      {
+        -SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag),
+        String.downcase(to_string(Map.get(tag, :name, "")))
+      }
+    end) %>
+  <% limited_tags = if @show_all_tags, do: sorted_tags, else: Enum.take(sorted_tags, 24) %>
+  <% filtered_sounds = filter_sounds(@uploaded_files, @search_query, @selected_tags) %>
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] 2xl:grid-cols-[24rem_minmax(0,1fr)]">
+    <aside class="self-start rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-hidden">
+      <div class="border-b border-gray-200 pb-4 dark:border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Find Sounds</h2>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          Search by clip name or filter by tags.
+        </p>
       </div>
-    </form>
-  </div>
-  <!-- Tag Filter Bar -->
-  <% tags = all_tags(@uploaded_files) %> <% limited_tags =
-    if @show_all_tags do
-      tags
-    else
-      Enum.take(tags, 12)
-    end %>
-  <div class="mb-4 flex flex-wrap gap-2 items-center sm:hidden">
-    <%= for tag <- limited_tags do %>
-      <.tag_filter_button
-        tag={tag}
-        selected_tags={@selected_tags}
-        uploaded_files={@uploaded_files}
-      />
-    <% end %>
 
-    <%= if length(tags) > 12 do %>
-      <button
-        phx-click="toggle_tag_list"
-        class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium
-               bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-      >
-        {if @show_all_tags, do: "Show fewer tags", else: "Show more tags"}
-      </button>
-    <% end %>
-  </div>
-
-  <div class="mb-4 hidden sm:flex sm:flex-wrap sm:gap-2 sm:items-center">
-    <%= for tag <- tags do %>
-      <.tag_filter_button
-        tag={tag}
-        selected_tags={@selected_tags}
-        uploaded_files={@uploaded_files}
-      />
-    <% end %>
-  </div>
-
-  <div class="flex justify-between items-center mb-2">
-    <div class="text-sm text-gray-600 dark:text-gray-400">
-      <p style="font-weight: bold">Total Sounds: {length(@uploaded_files)}</p>
-    </div>
-  </div>
-  <%!-- Sound Grid --%>
-  <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-    <%= if @loading_sounds do %>
-      <div class="col-span-full">
-        <div class="loading-container">
-          <div class="loading-spinner"></div>
-        </div>
-      </div>
-    <% else %>
-      <%= for sound <- filter_sounds(@uploaded_files, @search_query, @selected_tags) do %>
-        <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-all duration-200">
-          <%!-- Make the whole card clickable --%>
-          <button
-            phx-click="play"
-            phx-value-name={sound.filename}
-            class="absolute inset-0 w-full h-full cursor-pointer z-0
-                   hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg
-                   focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2
-                   dark:focus:ring-offset-gray-800"
+      <form phx-change="search" phx-submit="search" class="relative mt-4">
+        <input
+          type="text"
+          name="query"
+          value={@search_query}
+          placeholder="Search sounds..."
+          autofocus
+          phx-debounce="400"
+          class="block w-full rounded-md border-gray-300 py-2 pl-4 pr-10 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-400"
+          autocomplete="off"
+        />
+        <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+          <svg
+            class="search-icon h-5 w-5 text-gray-400 dark:text-gray-500"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
           >
-          </button> <%!-- Content container with higher z-index --%>
-          <div class="relative z-10 p-4 flex flex-col min-h-[120px] pointer-events-none">
-            <%!-- Sound title and uploader info --%>
-            <div class="flex-1 min-w-0">
-              <div class="text-gray-800 dark:text-gray-200 font-medium break-all">
-                {display_name(sound.filename)}
-              </div>
+            <path
+              fill-rule="evenodd"
+              d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <svg
+            class="search-spinner hidden h-5 w-5 animate-spin text-gray-400 dark:text-gray-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            >
+            </circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z">
+            </path>
+          </svg>
+        </div>
+      </form>
 
-              <%= if sound.user && sound.user.username do %>
-                <div class="text-xs text-gray-500 dark:text-gray-400">
-                  Uploaded by {sound.user.username}
-                </div>
+      <div class="mt-5 lg:overflow-y-auto lg:pr-1">
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 dark:border-amber-700/40 dark:bg-amber-900/20">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+            Featured Tags
+          </h3>
+          <%= if sorted_featured_tags == [] do %>
+            <p class="mt-2 text-sm text-amber-700/80 dark:text-amber-100/80">
+              No featured tags selected yet.
+            </p>
+          <% else %>
+            <div id="featured-tag-panel" class="mt-2 flex flex-wrap gap-2">
+              <%= for tag <- sorted_featured_tags do %>
+                <.tag_filter_button
+                  tag={tag}
+                  selected_tags={@selected_tags}
+                  uploaded_files={@uploaded_files}
+                />
               <% end %>
             </div>
-            <%!-- Bottom Section with Tags and Icons --%>
-            <div class="mt-auto pt-2 flex justify-between items-center">
-              <%!-- Tags on the left --%>
-              <div class="flex flex-wrap gap-1 items-center pointer-events-auto z-20">
-                <%= if sound.tags != [] do %>
-                  <%= for tag <- sound.tags do %>
-                    <button
-                      phx-click="toggle_tag_filter"
-                      phx-value-tag={tag.name}
-                      class={[
-                        "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium transition-colors",
-                        if(tag_selected?(tag, @selected_tags),
-                          do: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-                          else:
-                            "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900"
-                        )
-                      ]}
-                    >
-                      {tag.name}
-                    </button>
-                  <% end %>
-                <% end %>
-              </div>
-              <%!-- Icons on the right --%>
-              <div class="flex items-center gap-2 ml-2 flex-shrink-0 pointer-events-auto">
-                <button
-                  id={"local-play-#{Path.basename(sound.filename, Path.extname(sound.filename))}"}
-                  phx-hook="LocalPlayer"
-                  data-filename={sound.filename}
-                  data-source-type={sound.source_type}
-                  data-url={sound.url}
-                  data-volume={sound.volume || 1.0}
-                  class="relative flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 
-                         dark:text-gray-500 dark:hover:text-green-400 rounded-md transition-colors"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    class="w-4 h-4 play-icon"
-                  >
-                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-                    <path
-                      fill-rule="evenodd"
-                      d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM17.25 12a5.25 5.25 0 11-10.5 0 5.25 5.25 0 0110.5 0z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    class="w-4 h-4 stop-icon hidden"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                </button>
-                <%= if @current_user do %>
-                  <button
-                    phx-click="toggle_favorite"
-                    phx-value-sound-id={sound.id}
-                    class="relative flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-500 
-                           dark:text-gray-500 dark:hover:text-red-500 rounded-md transition-colors"
-                  >
-                    <%= if sound.id in @favorites do %>
-                      <.icon name="hero-heart-solid" class="w-4 h-4 text-red-500" />
-                    <% else %>
-                      <.icon name="hero-heart" class="w-4 h-4" />
-                    <% end %>
-                  </button>
-                <% end %>
+          <% end %>
+        </div>
 
-                <button
-                  phx-click="edit"
-                  phx-value-id={sound.id}
-                  class="relative flex items-center justify-center w-8 h-8 text-gray-400 hover:text-blue-600 
-                         dark:text-gray-500 dark:hover:text-blue-400 rounded-md"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="1.5"
-                    stroke="currentColor"
-                    class="w-4 h-4"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-                    />
-                  </svg>
-                </button>
-              </div>
+        <div class="mt-5 flex items-center justify-between gap-2">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Tag Filters
+          </h3>
+          <button
+            :if={@selected_tags != []}
+            phx-click="clear_tag_filters"
+            class="text-xs font-medium text-blue-600 hover:text-blue-500 dark:text-blue-300 dark:hover:text-blue-200"
+          >
+            Clear
+          </button>
+        </div>
+
+        <%= if tags == [] do %>
+          <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">No tags found.</p>
+        <% else %>
+          <%= if @selected_tags != [] do %>
+            <div class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+              Active filter:
+              <span class="font-semibold">
+                {Enum.map_join(@selected_tags, ", ", & &1.name)}
+              </span>
             </div>
+          <% end %>
+
+          <div
+            id="tag-filter-panel"
+            class="mt-3 flex max-h-72 flex-wrap gap-2 overflow-y-auto pr-1 lg:max-h-none"
+          >
+            <%= for tag <- limited_tags do %>
+              <.tag_filter_button
+                tag={tag}
+                selected_tags={@selected_tags}
+                uploaded_files={@uploaded_files}
+              />
+            <% end %>
+          </div>
+
+          <button
+            :if={length(tags) > 24}
+            phx-click="toggle_tag_list"
+            class="mt-3 inline-flex items-center rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          >
+            {if @show_all_tags, do: "Show fewer tags", else: "Show more tags"}
+          </button>
+        <% end %>
+      </div>
+    </aside>
+
+    <section class="min-w-0 space-y-5">
+      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="min-w-0">
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">
+              <span class="group relative inline-block cursor-default">
+                Sounds<div class="pointer-events-none fixed inset-0 z-[9999] opacity-0 transition-all duration-300 group-hover:opacity-100">
+                  <img
+                    src="/images/kubernetes.gif"
+                    alt="kubernetes"
+                    class="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 object-contain"
+                  />
+                </div>
+              </span>
+            </h1>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Showing {length(filtered_sounds)} of {length(@uploaded_files)} sounds
+            </p>
+          </div>
+
+          <div
+            id="playback-cooldown-timer"
+            phx-hook="CooldownTimer"
+            data-cooldown-end-ms={@cooldown_end_ms || ""}
+            data-cooldown-remaining-ms={@cooldown_remaining_ms || ""}
+            class="inline-flex flex-col items-center rounded-xl border border-gray-200/80 bg-white/85 px-4 py-2 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/85"
+          >
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Cooldown
+            </span>
+            <span
+              data-role="cooldown-value"
+              class="font-mono text-lg font-bold text-gray-800 dark:text-gray-100"
+            >
+              Ready
+            </span>
           </div>
         </div>
-      <% end %>
-    <% end %>
+
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <%= if @can_upload_clips do %>
+            <button
+              phx-click="show_upload_modal"
+              class="w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 sm:w-auto sm:px-4 sm:text-base"
+            >
+              Add Sound
+            </button>
+          <% else %>
+            <button
+              type="button"
+              disabled
+              class="w-full cursor-not-allowed justify-center rounded-md bg-gray-300 px-3 py-2 text-sm font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400 sm:w-auto sm:px-4 sm:text-base"
+              title="Your Discord role does not allow clip uploads"
+            >
+              Add Sound
+            </button>
+          <% end %>
+          <button
+            phx-click="play_random"
+            class="w-full justify-center rounded-md border border-blue-500/60 px-3 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-500/10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:text-blue-300 dark:focus:ring-offset-gray-900 sm:w-auto sm:px-4 sm:text-base"
+          >
+            Play Random
+          </button>
+          <%= if @can_manage_settings do %>
+            <button
+              phx-click="admin_stop_and_clear_queue"
+              class="w-full justify-center rounded-md border border-amber-500/80 px-3 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-500/10 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:text-amber-300 dark:focus:ring-offset-gray-900 sm:w-auto sm:px-4 sm:text-base"
+            >
+              Admin Stop + Clear Queue
+            </button>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+        <%= if @loading_sounds do %>
+          <div class="col-span-full">
+            <div class="loading-container">
+              <div class="loading-spinner"></div>
+            </div>
+          </div>
+        <% else %>
+          <%= if filtered_sounds == [] do %>
+            <div class="col-span-full rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+              No sounds match the current search and filters.
+            </div>
+          <% else %>
+            <%= for sound <- filtered_sounds do %>
+              <div class="relative rounded-2xl border border-gray-200/70 bg-white shadow-sm transition-all duration-200 hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
+                <button
+                  phx-click="play"
+                  phx-value-name={sound.filename}
+                  class="absolute inset-0 z-0 h-full w-full cursor-pointer rounded-2xl hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:hover:bg-green-900/20 dark:focus:ring-offset-gray-800"
+                >
+                </button>
+                <div class="relative z-10 flex min-h-[120px] flex-col p-4 pointer-events-none">
+                  <div class="min-w-0 flex-1">
+                    <div class="break-all font-medium text-gray-800 dark:text-gray-200">
+                      {display_name(sound.filename)}
+                    </div>
+
+                    <%= if sound.user && sound.user.username do %>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        Uploaded by {sound.user.username}
+                      </div>
+                    <% end %>
+                  </div>
+
+                  <div class="mt-auto flex items-center justify-between pt-2">
+                    <div class="pointer-events-auto z-20 flex flex-wrap items-center gap-1">
+                      <%= if sound.tags != [] do %>
+                        <%= for tag <- sound.tags do %>
+                          <button
+                            phx-click="toggle_tag_filter"
+                            phx-value-tag={tag.name}
+                            class={[
+                              "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium transition-colors",
+                              if(tag_selected?(tag, @selected_tags),
+                                do:
+                                  "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+                                else:
+                                  "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900"
+                              )
+                            ]}
+                          >
+                            {tag.name}
+                          </button>
+                        <% end %>
+                      <% end %>
+                    </div>
+
+                    <div class="pointer-events-auto ml-2 flex flex-shrink-0 items-center gap-2">
+                      <button
+                        id={"local-play-#{Path.basename(sound.filename, Path.extname(sound.filename))}"}
+                        phx-hook="LocalPlayer"
+                        data-filename={sound.filename}
+                        data-source-type={sound.source_type}
+                        data-url={sound.url}
+                        data-volume={sound.volume || 1.0}
+                        class="relative flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:text-green-600 dark:text-gray-500 dark:hover:text-green-400"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          class="play-icon h-4 w-4"
+                        >
+                          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM17.25 12a5.25 5.25 0 11-10.5 0 5.25 5.25 0 0110.5 0z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          class="stop-icon hidden h-4 w-4"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      <%= if @current_user do %>
+                        <button
+                          phx-click="toggle_favorite"
+                          phx-value-sound-id={sound.id}
+                          class="relative flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-500"
+                        >
+                          <%= if sound.id in @favorites do %>
+                            <.icon name="hero-heart-solid" class="h-4 w-4 text-red-500" />
+                          <% else %>
+                            <.icon name="hero-heart" class="h-4 w-4" />
+                          <% end %>
+                        </button>
+                      <% end %>
+
+                      <button
+                        phx-click="edit"
+                        phx-value-id={sound.id}
+                        class="relative flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke-width="1.5"
+                          stroke="currentColor"
+                          class="h-4 w-4"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          <% end %>
+        <% end %>
+      </div>
+    </section>
   </div>
 
   <%= if @show_modal do %>
@@ -324,7 +383,7 @@
         audio.pause();
         audio.currentTime = 0;
       });
-      
+
       // Reset all play/stop icons
       document.querySelectorAll('.play-icon').forEach(icon => {
         icon.classList.remove('hidden');

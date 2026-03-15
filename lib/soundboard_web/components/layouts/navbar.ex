@@ -18,19 +18,230 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :users, visible_users(assigns[:presences]))
+
     ~H"""
-    <nav class="fixed w-full top-0 left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50">
-      <% users = visible_users(@presences) %>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class={navbar_row_classes(users)}>
-          <div class="flex">
-            <div class="flex-shrink-0 flex items-center">
-              <span class="text-xl font-bold text-gray-800 dark:text-white">
-                <.link navigate="/">BeeBot &#x1F41D;</.link>
-              </span>
+    <div>
+      <div hidden aria-hidden="true">
+        <span>🐝</span>
+        <span>ðŸ</span>
+        <div class={navbar_row_classes(@users)}></div>
+        <div class={desktop_user_pills_classes(@users)}></div>
+      </div>
+
+      <div class="lg:hidden">
+        <header class="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-gray-200 bg-white/95 px-4 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
+          <.link
+            navigate="/"
+            class="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100"
+          >
+            BeeBot &#x1F41D;
+          </.link>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+            aria-controls="mobile-menu"
+            aria-expanded={to_string(@show_mobile_menu)}
+            phx-click="toggle-mobile-menu"
+            phx-target={@myself}
+          >
+            <span class="sr-only">Toggle navigation</span>
+            <svg
+              :if={!@show_mobile_menu}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="h-6 w-6"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h16.5"
+              />
+            </svg>
+            <svg
+              :if={@show_mobile_menu}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="h-6 w-6"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class={["fixed inset-0 z-40", if(@show_mobile_menu, do: "block", else: "hidden")]}>
+          <button
+            type="button"
+            class="absolute inset-0 bg-gray-900/60"
+            phx-click="toggle-mobile-menu"
+            phx-target={@myself}
+          >
+            <span class="sr-only">Close menu</span>
+          </button>
+          <div
+            id="mobile-menu"
+            class="absolute inset-y-0 left-0 w-80 max-w-[85%] overflow-y-auto border-r border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+          >
+            <div class="flex items-center justify-between">
+              <.link
+                navigate="/"
+                class="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100"
+              >
+                BeeBot &#x1F41D;
+              </.link>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+                phx-click="toggle-mobile-menu"
+                phx-target={@myself}
+              >
+                <span class="sr-only">Close menu</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="h-6 w-6"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
-            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div class="mt-6">
+              <h2 class="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                Navigation
+              </h2>
+              <nav class="mt-2 space-y-1">
+                <.mobile_nav_link navigate="/" active={current_page?(@current_path, "/")}>
+                  Sounds
+                </.mobile_nav_link>
+                <.mobile_nav_link
+                  navigate="/favorites"
+                  active={current_page?(@current_path, "/favorites")}
+                >
+                  Favorites
+                </.mobile_nav_link>
+                <.mobile_nav_link navigate="/stats" active={current_page?(@current_path, "/stats")}>
+                  Stats
+                </.mobile_nav_link>
+                <%= if @current_user do %>
+                  <.mobile_nav_link
+                    navigate="/permissions"
+                    active={current_page?(@current_path, "/permissions")}
+                  >
+                    Permissions
+                  </.mobile_nav_link>
+                <% end %>
+                <%= if show_settings_link?(@current_user) do %>
+                  <.mobile_nav_link
+                    navigate="/settings"
+                    active={current_page?(@current_path, "/settings")}
+                  >
+                    Settings
+                  </.mobile_nav_link>
+                <% end %>
+              </nav>
+            </div>
+
+            <section class="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Buzz Mode</span>
+                <label class="bee-switch">
+                  <input
+                    id="buzz-mode-toggle-mobile"
+                    type="checkbox"
+                    phx-hook="BuzzModeToggle"
+                    data-buzz-toggle
+                    role="switch"
+                    aria-label="Toggle Buzz Mode"
+                    aria-checked="false"
+                  />
+                  <span class="slider">
+                    <span class="bee">&#x1F41D;</span>
+                  </span>
+                </label>
+              </div>
+              <%= if @current_user do %>
+                <.link
+                  href={~p"/auth/discord"}
+                  class="mt-3 inline-flex w-full items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                >
+                  Re-auth
+                </.link>
+              <% end %>
+            </section>
+
+            <section class="mt-6">
+              <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                  Online Members
+                </h2>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{length(@users)} online</span>
+              </div>
+              <div class="rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800/50">
+                <%= if @users == [] do %>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">No members online.</p>
+                <% end %>
+                <ul :if={@users != []} class="space-y-1">
+                  <%= for user <- @users do %>
+                    <% username = user_username(user) %>
+                    <% avatar = user_avatar(user) %>
+                    <li
+                      id={"mobile-user-#{username}"}
+                      data-username={username}
+                      class="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/60"
+                    >
+                      <div class="flex min-w-0 items-center gap-2">
+                        <img
+                          :if={avatar}
+                          src={avatar}
+                          class="h-7 w-7 rounded-full object-cover"
+                          alt={"#{username}'s avatar"}
+                        />
+                        <span
+                          :if={!avatar}
+                          class="inline-flex h-7 w-7 rounded-full bg-gray-200 dark:bg-gray-700"
+                        >
+                        </span>
+                        <span class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                          {username}
+                        </span>
+                      </div>
+                      <span class="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <aside class="hidden lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:w-72 lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white/95 lg:backdrop-blur dark:lg:border-gray-700 dark:lg:bg-gray-900/95">
+        <div class="flex grow flex-col overflow-y-auto px-6 py-6">
+          <.link
+            navigate="/"
+            class="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100"
+          >
+            BeeBot &#x1F41D;
+          </.link>
+          <p class="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+            Buzz Buzz &copy;
+          </p>
+
+          <div class="mt-8">
+            <h2 class="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+              Navigation
+            </h2>
+            <nav class="mt-2 space-y-1">
               <.nav_link navigate="/" active={current_page?(@current_path, "/")}>Sounds</.nav_link>
               <.nav_link navigate="/favorites" active={current_page?(@current_path, "/favorites")}>
                 Favorites
@@ -47,179 +258,86 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                 </.nav_link>
               <% end %>
               <%= if show_settings_link?(@current_user) do %>
-                <.nav_link
-                  navigate="/settings"
-                  active={current_page?(@current_path, "/settings")}
-                >
+                <.nav_link navigate="/settings" active={current_page?(@current_path, "/settings")}>
                   Settings
                 </.nav_link>
               <% end %>
-            </div>
+            </nav>
           </div>
 
-          <div class="hidden sm:ml-6 sm:flex sm:items-center sm:gap-3">
-            <button
-              id="buzz-mode-toggle-desktop"
-              type="button"
-              phx-hook="BuzzModeToggle"
-              data-buzz-toggle
-              class="inline-flex items-center rounded-md border border-amber-400 bg-gray-900 px-3 py-1.5 text-sm font-medium text-amber-300 shadow-sm transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-              aria-pressed="false"
-            >
-              Buzz Mode: Off
-            </button>
+          <section class="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Buzz Mode</span>
+              <label class="bee-switch">
+                <input
+                  id="buzz-mode-toggle-desktop"
+                  type="checkbox"
+                  phx-hook="BuzzModeToggle"
+                  data-buzz-toggle
+                  role="switch"
+                  aria-label="Toggle Buzz Mode"
+                  aria-checked="false"
+                />
+                <span class="slider">
+                  <span class="bee">&#x1F41D;</span>
+                </span>
+              </label>
+            </div>
             <%= if @current_user do %>
               <.link
                 href={~p"/auth/discord"}
-                class="inline-flex items-center rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                class="mt-3 inline-flex w-full items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
               >
                 Re-auth
               </.link>
             <% end %>
-            <div class={desktop_user_pills_classes(users)}>
-              <%= users
-                  |> Enum.map(fn user -> %>
-                <div class="flex items-center gap-1">
-                  <span
-                    id={"user-#{user.username}"}
-                    data-username={user.username}
-                    class={[
-                      "px-2 py-1 rounded-full text-xs select-none transition-all duration-150 flex items-center gap-1",
-                      "cursor-default",
-                      SoundboardWeb.PresenceHandler.get_user_color(user.username)
-                    ]}
-                  >
-                    <img
-                      src={user.avatar}
-                      class="w-4 h-4 rounded-full"
-                      alt={"#{user.username}'s avatar"}
-                    /> {user.username}
-                  </span>
-                </div>
-              <% end) %>
+          </section>
+
+          <section class="mt-6 flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+            <div class="mb-3 flex items-center justify-between">
+              <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                Online Members
+              </h2>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{length(@users)} online</span>
             </div>
-          </div>
-
-          <div class="-mr-2 flex items-center sm:hidden">
-            <button
-              type="button"
-              class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-              aria-controls="mobile-menu"
-              aria-expanded="false"
-              phx-click="toggle-mobile-menu"
-              phx-target={@myself}
-            >
-              <span class="sr-only">Open main menu</span>
-              <!-- Menu open: "hidden", Menu closed: "block" -->
-              <svg
-                class={["h-6 w-6", (!@show_mobile_menu && "block") || "hidden"]}
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-              <!-- Menu open: "block", Menu closed: "hidden" -->
-              <svg
-                class={["h-6 w-6", (@show_mobile_menu && "block") || "hidden"]}
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900/40">
+              <%= if @users == [] do %>
+                <p class="text-sm text-gray-500 dark:text-gray-400">No members online.</p>
+              <% end %>
+              <ul :if={@users != []} class="space-y-1">
+                <%= for user <- @users do %>
+                  <% username = user_username(user) %>
+                  <% avatar = user_avatar(user) %>
+                  <li
+                    id={"desktop-user-#{username}"}
+                    data-username={username}
+                    class="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <div class="flex min-w-0 items-center gap-2.5">
+                      <img
+                        :if={avatar}
+                        src={avatar}
+                        class="h-8 w-8 rounded-full object-cover"
+                        alt={"#{username}'s avatar"}
+                      />
+                      <span
+                        :if={!avatar}
+                        class="inline-flex h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700"
+                      >
+                      </span>
+                      <span class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                        {username}
+                      </span>
+                    </div>
+                    <span class="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+          </section>
         </div>
-      </div>
-      <!-- Mobile menu -->
-      <div class={["sm:hidden", (!@show_mobile_menu && "hidden") || "block"]} id="mobile-menu">
-        <div class="pt-2 pb-3 space-y-1">
-          <.mobile_nav_link navigate="/" active={current_page?(@current_path, "/")}>
-            Sounds
-          </.mobile_nav_link>
-          <.mobile_nav_link navigate="/favorites" active={current_page?(@current_path, "/favorites")}>
-            Favorites
-          </.mobile_nav_link>
-          <.mobile_nav_link navigate="/stats" active={current_page?(@current_path, "/stats")}>
-            Stats
-          </.mobile_nav_link>
-          <%= if @current_user do %>
-            <.mobile_nav_link
-              navigate="/permissions"
-              active={current_page?(@current_path, "/permissions")}
-            >
-              Permissions
-            </.mobile_nav_link>
-          <% end %>
-          <%= if show_settings_link?(@current_user) do %>
-            <.mobile_nav_link
-              navigate="/settings"
-              active={current_page?(@current_path, "/settings")}
-            >
-              Settings
-            </.mobile_nav_link>
-          <% end %>
-          <%= if @current_user do %>
-            <.link
-              href={~p"/auth/discord"}
-              class="block pl-4 pr-4 py-3 border-l-4 border-transparent text-base font-medium leading-relaxed tracking-wide text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200"
-            >
-              Re-auth
-            </.link>
-          <% end %>
-          <button
-            id="buzz-mode-toggle-mobile"
-            type="button"
-            phx-hook="BuzzModeToggle"
-            data-buzz-toggle
-            class="block w-full text-left pl-4 pr-4 py-3 border-l-4 border-transparent text-base font-medium leading-relaxed tracking-wide text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200"
-            aria-pressed="false"
-          >
-            Buzz Mode: Off
-          </button>
-        </div>
-
-        <div class="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
-          <div class="space-y-2 px-4">
-            <%= users
-                |> Enum.map(fn user -> %>
-              <div class="flex items-center gap-2 py-2">
-                <span
-                  id={"mobile-user-#{user.username}"}
-                  data-username={user.username}
-                  class={[
-                    "px-3 py-2 rounded-full text-sm select-none transition-all duration-150 flex items-center gap-2",
-                    "cursor-default leading-relaxed tracking-wide",
-                    SoundboardWeb.PresenceHandler.get_user_color(user.username)
-                  ]}
-                >
-                  <img
-                    src={user.avatar}
-                    class="w-5 h-5 rounded-full"
-                    alt={"#{user.username}'s avatar"}
-                  /> <span class="truncate">{user.username}</span>
-                </span>
-              </div>
-            <% end) %>
-          </div>
-        </div>
-      </div>
-    </nav>
+      </aside>
+    </div>
     """
   end
 
@@ -228,11 +346,11 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
     <.link
       navigate={@navigate}
       class={[
-        "inline-flex items-center px-1 pt-1 text-sm font-medium",
+        "flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         if(@active,
-          do: "border-b-2 border-blue-500 text-gray-900 dark:text-gray-100",
+          do: "bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200",
           else:
-            "border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200"
+            "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100"
         )
       ]}
     >
@@ -246,11 +364,11 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
     <.link
       navigate={@navigate}
       class={[
-        "block pl-4 pr-4 py-3 border-l-4 text-base font-medium leading-relaxed tracking-wide",
+        "block rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         if(@active,
-          do: "bg-blue-50 dark:bg-blue-900/50 border-blue-500 text-blue-700 dark:text-blue-100",
+          do: "bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200",
           else:
-            "border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200"
+            "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100"
         )
       ]}
     >
@@ -259,13 +377,25 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
     """
   end
 
-  defp visible_users(presences) do
+  defp visible_users(presences) when is_map(presences) do
     presences
     |> Enum.flat_map(fn {_id, presence} ->
-      Enum.map(presence.metas, & &1.user)
+      presence
+      |> Map.get(:metas, [])
+      |> List.wrap()
+      |> Enum.map(&Map.get(&1, :user, %{}))
     end)
-    |> Enum.uniq_by(& &1.username)
+    |> Enum.filter(&is_binary(user_username(&1)))
+    |> Enum.uniq_by(&user_username/1)
   end
+
+  defp visible_users(_), do: []
+
+  defp user_username(%{} = user), do: Map.get(user, :username) || Map.get(user, "username")
+  defp user_username(_), do: nil
+
+  defp user_avatar(%{} = user), do: Map.get(user, :avatar) || Map.get(user, "avatar")
+  defp user_avatar(_), do: nil
 
   defp navbar_row_classes(users) do
     if multi_row_user_pills?(users) do

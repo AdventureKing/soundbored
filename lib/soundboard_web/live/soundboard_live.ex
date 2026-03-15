@@ -11,7 +11,9 @@ defmodule SoundboardWeb.SoundboardLive do
   alias SoundboardWeb.Live.SoundboardLive.{EditFlow, UploadFlow}
   alias SoundboardWeb.Live.Support.{FlashHelpers, SoundPlayback}
   alias SoundboardWeb.Soundboard.SoundFilter
-  import SoundboardWeb.Live.Support.LiveTags, only: [all_tags: 1, tag_selected?: 2]
+
+  import SoundboardWeb.Live.Support.LiveTags,
+    only: [all_tags: 1, featured_tags: 1, tag_selected?: 2]
 
   import SoundFilter, only: [filter_sounds: 3]
 

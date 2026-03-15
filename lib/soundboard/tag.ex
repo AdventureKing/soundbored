@@ -8,6 +8,7 @@ defmodule Soundboard.Tag do
 
   schema "tags" do
     field :name, :string
+    field :featured, :boolean, default: false
 
     many_to_many :sounds, Soundboard.Sound,
       join_through: Soundboard.SoundTag,
@@ -18,7 +19,7 @@ defmodule Soundboard.Tag do
 
   def changeset(tag, attrs) do
     tag
-    |> cast(attrs, [:name])
+    |> cast(attrs, [:name, :featured])
     |> validate_required([:name])
     |> unique_constraint(:name)
   end
