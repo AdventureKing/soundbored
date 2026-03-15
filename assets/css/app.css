@@ -179,6 +179,16 @@ body.buzz-mode {
   color: #111111 !important;
 }
 
+.buzz-mode .bg-blue-100,
+.buzz-mode .dark\:bg-blue-900 {
+  background-color: #f4b740 !important;
+}
+
+.buzz-mode .bg-blue-100.text-blue-700,
+.buzz-mode .dark\:bg-blue-900.dark\:text-blue-300 {
+  color: #2b1a00 !important;
+}
+
 .buzz-mode input,
 .buzz-mode select,
 .buzz-mode textarea,
