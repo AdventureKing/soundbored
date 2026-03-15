@@ -101,6 +101,7 @@ defmodule SoundboardWeb.Components.Soundboard.TagComponents do
   end
 
   attr :value, :string, default: ""
+  attr :name, :string, default: nil
   attr :placeholder, :string, default: "Type a tag and press Enter..."
   attr :input_id, :string, default: nil
   attr :disabled, :boolean, default: false
@@ -122,6 +123,7 @@ defmodule SoundboardWeb.Components.Soundboard.TagComponents do
     <input
       type="text"
       value={@value}
+      name={@name}
       placeholder={@placeholder}
       id={@input_id}
       disabled={@disabled}

@@ -151,7 +151,6 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                       input_id="tag-input"
                       phx-keyup="tag_input"
                       phx-keydown="add_tag"
-                      phx-value-value={@tag_input}
                       onkeydown="
                         if(event.key === 'Enter') {
                           event.preventDefault();

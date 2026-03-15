@@ -255,13 +255,35 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlow do
       source_type: upload.source_type,
       name: params["name"],
       url: params["url"],
-      tags: upload.upload_tags,
+      tags: request_tags(upload, params),
       volume: params["volume"],
       default_volume_percent: upload.upload_volume,
       is_join_sound: upload.is_join_sound,
       is_leave_sound: upload.is_leave_sound
     })
   end
+
+  defp request_tags(%State{} = upload, params) when is_map(params) do
+    case pending_tag_input(upload, params) do
+      nil -> upload.upload_tags
+      pending_tag -> [pending_tag | upload.upload_tags]
+    end
+  end
+
+  defp pending_tag_input(%State{} = upload, params) when is_map(params) do
+    params
+    |> Map.get("upload_tag_input", upload.upload_tag_input)
+    |> normalize_pending_tag_input()
+  end
+
+  defp normalize_pending_tag_input(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      pending_tag -> pending_tag
+    end
+  end
+
+  defp normalize_pending_tag_input(_), do: nil
 
   defp default_upload_name(upload, params) do
     current_name = upload.upload_name

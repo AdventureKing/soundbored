@@ -58,6 +58,7 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
+    |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
     |> UploadFlow.assign_defaults()
     |> EditFlow.assign_defaults()
@@ -109,14 +110,23 @@ defmodule SoundboardWeb.SoundboardLive do
         {:noreply, socket}
 
       tag ->
-        current_tag = List.first(socket.assigns.selected_tags)
-        selected_tags = if current_tag && current_tag.id == tag.id, do: [], else: [tag]
+        selected_tags =
+          if tag_selected?(tag, socket.assigns.selected_tags) do
+            Enum.reject(socket.assigns.selected_tags, &(&1.id == tag.id))
+          else
+            socket.assigns.selected_tags ++ [tag]
+          end
 
         {:noreply,
          socket
          |> assign(:selected_tags, selected_tags)
          |> assign(:search_query, "")}
     end
+  end
+
+  @impl true
+  def handle_event("toggle_favorites_filter", _params, socket) do
+    {:noreply, assign(socket, :favorites_only, !socket.assigns.favorites_only)}
   end
 
   @impl true
@@ -158,8 +168,8 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("add_upload_tag", %{"key" => key, "value" => value}, socket) do
-    UploadFlow.add_tag(socket, key, value)
+  def handle_event("add_upload_tag", %{"key" => key} = params, socket) do
+    UploadFlow.add_tag(socket, key, Map.get(params, "value", ""))
   end
 
   @impl true
@@ -173,13 +183,13 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("upload_tag_input", %{"key" => _key, "value" => value}, socket) do
-    UploadFlow.update_tag_input(socket, value)
+  def handle_event("upload_tag_input", %{"key" => _key} = params, socket) do
+    UploadFlow.update_tag_input(socket, Map.get(params, "value", ""))
   end
 
   @impl true
-  def handle_event("add_tag", %{"key" => key, "value" => value}, socket) do
-    EditFlow.add_tag(socket, key, value)
+  def handle_event("add_tag", %{"key" => key} = params, socket) do
+    EditFlow.add_tag(socket, key, Map.get(params, "value", ""))
   end
 
   @impl true
@@ -193,8 +203,8 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("tag_input", %{"key" => _key, "value" => value}, socket) do
-    EditFlow.update_tag_input(socket, value)
+  def handle_event("tag_input", %{"key" => _key} = params, socket) do
+    EditFlow.update_tag_input(socket, Map.get(params, "value", ""))
   end
 
   @impl true
@@ -298,11 +308,9 @@ defmodule SoundboardWeb.SoundboardLive do
   @impl true
   def handle_event("play_random", _params, socket) do
     filtered_sounds =
-      filter_sounds(
-        socket.assigns.uploaded_files,
-        socket.assigns.search_query,
-        socket.assigns.selected_tags
-      )
+      socket.assigns.uploaded_files
+      |> filter_sounds(socket.assigns.search_query, socket.assigns.selected_tags)
+      |> filter_to_favorites(socket.assigns.favorites_only, socket.assigns.favorites)
 
     case get_random_sound(filtered_sounds) do
       nil ->
@@ -387,6 +395,13 @@ defmodule SoundboardWeb.SoundboardLive do
 
   defp get_random_sound(sounds) do
     Enum.random(sounds)
+  end
+
+  defp filter_to_favorites(sounds, false, _favorite_sound_ids), do: sounds
+
+  defp filter_to_favorites(sounds, true, favorite_sound_ids) do
+    favorite_sound_ids = MapSet.new(favorite_sound_ids)
+    Enum.filter(sounds, &MapSet.member?(favorite_sound_ids, &1.id))
   end
 
   defp handle_progress(:audio, _entry, socket) do

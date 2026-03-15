@@ -43,6 +43,12 @@ body {
   }
 }
 
+@media (min-width: 1024px) {
+  html.desktop-nav-collapsed .desktop-nav-main {
+    padding-left: 4rem !important;
+  }
+}
+
 .loading-container {
   display: flex;
   flex-direction: column;

@@ -2,7 +2,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
   @moduledoc false
   use SoundboardWeb.ConnCase
   import Phoenix.LiveViewTest
-  alias Soundboard.{Accounts.User, Repo, Sound, Tag}
+  alias Soundboard.{Accounts.User, Favorites, Repo, Sound, Tag}
   import Mock
 
   setup %{conn: conn} do
@@ -119,6 +119,163 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
         assert_called(Soundboard.AudioPlayer.play_sound("funny.mp3", :_))
       end
+    end
+
+    test "can select and filter by multiple tags", %{conn: conn, user: user} do
+      alpha =
+        %Tag{}
+        |> Tag.changeset(%{name: "alpha"})
+        |> Repo.insert!()
+
+      beta =
+        %Tag{}
+        |> Tag.changeset(%{name: "beta"})
+        |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "alpha-only.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [alpha]
+      })
+      |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "beta-only.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [beta]
+      })
+      |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "alpha-beta.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [alpha, beta]
+      })
+      |> Repo.insert!()
+
+      {:ok, view, _html} = live(conn, "/")
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='alpha']")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-only.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='beta-only.mp3']")
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='beta']")
+      |> render_click()
+
+      refute has_element?(view, "[phx-click='play'][phx-value-name='alpha-only.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='beta-only.mp3']")
+
+      rendered = render(view)
+      assert rendered =~ "Active filter:"
+      assert rendered =~ "alpha, beta"
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='alpha']")
+      |> render_click()
+
+      refute has_element?(view, "[phx-click='play'][phx-value-name='alpha-only.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-beta.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='beta-only.mp3']")
+    end
+
+    test "favorites toggle filters to only favorited sounds", %{
+      conn: conn,
+      user: user,
+      sound: sound
+    } do
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "not-favorited.mp3",
+        source_type: "local",
+        user_id: user.id
+      })
+      |> Repo.insert!()
+
+      {:ok, _favorite} = Favorites.toggle_favorite(user.id, sound.id)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='#{sound.filename}']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='not-favorited.mp3']")
+
+      view
+      |> element("#favorites-filter-toggle")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='#{sound.filename}']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='not-favorited.mp3']")
+
+      view
+      |> element("#favorites-filter-toggle")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='#{sound.filename}']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='not-favorited.mp3']")
+    end
+
+    test "tag filters still work while favorites filter is enabled", %{conn: conn, user: user} do
+      alpha =
+        %Tag{}
+        |> Tag.changeset(%{name: "fav-alpha"})
+        |> Repo.insert!()
+
+      beta =
+        %Tag{}
+        |> Tag.changeset(%{name: "fav-beta"})
+        |> Repo.insert!()
+
+      favorite_sound =
+        %Sound{}
+        |> Sound.changeset(%{
+          filename: "fav-alpha-beta.mp3",
+          source_type: "local",
+          user_id: user.id,
+          tags: [alpha, beta]
+        })
+        |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "nonfav-alpha-beta.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [alpha, beta]
+      })
+      |> Repo.insert!()
+
+      {:ok, _favorite} = Favorites.toggle_favorite(user.id, favorite_sound.id)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      view
+      |> element("#favorites-filter-toggle")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='fav-alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='nonfav-alpha-beta.mp3']")
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='fav-alpha']")
+      |> render_click()
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='fav-beta']")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='fav-alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='nonfav-alpha-beta.mp3']")
     end
 
     test "shows featured tags above regular tag filters", %{conn: conn, user: user} do
@@ -466,7 +623,8 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
       params = %{
         "url" => "https://example.com/wow.mp3",
-        "name" => "wow"
+        "name" => "wow",
+        "upload_tag_input" => "meme"
       }
 
       view
@@ -479,6 +637,43 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert new_sound.user_id == user.id
 
       Repo.delete!(new_sound)
+    end
+
+    test "url upload accepts a single tag still in the input", %{conn: conn, user: user} do
+      {:ok, view, _html} = live(conn, "/")
+
+      view
+      |> element("[phx-click='show_upload_modal']")
+      |> render_click()
+
+      view
+      |> element("select[name='source_type']")
+      |> render_change(%{"source_type" => "url"})
+
+      unique = System.unique_integer([:positive])
+      sound_name = "single-tag-#{unique}"
+      url = "https://example.com/#{sound_name}.mp3"
+      tag_name = "one-tag-#{unique}"
+
+      view
+      |> element("#upload-form")
+      |> render_submit(%{
+        "url" => url,
+        "name" => sound_name,
+        "upload_tag_input" => tag_name
+      })
+
+      sound =
+        Sound
+        |> Repo.get_by!(filename: "#{sound_name}.mp3")
+        |> Repo.preload(:tags)
+
+      assert sound.source_type == "url"
+      assert sound.url == url
+      assert sound.user_id == user.id
+      assert Enum.any?(sound.tags, &(&1.name == tag_name))
+
+      Repo.delete!(sound)
     end
 
     test "upload sound from url saves provided volume", %{conn: conn} do
@@ -497,7 +692,8 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       |> render_submit(%{
         "url" => "https://example.com/soft.mp3",
         "name" => "soft",
-        "volume" => "25"
+        "volume" => "25",
+        "upload_tag_input" => "quiet"
       })
 
       sound = Repo.get_by!(Sound, filename: "soft.mp3")

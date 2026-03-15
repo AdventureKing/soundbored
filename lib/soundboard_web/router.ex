@@ -49,7 +49,6 @@ defmodule SoundboardWeb.Router do
     live "/", SoundboardLive
     live "/permissions", PermissionsLive
     live "/stats", StatsLive
-    live "/favorites", FavoritesLive
     live "/settings", SettingsLive
   end
 

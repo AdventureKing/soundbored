@@ -43,6 +43,7 @@ const MAX_VOLUME_PERCENT_DEFAULT = 150
 const BOOST_CAP = 1.5
 const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
 const BUZZ_MODE_CLASS = "buzz-mode"
+const DESKTOP_NAV_COLLAPSED_CLASS = "desktop-nav-collapsed"
 
 const clearBuzzSyncFlag = (toggle) => {
   requestAnimationFrame(() => {
@@ -86,6 +87,13 @@ const saveBuzzModePreference = (enabled) => {
   try {
     window.localStorage.setItem(BUZZ_MODE_STORAGE_KEY, enabled ? "on" : "off")
   } catch (_err) {}
+}
+
+const applyDesktopNavState = (collapsed) => {
+  document.documentElement.classList.toggle(DESKTOP_NAV_COLLAPSED_CLASS, collapsed)
+  if (document.body) {
+    document.body.classList.toggle(DESKTOP_NAV_COLLAPSED_CLASS, collapsed)
+  }
 }
 
 const getAudioContextCtor = () => window.AudioContext || window.webkitAudioContext || null
@@ -787,6 +795,21 @@ Hooks.BuzzModeToggle = {
   },
   destroyed() {
     this.el.removeEventListener("change", this.handleChange)
+  }
+}
+
+Hooks.DesktopNavState = {
+  mounted() {
+    applyDesktopNavState(this.readCollapsed())
+  },
+  updated() {
+    applyDesktopNavState(this.readCollapsed())
+  },
+  destroyed() {
+    applyDesktopNavState(false)
+  },
+  readCollapsed() {
+    return this.el.dataset.collapsed === "true"
   }
 }
 

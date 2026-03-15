@@ -154,11 +154,11 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                       <TagComponents.tag_input_field
                         value={@upload_tag_input}
                         placeholder="Type a tag and press Enter or Tab..."
+                        name="upload_tag_input"
                         input_id="upload-tag-input"
                         disabled={!source_ready}
                         phx-keyup="upload_tag_input"
                         phx-keydown="add_upload_tag"
-                        phx-value-value={@upload_tag_input}
                         onkeydown="
                           if(event.key === 'Enter' || event.key === 'Tab') {
                             event.preventDefault();
