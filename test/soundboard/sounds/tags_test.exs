@@ -100,6 +100,37 @@ defmodule Soundboard.Sounds.TagsTest do
     assert [] = Tags.list_for_sound("missing.mp3")
   end
 
+  test "featured_for_sounds/1 returns only featured tags" do
+    featured = %Tag{id: 1, name: "featured", featured: true}
+    regular = %Tag{id: 2, name: "regular", featured: false}
+
+    sounds = [
+      %{tags: [featured, regular]},
+      %{tags: [featured]}
+    ]
+
+    assert [result] = Tags.featured_for_sounds(sounds)
+    assert result.name == "featured"
+  end
+
+  test "set_featured_tags/1 updates featured flags in a single pass" do
+    alpha = insert_tag!("alpha")
+    beta = insert_tag!("beta")
+    gamma = insert_tag!("gamma")
+
+    assert {:ok, _tags} = Tags.set_featured_tags([alpha.id, gamma.id])
+
+    assert Repo.get!(Tag, alpha.id).featured
+    refute Repo.get!(Tag, beta.id).featured
+    assert Repo.get!(Tag, gamma.id).featured
+
+    assert {:ok, _tags} = Tags.set_featured_tags([beta.id])
+
+    refute Repo.get!(Tag, alpha.id).featured
+    assert Repo.get!(Tag, beta.id).featured
+    refute Repo.get!(Tag, gamma.id).featured
+  end
+
   defp insert_tag!(name) do
     %Tag{}
     |> Tag.changeset(%{name: name})

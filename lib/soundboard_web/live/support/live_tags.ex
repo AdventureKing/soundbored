@@ -15,11 +15,14 @@ defmodule SoundboardWeb.Live.Support.LiveTags do
 
   def search(query), do: Tags.search(query)
   def all_tags(sounds), do: Tags.all_for_sounds(sounds)
+  def featured_tags(sounds), do: Tags.featured_for_sounds(sounds)
   def count_sounds_with_tag(sounds, tag), do: Tags.count_sounds_with_tag(sounds, tag)
   def tag_selected?(tag, selected_tags), do: Tags.tag_selected?(tag, selected_tags)
   def update_sound_tags(sound, tags), do: Tags.update_sound_tags(sound, tags)
   def find_or_create_tag(name), do: Tags.find_or_create(name)
   def list_tags_for_sound(filename), do: Tags.list_for_sound(filename)
+  def list_all_tags, do: Tags.list_all()
+  def set_featured_tags(tag_ids), do: Tags.set_featured_tags(tag_ids)
 
   def broadcast_update do
     PubSubTopics.broadcast_files_updated(self())

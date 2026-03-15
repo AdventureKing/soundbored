@@ -3,6 +3,7 @@ defmodule SoundboardWeb.SettingsLive do
   use SoundboardWeb.Live.Support.PresenceLive
   alias Soundboard.Accounts.{ApiTokens, Permissions, RoleCooldowns}
   alias Soundboard.Discord.GuildCache
+  alias Soundboard.Sounds.Tags
   alias Soundboard.PublicURL
   @role_cooldown_sort_fields [:guild_name, :role_name, :role_id, :cooldown_seconds]
 
@@ -23,9 +24,11 @@ defmodule SoundboardWeb.SettingsLive do
         |> assign(:role_cooldown_sort_dir, :asc)
         |> assign(:role_cooldown_rows, [])
         |> assign(:role_cooldown_role_ids, [])
+        |> assign(:available_tags, [])
+        |> assign(:featured_tag_ids, [])
         |> assign(:base_url, PublicURL.current())
 
-      {:ok, socket |> load_role_cooldown_rows() |> load_tokens()}
+      {:ok, socket |> load_role_cooldown_rows() |> load_tokens() |> load_featured_tags()}
     else
       {:ok,
        socket
@@ -123,6 +126,19 @@ defmodule SoundboardWeb.SettingsLive do
     {:noreply, socket}
   end
 
+  @impl true
+  def handle_event("save_featured_tags", params, socket) do
+    tag_ids = normalize_featured_tag_ids(Map.get(params, "featured_tag_ids", []))
+
+    case Tags.set_featured_tags(tag_ids) do
+      {:ok, _tags} ->
+        {:noreply, socket |> load_featured_tags() |> put_flash(:info, "Featured tags saved")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to save featured tags")}
+    end
+  end
+
   defp load_tokens(%{assigns: %{current_user: nil}} = socket), do: socket
 
   defp load_tokens(%{assigns: %{current_user: user}} = socket) do
@@ -138,6 +154,19 @@ defmodule SoundboardWeb.SettingsLive do
     socket
     |> assign(:tokens, tokens)
     |> assign(:example_token, example)
+  end
+
+  defp load_featured_tags(socket) do
+    tags = Tags.list_all()
+
+    featured_tag_ids =
+      tags
+      |> Enum.filter(& &1.featured)
+      |> Enum.map(&Integer.to_string(&1.id))
+
+    socket
+    |> assign(:available_tags, tags)
+    |> assign(:featured_tag_ids, featured_tag_ids)
   end
 
   defp load_role_cooldown_rows(socket) do
@@ -331,11 +360,64 @@ defmodule SoundboardWeb.SettingsLive do
     end
   end
 
+  defp normalize_featured_tag_ids(tag_ids) when is_list(tag_ids), do: tag_ids
+  defp normalize_featured_tag_ids(tag_id) when is_binary(tag_id), do: [tag_id]
+  defp normalize_featured_tag_ids(_), do: []
+
   @impl true
   def render(assigns) do
     ~H"""
     <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Settings</h1>
+
+      <section aria-labelledby="featured-tags-heading" class="space-y-3">
+        <header class="space-y-1">
+          <h2
+            id="featured-tags-heading"
+            class="text-xl font-semibold text-gray-800 dark:text-gray-100"
+          >
+            Featured Tags
+          </h2>
+
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Featured tags show at the top of the Sounds page above the regular tag filters.
+          </p>
+        </header>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
+          <%= if @available_tags == [] do %>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              No tags are available yet. Add tags to sounds first.
+            </p>
+          <% else %>
+            <form phx-submit="save_featured_tags" class="space-y-4">
+              <div class="max-h-64 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 p-3">
+                <div class="flex flex-wrap gap-2">
+                  <%= for tag <- @available_tags do %>
+                    <label class="inline-flex items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-sm text-gray-700 dark:text-gray-200">
+                      <input
+                        type="checkbox"
+                        name="featured_tag_ids[]"
+                        value={tag.id}
+                        checked={Integer.to_string(tag.id) in @featured_tag_ids}
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 dark:border-gray-600 dark:focus:ring-offset-gray-800"
+                      />
+                      <span>{tag.name}</span>
+                    </label>
+                  <% end %>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+              >
+                Save Featured Tags
+              </button>
+            </form>
+          <% end %>
+        </div>
+      </section>
 
       <section aria-labelledby="role-cooldowns-heading" class="space-y-3">
         <header class="space-y-1">
@@ -588,7 +670,7 @@ defmodule SoundboardWeb.SettingsLive do
                         >
                           Copy
                         </button>
-                         <pre class="p-2 pr-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap"><code class="text-gray-800 dark:text-gray-100 font-mono">{token.token}</code></pre>
+                        <pre class="p-2 pr-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap"><code class="text-gray-800 dark:text-gray-100 font-mono">{token.token}</code></pre>
                       </div>
                     </td>
 
@@ -640,7 +722,7 @@ defmodule SoundboardWeb.SettingsLive do
                 >
                   Copy
                 </button>
-                 <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds</code></pre>
+                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds</code></pre>
               </div>
             </div>
 
@@ -669,7 +751,7 @@ defmodule SoundboardWeb.SettingsLive do
                 >
                   Copy
                 </button>
-                 <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto min-h-[120px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST \
+                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto min-h-[120px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST \
     -H "Authorization: Bearer {(@example_token || "<TOKEN>")}" \
     -F "source_type=local" \
     -F "name=&lt;NAME&gt;" \
@@ -697,7 +779,7 @@ defmodule SoundboardWeb.SettingsLive do
                 >
                   Copy
                 </button>
-                 <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto min-h-[110px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST \
+                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto min-h-[110px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST \
     -H "Authorization: Bearer {(@example_token || "<TOKEN>")}" \
     -H "Content-Type: application/json" \
     -d '&#123;"source_type":"url","name":"wow","url":"https://example.com/wow.mp3","tags":["meme","reaction"],"volume":90,"is_leave_sound":true&#125;' \
@@ -720,7 +802,7 @@ defmodule SoundboardWeb.SettingsLive do
                 >
                   Copy
                 </button>
-                 <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/&lt;SOUND_ID&gt;/play</code></pre>
+                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/&lt;SOUND_ID&gt;/play</code></pre>
               </div>
             </div>
 
@@ -737,7 +819,7 @@ defmodule SoundboardWeb.SettingsLive do
                 >
                   Copy
                 </button>
-                 <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/stop</code></pre>
+                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/stop</code></pre>
               </div>
             </div>
           </div>

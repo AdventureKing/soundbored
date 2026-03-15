@@ -121,6 +121,27 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       end
     end
 
+    test "shows featured tags above regular tag filters", %{conn: conn, user: user} do
+      featured_tag =
+        %Tag{}
+        |> Tag.changeset(%{name: "featured", featured: true})
+        |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "featured.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [featured_tag]
+      })
+      |> Repo.insert!()
+
+      {:ok, view, html} = live(conn, "/")
+
+      assert html =~ "Featured Tags"
+      assert has_element?(view, "#featured-tag-panel button[phx-value-tag='featured']")
+    end
+
     test "shows admin stop and clear queue button for settings admins", %{conn: conn, user: user} do
       original_admin_user_ids =
         Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])

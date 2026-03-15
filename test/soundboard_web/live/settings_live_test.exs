@@ -3,7 +3,7 @@ defmodule SoundboardWeb.SettingsLiveTest do
   import Phoenix.LiveViewTest
   import Mock
   alias Soundboard.Accounts.{ApiTokens, RoleCooldown, User}
-  alias Soundboard.Repo
+  alias Soundboard.{Repo, Tag}
 
   setup %{conn: conn} do
     original_admin_user_ids =
@@ -72,6 +72,23 @@ defmodule SoundboardWeb.SettingsLiveTest do
     assert html =~ "tags[]"
     assert html =~ "is_join_sound"
     assert html =~ "is_leave_sound"
+  end
+
+  test "can select and save featured tags", %{conn: conn} do
+    alpha = %Tag{} |> Tag.changeset(%{name: "alpha"}) |> Repo.insert!()
+    beta = %Tag{} |> Tag.changeset(%{name: "beta"}) |> Repo.insert!()
+
+    {:ok, view, html} = live(conn, "/settings")
+    assert html =~ "Featured Tags"
+    assert html =~ "alpha"
+    assert html =~ "beta"
+
+    view
+    |> element("form[phx-submit=\"save_featured_tags\"]")
+    |> render_submit(%{"featured_tag_ids" => [Integer.to_string(alpha.id)]})
+
+    assert Repo.get!(Tag, alpha.id).featured
+    refute Repo.get!(Tag, beta.id).featured
   end
 
   test "lists role cooldown rows alphabetically and saves per-role cooldowns", %{conn: conn} do
