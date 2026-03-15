@@ -158,8 +158,8 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("add_upload_tag", %{"key" => key, "value" => value}, socket) do
-    UploadFlow.add_tag(socket, key, value)
+  def handle_event("add_upload_tag", %{"key" => key} = params, socket) do
+    UploadFlow.add_tag(socket, key, Map.get(params, "value", ""))
   end
 
   @impl true
@@ -173,13 +173,13 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("upload_tag_input", %{"key" => _key, "value" => value}, socket) do
-    UploadFlow.update_tag_input(socket, value)
+  def handle_event("upload_tag_input", %{"key" => _key} = params, socket) do
+    UploadFlow.update_tag_input(socket, Map.get(params, "value", ""))
   end
 
   @impl true
-  def handle_event("add_tag", %{"key" => key, "value" => value}, socket) do
-    EditFlow.add_tag(socket, key, value)
+  def handle_event("add_tag", %{"key" => key} = params, socket) do
+    EditFlow.add_tag(socket, key, Map.get(params, "value", ""))
   end
 
   @impl true
@@ -193,8 +193,8 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("tag_input", %{"key" => _key, "value" => value}, socket) do
-    EditFlow.update_tag_input(socket, value)
+  def handle_event("tag_input", %{"key" => _key} = params, socket) do
+    EditFlow.update_tag_input(socket, Map.get(params, "value", ""))
   end
 
   @impl true

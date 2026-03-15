@@ -466,7 +466,8 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
       params = %{
         "url" => "https://example.com/wow.mp3",
-        "name" => "wow"
+        "name" => "wow",
+        "upload_tag_input" => "meme"
       }
 
       view
@@ -479,6 +480,43 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert new_sound.user_id == user.id
 
       Repo.delete!(new_sound)
+    end
+
+    test "url upload accepts a single tag still in the input", %{conn: conn, user: user} do
+      {:ok, view, _html} = live(conn, "/")
+
+      view
+      |> element("[phx-click='show_upload_modal']")
+      |> render_click()
+
+      view
+      |> element("select[name='source_type']")
+      |> render_change(%{"source_type" => "url"})
+
+      unique = System.unique_integer([:positive])
+      sound_name = "single-tag-#{unique}"
+      url = "https://example.com/#{sound_name}.mp3"
+      tag_name = "one-tag-#{unique}"
+
+      view
+      |> element("#upload-form")
+      |> render_submit(%{
+        "url" => url,
+        "name" => sound_name,
+        "upload_tag_input" => tag_name
+      })
+
+      sound =
+        Sound
+        |> Repo.get_by!(filename: "#{sound_name}.mp3")
+        |> Repo.preload(:tags)
+
+      assert sound.source_type == "url"
+      assert sound.url == url
+      assert sound.user_id == user.id
+      assert Enum.any?(sound.tags, &(&1.name == tag_name))
+
+      Repo.delete!(sound)
     end
 
     test "upload sound from url saves provided volume", %{conn: conn} do
@@ -497,7 +535,8 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       |> render_submit(%{
         "url" => "https://example.com/soft.mp3",
         "name" => "soft",
-        "volume" => "25"
+        "volume" => "25",
+        "upload_tag_input" => "quiet"
       })
 
       sound = Repo.get_by!(Sound, filename: "soft.mp3")
