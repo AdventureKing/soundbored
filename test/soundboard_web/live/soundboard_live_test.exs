@@ -36,7 +36,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
     test "mounts successfully with user session", %{conn: conn} do
       {:ok, _, html} = live(conn, "/")
 
-      assert html =~ "Soundboard"
+      assert html =~ "Sounds"
       # Check for the main content instead of a specific container
       assert html =~ "BeeBot"
       assert html =~ "Cooldown"
@@ -109,7 +109,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       {:ok, view, _html} = live(conn, "/")
 
       view
-      |> element("div.hidden.sm\\:flex button[phx-value-tag='funny']")
+      |> element("#tag-filter-panel button[phx-value-tag='funny']")
       |> render_click()
 
       with_mock Soundboard.AudioPlayer, play_sound: fn _, _ -> :ok end do
