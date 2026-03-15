@@ -94,6 +94,13 @@ const applyDesktopNavState = (collapsed) => {
   if (document.body) {
     document.body.classList.toggle(DESKTOP_NAV_COLLAPSED_CLASS, collapsed)
   }
+
+  const desktopOffset = collapsed ? "52px" : "180px"
+  const isDesktop = window.matchMedia("(min-width: 1024px)").matches
+
+  document.querySelectorAll(".desktop-nav-main").forEach((mainEl) => {
+    mainEl.style.paddingLeft = isDesktop ? desktopOffset : ""
+  })
 }
 
 const getAudioContextCtor = () => window.AudioContext || window.webkitAudioContext || null
@@ -166,17 +173,61 @@ Hooks.LocalPlayer = {
     this.audio = null
     this.audioContext = null
     this.cleanup = null
+    this.previewTimer = null
+    this.previewStartedAt = null
+    this.cardEl = this.el.closest(".bb-sound-card")
+    this.previewTimeEl = this.cardEl?.querySelector("[data-role='preview-time']") || null
+    this.previewWaveEl = this.cardEl?.querySelector(".bb-preview-wave") || null
+    this.previewBars = []
+    this.waveHeights = [6, 10, 14, 18, 14, 18, 10, 14, 18, 14, 10, 6, 14, 10, 18, 14, 6, 14, 10, 18]
+    this.waveBarWidth = 3
+    this.waveGap = 2
     this.handleClick = this.handleClick.bind(this)
+    this.handleWindowResize = this.handleWindowResize.bind(this)
     this.el.addEventListener("click", this.handleClick)
+    this.rebuildPreviewBars()
+    window.addEventListener("resize", this.handleWindowResize)
   },
   updated() {
+    this.rebuildPreviewBars()
     if (this.audio && !this.audio.paused) {
       this.configureGain(this.readGain())
     }
   },
   destroyed() {
     this.el.removeEventListener("click", this.handleClick)
+    window.removeEventListener("resize", this.handleWindowResize)
     this.stopPlayback()
+  },
+  handleWindowResize() {
+    this.rebuildPreviewBars()
+  },
+  rebuildPreviewBars() {
+    if (!this.previewWaveEl) {
+      return
+    }
+
+    const width = this.previewWaveEl.clientWidth
+    const perBar = this.waveBarWidth + this.waveGap
+    const count =
+      width > 0
+        ? Math.max(12, Math.floor((width + this.waveGap) / perBar))
+        : 24
+    const isPreviewing = this.cardEl?.classList.contains("previewing")
+    const fragment = document.createDocumentFragment()
+
+    for (let idx = 0; idx < count; idx += 1) {
+      const bar = document.createElement("span")
+      const height = this.waveHeights[idx % this.waveHeights.length]
+      bar.className = isPreviewing ? "bar active" : "bar"
+      bar.style.setProperty("--h", `${height}px`)
+      bar.style.setProperty("--d", `${(idx * 0.07).toFixed(2)}s`)
+      fragment.appendChild(bar)
+    }
+
+    this.previewWaveEl.innerHTML = ""
+    this.previewWaveEl.appendChild(fragment)
+    this.previewBars = Array.from(this.previewWaveEl.querySelectorAll(".bar"))
   },
   readGain() {
     const raw = parseFloat(this.el.dataset.volume)
@@ -304,6 +355,47 @@ Hooks.LocalPlayer = {
       activeLocalPlayer = null
     }
   },
+  formatPreviewTime(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.floor(totalSeconds))
+    const minutes = Math.floor(safeSeconds / 60)
+    const seconds = safeSeconds % 60
+    return `${minutes}:${String(seconds).padStart(2, "0")}`
+  },
+  startPreviewUi() {
+    this.previewStartedAt = Date.now()
+    if (this.cardEl) {
+      this.cardEl.classList.add("previewing")
+    }
+    this.rebuildPreviewBars()
+    this.previewBars.forEach((bar) => bar.classList.add("active"))
+    if (this.previewTimeEl) {
+      this.previewTimeEl.textContent = "0:00"
+    }
+    if (this.previewTimer) {
+      clearInterval(this.previewTimer)
+    }
+    this.previewTimer = setInterval(() => {
+      if (!this.previewStartedAt || !this.previewTimeEl) {
+        return
+      }
+      const elapsed = (Date.now() - this.previewStartedAt) / 1000
+      this.previewTimeEl.textContent = this.formatPreviewTime(elapsed)
+    }, 250)
+  },
+  stopPreviewUi() {
+    if (this.previewTimer) {
+      clearInterval(this.previewTimer)
+      this.previewTimer = null
+    }
+    this.previewStartedAt = null
+    if (this.cardEl) {
+      this.cardEl.classList.remove("previewing")
+    }
+    this.previewBars.forEach((bar) => bar.classList.remove("active"))
+    if (this.previewTimeEl) {
+      this.previewTimeEl.textContent = "0:00"
+    }
+  },
   setPlaying(isPlaying) {
     const playIcon = this.el.querySelector(".play-icon")
     const stopIcon = this.el.querySelector(".stop-icon")
@@ -315,9 +407,11 @@ Hooks.LocalPlayer = {
     if (isPlaying) {
       playIcon.classList.add("hidden")
       stopIcon.classList.remove("hidden")
+      this.startPreviewUi()
     } else {
       playIcon.classList.remove("hidden")
       stopIcon.classList.add("hidden")
+      this.stopPreviewUi()
     }
   }
 }

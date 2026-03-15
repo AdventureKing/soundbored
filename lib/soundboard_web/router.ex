@@ -58,6 +58,15 @@ defmodule SoundboardWeb.Router do
     get "/*path", SoundboardWeb.UploadController, :show
   end
 
+  # Dev-only UI preview route (no Discord OAuth redirect)
+  if Mix.env() == :dev do
+    scope "/preview", SoundboardWeb do
+      pipe_through [:browser, :auth]
+
+      live "/soundboard", SoundboardLive, :preview
+    end
+  end
+
   if Mix.env() == :test do
     scope "/debug", SoundboardWeb do
       pipe_through [:browser]

@@ -4,13 +4,11 @@
   current_user={@current_user}
   current_path={@current_path}
   presences={@presences}
+  cooldown_end_ms={assigns[:cooldown_end_ms]}
+  cooldown_remaining_ms={assigns[:cooldown_remaining_ms]}
 />
 
-<main class="desktop-nav-main min-h-screen bg-gray-100/70 text-gray-900 dark:bg-gray-950 dark:text-gray-100 pt-16 transition-[padding-left] duration-200 lg:pt-0 lg:pl-72">
-  <div class="px-4 pt-4 sm:px-6 lg:px-8">
-    <.flash_group flash={@flash} />
-  </div>
-  <div class="pb-8">
-    {@inner_content}
-  </div>
+<main class="desktop-nav-main min-h-screen bg-[#16181e] text-[#e2e0d8] pt-14 transition-[padding-left] duration-200 lg:pt-0">
+  <.flash_group flash={@flash} />
+  {@inner_content}
 </main>
