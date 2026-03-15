@@ -1,6 +1,6 @@
 {
-  "name": "SoundBored",
-  "short_name": "SoundBored",
+  "name": "BeeBot",
+  "short_name": "BeeBot",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
