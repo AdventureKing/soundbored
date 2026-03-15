@@ -225,7 +225,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
             BeeBot &#x1F41D;
           </.link>
           <p class="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-            Application Shell
+            Buzz Buzz &copy;
           </p>
 
           <div class="mt-8">
