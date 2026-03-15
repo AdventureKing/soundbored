@@ -26,40 +26,43 @@ defmodule SoundboardWeb.PermissionsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Permissions</h1>
+    <div class="bb-view">
+      <div>
+        <h1 class="bb-view-title">Permissions</h1>
+        <p class="bb-view-subtitle">Role-based access checks for playback, upload, and settings.</p>
+      </div>
 
-      <section class="space-y-3">
-        <header class="space-y-1">
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Clip Playback</h2>
+      <section class="bb-section-card">
+        <header>
+          <h2 class="bb-section-heading">Clip Playback</h2>
 
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+          <p class="bb-section-copy">
             Play access is decided from your Discord roles.
           </p>
         </header>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-3">
+        <div class="bb-form-stack">
           <p class="text-sm">
-            <span class="font-semibold text-gray-700 dark:text-gray-200">Status:</span>
+            <span class="bb-section-copy font-semibold">Status:</span>
             <span class={status_class(@play_permission.allowed?)}>
               {if @play_permission.allowed?, do: "Allowed", else: "Not allowed"}
             </span>
           </p>
 
-          <p class="text-xs text-gray-600 dark:text-gray-400">
+          <p class="bb-muted-note">
             {play_permission_message(@play_permission)}
           </p>
 
-          <div class="text-xs text-gray-700 dark:text-gray-300">
+          <div class="bb-meta-list">
             <div>
-              <span class="font-semibold">Your roles:</span> {format_role_names(
+              <strong>Your roles:</strong> {format_role_names(
                 @play_permission.user_ids,
                 @role_name_map
               )}
             </div>
 
             <div>
-              <span class="font-semibold">Allowed player roles:</span> {format_role_names(
+              <strong>Allowed player roles:</strong> {format_role_names(
                 @play_permission.required_ids,
                 @role_name_map
               )}
@@ -68,37 +71,37 @@ defmodule SoundboardWeb.PermissionsLive do
         </div>
       </section>
 
-      <section class="space-y-3">
-        <header class="space-y-1">
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Clip Upload</h2>
+      <section class="bb-section-card">
+        <header>
+          <h2 class="bb-section-heading">Clip Upload</h2>
 
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+          <p class="bb-section-copy">
             Upload access is decided from your Discord roles.
           </p>
         </header>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-3">
+        <div class="bb-form-stack">
           <p class="text-sm">
-            <span class="font-semibold text-gray-700 dark:text-gray-200">Status:</span>
+            <span class="bb-section-copy font-semibold">Status:</span>
             <span class={status_class(@upload_permission.allowed?)}>
               {if @upload_permission.allowed?, do: "Allowed", else: "Not allowed"}
             </span>
           </p>
 
-          <p class="text-xs text-gray-600 dark:text-gray-400">
+          <p class="bb-muted-note">
             {permission_message(@upload_permission)}
           </p>
 
-          <div class="text-xs text-gray-700 dark:text-gray-300">
+          <div class="bb-meta-list">
             <div>
-              <span class="font-semibold">Your roles:</span> {format_role_names(
+              <strong>Your roles:</strong> {format_role_names(
                 @upload_permission.user_ids,
                 @role_name_map
               )}
             </div>
 
             <div>
-              <span class="font-semibold">Allowed uploader roles:</span> {format_role_names(
+              <strong>Allowed uploader roles:</strong> {format_role_names(
                 @upload_permission.required_ids,
                 @role_name_map
               )}
@@ -107,36 +110,34 @@ defmodule SoundboardWeb.PermissionsLive do
         </div>
       </section>
 
-      <section :if={@settings_permission.allowed?} class="space-y-3">
-        <header class="space-y-1">
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Settings Access</h2>
+      <section :if={@settings_permission.allowed?} class="bb-section-card">
+        <header>
+          <h2 class="bb-section-heading">Settings Access</h2>
 
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+          <p class="bb-section-copy">
             Only users with an allowed Discord user ID can open Settings.
           </p>
         </header>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-3">
+        <div class="bb-form-stack">
           <p class="text-sm">
-            <span class="font-semibold text-gray-700 dark:text-gray-200">Status:</span>
+            <span class="bb-section-copy font-semibold">Status:</span>
             <span class={status_class(@settings_permission.allowed?)}>
               {if @settings_permission.allowed?, do: "Allowed", else: "Not allowed"}
             </span>
           </p>
 
-          <p class="text-xs text-gray-600 dark:text-gray-400">
+          <p class="bb-muted-note">
             {settings_permission_message(@settings_permission)}
           </p>
 
-          <div class="text-xs text-gray-700 dark:text-gray-300">
+          <div class="bb-meta-list">
             <div>
-              <span class="font-semibold">Your Discord user ID:</span> {format_ids(
-                @settings_permission.user_ids
-              )}
+              <strong>Your Discord user ID:</strong> {format_ids(@settings_permission.user_ids)}
             </div>
 
             <div>
-              <span class="font-semibold">Allowed settings admin user IDs:</span> {format_ids(
+              <strong>Allowed settings admin user IDs:</strong> {format_ids(
                 @settings_permission.required_ids
               )}
             </div>
@@ -195,8 +196,8 @@ defmodule SoundboardWeb.PermissionsLive do
     "You must be signed in to access settings."
   end
 
-  defp status_class(true), do: "text-green-700 dark:text-green-400 font-semibold"
-  defp status_class(false), do: "text-red-700 dark:text-red-400 font-semibold"
+  defp status_class(true), do: "bb-status-allowed"
+  defp status_class(false), do: "bb-status-denied"
 
   defp format_role_names([], _role_name_map), do: "none"
 

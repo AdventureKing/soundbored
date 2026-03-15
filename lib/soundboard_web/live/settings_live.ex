@@ -367,50 +367,49 @@ defmodule SoundboardWeb.SettingsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Settings</h1>
-
-      <section aria-labelledby="featured-tags-heading" class="space-y-3">
-        <header class="space-y-1">
+    <div class="bb-view">
+      <h1 class="bb-view-title">Settings</h1>
+      
+      <section aria-labelledby="featured-tags-heading" class="bb-section-card">
+        <header>
           <h2
             id="featured-tags-heading"
-            class="text-xl font-semibold text-gray-800 dark:text-gray-100"
+            class="bb-section-heading"
           >
             Featured Tags
           </h2>
-
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+          
+          <p class="bb-section-copy">
             Featured tags show at the top of the Sounds page above the regular tag filters.
           </p>
         </header>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
+        
+        <div class="bb-form-stack">
           <%= if @available_tags == [] do %>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
+            <p class="bb-empty-copy">
               No tags are available yet. Add tags to sounds first.
             </p>
           <% else %>
-            <form phx-submit="save_featured_tags" class="space-y-4">
-              <div class="max-h-64 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 p-3">
+            <form phx-submit="save_featured_tags" class="bb-form-stack">
+              <div class="bb-table-shell max-h-64 overflow-y-auto p-3">
                 <div class="flex flex-wrap gap-2">
                   <%= for tag <- @available_tags do %>
-                    <label class="inline-flex items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-sm text-gray-700 dark:text-gray-200">
+                    <label class="bb-checkbox-chip">
                       <input
                         type="checkbox"
                         name="featured_tag_ids[]"
                         value={tag.id}
                         checked={Integer.to_string(tag.id) in @featured_tag_ids}
-                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 dark:border-gray-600 dark:focus:ring-offset-gray-800"
-                      />
-                      <span>{tag.name}</span>
+                        class="h-4 w-4"
+                      /> <span>{tag.name}</span>
                     </label>
                   <% end %>
                 </div>
               </div>
-
+              
               <button
                 type="submit"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                class="bb-btn primary"
               >
                 Save Featured Tags
               </button>
@@ -418,25 +417,25 @@ defmodule SoundboardWeb.SettingsLive do
           <% end %>
         </div>
       </section>
-
-      <section aria-labelledby="role-cooldowns-heading" class="space-y-3">
-        <header class="space-y-1">
+      
+      <section aria-labelledby="role-cooldowns-heading" class="bb-section-card">
+        <header>
           <h2
             id="role-cooldowns-heading"
-            class="text-xl font-semibold text-gray-800 dark:text-gray-100"
+            class="bb-section-heading"
           >
             Role Cooldowns
           </h2>
-
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+          
+          <p class="bb-section-copy">
             Set playback cooldowns per Discord role. Users with multiple roles get the lowest cooldown.
             Default cooldown is 10 minutes.
           </p>
         </header>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
+        
+        <div class="bb-form-stack">
           <%= if @role_cooldown_rows == [] do %>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
+            <p class="bb-empty-copy">
               No guild roles are available in cache yet. Keep the bot connected to Discord, then refresh.
             </p>
           <% else %>
@@ -446,10 +445,10 @@ defmodule SoundboardWeb.SettingsLive do
                 @role_cooldown_sort_by,
                 @role_cooldown_sort_dir
               ) %>
-            <form phx-change="filter_role_cooldowns" class="max-w-md">
+            <form phx-change="filter_role_cooldowns" class="max-w-md bb-form-stack">
               <label
                 for="role-cooldown-filter"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                class="bb-field-label"
               >
                 Filter roles
               </label>
@@ -460,24 +459,24 @@ defmodule SoundboardWeb.SettingsLive do
                 value={@role_cooldown_filter}
                 placeholder="Type to filter roles..."
                 phx-debounce="200"
-                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+                class="bb-input"
               />
             </form>
-
-            <form phx-submit="save_role_cooldowns" class="space-y-4">
+            
+            <form phx-submit="save_role_cooldowns" class="bb-form-stack">
               <%= if filtered_rows == [] do %>
-                <p class="text-sm text-gray-600 dark:text-gray-400">No roles match that filter.</p>
+                <p class="bb-empty-copy">No roles match that filter.</p>
               <% else %>
-                <div class="overflow-x-auto">
-                  <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                    <thead class="bg-gray-50 dark:bg-gray-900">
+                <div class="bb-table-shell">
+                  <table class="bb-table">
+                    <thead>
                       <tr>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th>
                           <button
                             type="button"
                             phx-click="sort_role_cooldowns"
                             phx-value-field="guild_name"
-                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                            class="bb-sort-btn"
                           >
                             Guild
                             <span aria-hidden="true">
@@ -489,13 +488,13 @@ defmodule SoundboardWeb.SettingsLive do
                             </span>
                           </button>
                         </th>
-
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        
+                        <th>
                           <button
                             type="button"
                             phx-click="sort_role_cooldowns"
                             phx-value-field="role_name"
-                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                            class="bb-sort-btn"
                           >
                             Role
                             <span aria-hidden="true">
@@ -507,13 +506,13 @@ defmodule SoundboardWeb.SettingsLive do
                             </span>
                           </button>
                         </th>
-
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        
+                        <th>
                           <button
                             type="button"
                             phx-click="sort_role_cooldowns"
                             phx-value-field="role_id"
-                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                            class="bb-sort-btn"
                           >
                             Role ID
                             <span aria-hidden="true">
@@ -525,13 +524,13 @@ defmodule SoundboardWeb.SettingsLive do
                             </span>
                           </button>
                         </th>
-
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        
+                        <th>
                           <button
                             type="button"
                             phx-click="sort_role_cooldowns"
                             phx-value-field="cooldown_seconds"
-                            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200"
+                            class="bb-sort-btn"
                           >
                             Cooldown (seconds)
                             <span aria-hidden="true">
@@ -545,23 +544,17 @@ defmodule SoundboardWeb.SettingsLive do
                         </th>
                       </tr>
                     </thead>
-
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    
+                    <tbody>
                       <%= for row <- sorted_rows do %>
                         <tr>
-                          <td class="px-4 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                            {row.guild_name}
-                          </td>
-
-                          <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                            {row.role_name}
-                          </td>
-
-                          <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono">
-                            {row.role_id}
-                          </td>
-
-                          <td class="px-4 py-2">
+                          <td>{row.guild_name}</td>
+                          
+                          <td>{row.role_name}</td>
+                          
+                          <td class="bb-mono">{row.role_id}</td>
+                          
+                          <td>
                             <input
                               type="number"
                               min="0"
@@ -569,7 +562,7 @@ defmodule SoundboardWeb.SettingsLive do
                               inputmode="numeric"
                               name={"cooldowns[#{row.role_id}]"}
                               value={row.cooldown_seconds || ""}
-                              class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+                              class="bb-input"
                             />
                           </td>
                         </tr>
@@ -578,14 +571,14 @@ defmodule SoundboardWeb.SettingsLive do
                   </table>
                 </div>
               <% end %>
-
-              <p class="text-xs text-gray-600 dark:text-gray-400">
+              
+              <p class="bb-muted-note">
                 Leave blank (or set to 0) to use the default cooldown (10 minutes) for that role.
               </p>
-
+              
               <button
                 type="submit"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                class="bb-btn primary"
               >
                 Save Cooldowns
               </button>
@@ -593,100 +586,87 @@ defmodule SoundboardWeb.SettingsLive do
           <% end %>
         </div>
       </section>
-
-      <section aria-labelledby="api-tokens-heading" class="space-y-6">
-        <header class="space-y-2">
-          <h2 id="api-tokens-heading" class="text-xl font-semibold text-gray-800 dark:text-gray-100">
-            API Tokens
-          </h2>
-
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+      
+      <section aria-labelledby="api-tokens-heading" class="bb-section-card">
+        <header>
+          <h2 id="api-tokens-heading" class="bb-section-heading">API Tokens</h2>
+          
+          <p class="bb-section-copy">
             Create a personal token to play sounds remotely. Requests authenticated with a token
             are attributed to your account and update your stats.
           </p>
         </header>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
-          <form phx-submit="create_token" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+        
+        <div class="bb-form-stack">
+          <form phx-submit="create_token" class="bb-btn-row">
             <div class="flex-1">
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Label</label>
+              <label class="bb-field-label">Label</label>
               <input
                 name="label"
                 type="text"
                 placeholder="e.g., CI Bot"
-                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+                class="bb-input"
               />
             </div>
-
+            
             <button
               type="submit"
-              class="w-full sm:w-auto justify-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 flex items-center"
+              class="bb-btn primary"
             >
               Create
             </button>
           </form>
         </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        
+        <div class="bb-table-shell">
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-              <thead class="bg-gray-50 dark:bg-gray-900">
+            <table class="bb-table">
+              <thead>
                 <tr>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Label
-                  </th>
-
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Token
-                  </th>
-
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Used
-                  </th>
-
-                  <th class="px-4 py-2"></th>
+                  <th>Label</th>
+                  
+                  <th>Token</th>
+                  
+                  <th>Created</th>
+                  
+                  <th>Last Used</th>
+                  
+                  <th></th>
                 </tr>
               </thead>
-
-              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+              
+              <tbody>
                 <%= for token <- @tokens do %>
-                  <tr class="text-sm">
-                    <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                      {token.label || "(no label)"}
-                    </td>
-
-                    <td class="px-4 py-2 align-top">
+                  <tr>
+                    <td>{token.label || "(no label)"}</td>
+                    
+                    <td>
                       <div class="relative">
                         <button
                           id={"copy-token-#{token.id}"}
                           type="button"
                           phx-hook="CopyButton"
                           data-copy-text={token.token}
-                          class="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded"
+                          class="bb-copy-btn"
                         >
                           Copy
-                        </button>
-                        <pre class="p-2 pr-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap"><code class="text-gray-800 dark:text-gray-100 font-mono">{token.token}</code></pre>
+                        </button> <pre class="bb-code-block pr-20 whitespace-nowrap"><code class="bb-mono">{token.token}</code></pre>
                       </div>
                     </td>
-
-                    <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    
+                    <td class="bb-section-copy">
                       {format_dt(token.inserted_at)}
                     </td>
-
-                    <td class="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {format_dt(token.last_used_at) || "—"}
+                    
+                    <td class="bb-section-copy">
+                      {format_dt(token.last_used_at) || "--"}
                     </td>
-
-                    <td class="px-4 py-2 text-right align-top">
+                    
+                    <td class="text-right">
                       <button
                         phx-click="revoke_token"
                         phx-value-id={token.id}
-                        class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                        class="bb-btn danger"
                       >
                         Revoke
                       </button>
@@ -697,61 +677,57 @@ defmodule SoundboardWeb.SettingsLive do
             </table>
           </div>
         </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 space-y-4">
-          <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">How to call the API</h3>
-
-          <p class="text-sm text-gray-700 dark:text-gray-300">
+        
+        <div class="bb-form-stack">
+          <h3 class="bb-section-heading">How to call the API</h3>
+          
+          <p class="bb-section-copy">
             Include your token in the Authorization header:
-            <code class="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 font-mono">
+            <code class="bb-code-block bb-mono inline-block px-2 py-1">
               Authorization: Bearer {@example_token || "<token>"}
             </code>
           </p>
-
-          <div class="space-y-4">
+          
+          <div class="bb-form-stack">
             <div>
-              <div class="text-sm font-medium text-gray-700 dark:text-gray-300">List sounds</div>
-
+              <div class="bb-field-label">List sounds</div>
+              
               <div class="relative">
                 <button
                   id="copy-list-sounds"
                   type="button"
                   phx-hook="CopyButton"
                   data-copy-text={"curl -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" #{@base_url}/api/sounds"}
-                  class="absolute right-2 top-2 text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded"
+                  class="bb-copy-btn bb-copy-top"
                 >
                   Copy
-                </button>
-                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds</code></pre>
+                </button> <pre class="bb-code-block mt-1 pr-16 whitespace-nowrap min-h-[56px]"><code class="bb-mono">curl -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds</code></pre>
               </div>
             </div>
-
-            <div class="text-xs text-gray-600 dark:text-gray-400">
-              Upload endpoint: <code class="font-mono">POST /api/sounds</code>. Required fields: <code class="font-mono">name</code>, <code class="font-mono">tags</code>,
-              plus either <code class="font-mono">file</code>
+            
+            <div class="bb-muted-note">
+              Upload endpoint: <code class="bb-mono">POST /api/sounds</code>. Required fields: <code class="bb-mono">name</code>, <code class="bb-mono">tags</code>,
+              plus either <code class="bb-mono">file</code>
               (local multipart)
-              or <code class="font-mono">url</code>
-              (<code class="font-mono">source_type=url</code>). Optional:
-              <code class="font-mono">volume</code>
-              (0-150), <code class="font-mono">is_join_sound</code>, <code class="font-mono">is_leave_sound</code>.
+              or <code class="bb-mono">url</code>
+              (<code class="bb-mono">source_type=url</code>). Optional:
+              <code class="bb-mono">volume</code>
+              (0-150), <code class="bb-mono">is_join_sound</code>, <code class="bb-mono">is_leave_sound</code>.
             </div>
-
+            
             <div>
-              <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Upload local file (multipart/form-data)
-              </div>
-
+              <div class="bb-field-label">Upload local file (multipart/form-data)</div>
+              
               <div class="relative">
                 <button
                   id="copy-upload-local"
                   type="button"
                   phx-hook="CopyButton"
                   data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" -F \"source_type=local\" -F \"name=<NAME>\" -F \"file=@/path/to/sound.mp3\" -F \"tags[]=meme\" -F \"tags[]=alert\" -F \"volume=90\" -F \"is_join_sound=true\" #{@base_url}/api/sounds"}
-                  class="absolute right-2 top-2 text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded"
+                  class="bb-copy-btn bb-copy-top"
                 >
                   Copy
-                </button>
-                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto min-h-[120px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST \
+                </button> <pre class="bb-code-block mt-1 pr-16 min-h-[120px]"><code class="bb-mono">curl -X POST \
     -H "Authorization: Bearer {(@example_token || "<TOKEN>")}" \
     -F "source_type=local" \
     -F "name=&lt;NAME&gt;" \
@@ -763,63 +739,56 @@ defmodule SoundboardWeb.SettingsLive do
     {@base_url}/api/sounds</code></pre>
               </div>
             </div>
-
+            
             <div>
-              <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Upload from URL (JSON)
-              </div>
-
+              <div class="bb-field-label">Upload from URL (JSON)</div>
+              
               <div class="relative">
                 <button
                   id="copy-upload-url"
                   type="button"
                   phx-hook="CopyButton"
                   data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" -H \"Content-Type: application/json\" -d '{\"source_type\":\"url\",\"name\":\"wow\",\"url\":\"https://example.com/wow.mp3\",\"tags\":[\"meme\",\"reaction\"],\"volume\":90,\"is_leave_sound\":true}' #{@base_url}/api/sounds"}
-                  class="absolute right-2 top-2 text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded"
+                  class="bb-copy-btn bb-copy-top"
                 >
                   Copy
-                </button>
-                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto min-h-[110px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST \
+                </button> <pre class="bb-code-block mt-1 pr-16 min-h-[110px]"><code class="bb-mono">curl -X POST \
     -H "Authorization: Bearer {(@example_token || "<TOKEN>")}" \
     -H "Content-Type: application/json" \
     -d '&#123;"source_type":"url","name":"wow","url":"https://example.com/wow.mp3","tags":["meme","reaction"],"volume":90,"is_leave_sound":true&#125;' \
     {@base_url}/api/sounds</code></pre>
               </div>
             </div>
-
+            
             <div>
-              <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Play a sound by ID
-              </div>
-
+              <div class="bb-field-label">Play a sound by ID</div>
+              
               <div class="relative">
                 <button
                   id="copy-play-sound"
                   type="button"
                   phx-hook="CopyButton"
                   data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" #{@base_url}/api/sounds/<SOUND_ID>/play"}
-                  class="absolute right-2 top-2 text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded"
+                  class="bb-copy-btn bb-copy-top"
                 >
                   Copy
-                </button>
-                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/&lt;SOUND_ID&gt;/play</code></pre>
+                </button> <pre class="bb-code-block mt-1 pr-16 whitespace-nowrap min-h-[56px]"><code class="bb-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/&lt;SOUND_ID&gt;/play</code></pre>
               </div>
             </div>
-
+            
             <div>
-              <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Stop all sounds</div>
-
+              <div class="bb-field-label">Stop all sounds</div>
+              
               <div class="relative">
                 <button
                   id="copy-stop-sounds"
                   type="button"
                   phx-hook="CopyButton"
                   data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" #{@base_url}/api/sounds/stop"}
-                  class="absolute right-2 top-2 text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded"
+                  class="bb-copy-btn bb-copy-top"
                 >
                   Copy
-                </button>
-                <pre class="mt-1 p-2 pr-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-xs overflow-x-auto whitespace-nowrap min-h-[56px]"><code class="text-gray-800 dark:text-gray-100 font-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/stop</code></pre>
+                </button> <pre class="bb-code-block mt-1 pr-16 whitespace-nowrap min-h-[56px]"><code class="bb-mono">curl -X POST -H \"Authorization: Bearer {(@example_token || "<TOKEN>")}\" {@base_url}/api/sounds/stop</code></pre>
               </div>
             </div>
           </div>
