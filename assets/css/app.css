@@ -149,6 +149,11 @@ body.buzz-mode {
   background-color: #1a1a1a !important;
 }
 
+.buzz-mode .hover\:bg-green-50:hover,
+.buzz-mode .dark\:hover\:bg-green-900\/20:hover {
+  background-color: rgba(255, 170, 0, 0.2) !important;
+}
+
 .buzz-mode .hover\:text-gray-700:hover,
 .buzz-mode .hover\:text-gray-800:hover,
 .buzz-mode .dark\:hover\:text-gray-200:hover {
