@@ -167,6 +167,9 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
       )
 
     assert html =~ "expand-desktop-nav"
+    assert html =~ "BeeBot home"
+    assert html =~ "title=\"Sounds\""
+    assert html =~ "title=\"Stats\""
     refute html =~ "Collapse navigation"
   end
 end

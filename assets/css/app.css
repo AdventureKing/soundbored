@@ -45,7 +45,7 @@ body {
 
 @media (min-width: 1024px) {
   html.desktop-nav-collapsed .desktop-nav-main {
-    padding-left: 0 !important;
+    padding-left: 4rem !important;
   }
 }
 
