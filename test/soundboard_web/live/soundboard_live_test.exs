@@ -2,7 +2,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
   @moduledoc false
   use SoundboardWeb.ConnCase
   import Phoenix.LiveViewTest
-  alias Soundboard.{Accounts.User, Repo, Sound, Tag}
+  alias Soundboard.{Accounts.User, Favorites, Repo, Sound, Tag}
   import Mock
 
   setup %{conn: conn} do
@@ -188,6 +188,94 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       refute has_element?(view, "[phx-click='play'][phx-value-name='alpha-only.mp3']")
       assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-beta.mp3']")
       assert has_element?(view, "[phx-click='play'][phx-value-name='beta-only.mp3']")
+    end
+
+    test "favorites toggle filters to only favorited sounds", %{
+      conn: conn,
+      user: user,
+      sound: sound
+    } do
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "not-favorited.mp3",
+        source_type: "local",
+        user_id: user.id
+      })
+      |> Repo.insert!()
+
+      {:ok, _favorite} = Favorites.toggle_favorite(user.id, sound.id)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='#{sound.filename}']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='not-favorited.mp3']")
+
+      view
+      |> element("#favorites-filter-toggle")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='#{sound.filename}']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='not-favorited.mp3']")
+
+      view
+      |> element("#favorites-filter-toggle")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='#{sound.filename}']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='not-favorited.mp3']")
+    end
+
+    test "tag filters still work while favorites filter is enabled", %{conn: conn, user: user} do
+      alpha =
+        %Tag{}
+        |> Tag.changeset(%{name: "fav-alpha"})
+        |> Repo.insert!()
+
+      beta =
+        %Tag{}
+        |> Tag.changeset(%{name: "fav-beta"})
+        |> Repo.insert!()
+
+      favorite_sound =
+        %Sound{}
+        |> Sound.changeset(%{
+          filename: "fav-alpha-beta.mp3",
+          source_type: "local",
+          user_id: user.id,
+          tags: [alpha, beta]
+        })
+        |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "nonfav-alpha-beta.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [alpha, beta]
+      })
+      |> Repo.insert!()
+
+      {:ok, _favorite} = Favorites.toggle_favorite(user.id, favorite_sound.id)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      view
+      |> element("#favorites-filter-toggle")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='fav-alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='nonfav-alpha-beta.mp3']")
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='fav-alpha']")
+      |> render_click()
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='fav-beta']")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='fav-alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='nonfav-alpha-beta.mp3']")
     end
 
     test "shows featured tags above regular tag filters", %{conn: conn, user: user} do

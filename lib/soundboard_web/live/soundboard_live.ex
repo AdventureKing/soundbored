@@ -58,6 +58,7 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
+    |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
     |> UploadFlow.assign_defaults()
     |> EditFlow.assign_defaults()
@@ -121,6 +122,11 @@ defmodule SoundboardWeb.SoundboardLive do
          |> assign(:selected_tags, selected_tags)
          |> assign(:search_query, "")}
     end
+  end
+
+  @impl true
+  def handle_event("toggle_favorites_filter", _params, socket) do
+    {:noreply, assign(socket, :favorites_only, !socket.assigns.favorites_only)}
   end
 
   @impl true
@@ -302,11 +308,9 @@ defmodule SoundboardWeb.SoundboardLive do
   @impl true
   def handle_event("play_random", _params, socket) do
     filtered_sounds =
-      filter_sounds(
-        socket.assigns.uploaded_files,
-        socket.assigns.search_query,
-        socket.assigns.selected_tags
-      )
+      socket.assigns.uploaded_files
+      |> filter_sounds(socket.assigns.search_query, socket.assigns.selected_tags)
+      |> filter_to_favorites(socket.assigns.favorites_only, socket.assigns.favorites)
 
     case get_random_sound(filtered_sounds) do
       nil ->
@@ -391,6 +395,13 @@ defmodule SoundboardWeb.SoundboardLive do
 
   defp get_random_sound(sounds) do
     Enum.random(sounds)
+  end
+
+  defp filter_to_favorites(sounds, false, _favorite_sound_ids), do: sounds
+
+  defp filter_to_favorites(sounds, true, favorite_sound_ids) do
+    favorite_sound_ids = MapSet.new(favorite_sound_ids)
+    Enum.filter(sounds, &MapSet.member?(favorite_sound_ids, &1.id))
   end
 
   defp handle_progress(:audio, _entry, socket) do
