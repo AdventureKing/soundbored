@@ -85,23 +85,32 @@ body {
 
 .bee-switch .slider {
   position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
   width: 80px;
   height: 40px;
   background-color: #f1f1f1;
   border: 4px solid #f39c12;
   border-radius: 40px;
   cursor: pointer;
-  padding: 0 5px;
+  padding: 4px;
+  overflow: hidden;
   transition: background-color 0.4s ease;
 }
 
 .bee-switch .bee {
-  font-size: 24px;
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 20px;
   line-height: 1;
-  display: block;
-  transition: transform 0.5s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate3d(0, -50%, 0);
+  transition: transform 0.25s ease-in-out;
+  will-change: transform;
 }
 
 .bee-switch input:checked + .slider {
@@ -109,7 +118,11 @@ body {
 }
 
 .bee-switch input:checked + .slider .bee {
-  transform: translateX(42px) rotateY(180deg);
+  transform: translate3d(44px, -50%, 0);
+}
+
+.bee-switch input[data-buzz-syncing] + .slider .bee {
+  transition: none;
 }
 
 .bee-switch input:focus-visible + .slider {

@@ -44,17 +44,33 @@ const BOOST_CAP = 1.5
 const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
 const BUZZ_MODE_CLASS = "buzz-mode"
 
-const applyBuzzMode = (enabled) => {
+const clearBuzzSyncFlag = (toggle) => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      toggle.removeAttribute("data-buzz-syncing")
+    })
+  })
+}
+
+const applyBuzzMode = (enabled, {suppressAnimation = false} = {}) => {
   document.documentElement.classList.toggle(BUZZ_MODE_CLASS, enabled)
   if (document.body) {
     document.body.classList.toggle(BUZZ_MODE_CLASS, enabled)
   }
 
   document.querySelectorAll("[data-buzz-toggle]").forEach((toggle) => {
+    if (suppressAnimation) {
+      toggle.setAttribute("data-buzz-syncing", "true")
+    }
+
     if ("checked" in toggle) {
       toggle.checked = enabled
     }
     toggle.setAttribute("aria-checked", enabled ? "true" : "false")
+
+    if (suppressAnimation) {
+      clearBuzzSyncFlag(toggle)
+    }
   })
 }
 
@@ -749,14 +765,20 @@ Hooks.CopyButton = {
 Hooks.BuzzModeToggle = {
   mounted() {
     if (!window.__buzzModeInitialized) {
-      applyBuzzMode(readBuzzModePreference())
+      window.__buzzModeState = readBuzzModePreference()
       window.__buzzModeInitialized = true
-    } else {
-      applyBuzzMode(readBuzzModePreference())
     }
+
+    const currentState = Boolean(window.__buzzModeState)
+    applyBuzzMode(currentState, {suppressAnimation: true})
 
     this.handleChange = (event) => {
       const nextEnabled = Boolean(event.target.checked)
+      if (nextEnabled === Boolean(window.__buzzModeState)) {
+        return
+      }
+
+      window.__buzzModeState = nextEnabled
       saveBuzzModePreference(nextEnabled)
       applyBuzzMode(nextEnabled)
     }
