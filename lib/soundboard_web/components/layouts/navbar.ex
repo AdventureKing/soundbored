@@ -29,7 +29,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                 <.link navigate="/">BeeBot &#x1F41D;</.link>
               </span>
             </div>
-
+            
             <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
               <.nav_link navigate="/" active={current_page?(@current_path, "/")}>Sounds</.nav_link>
               <.nav_link navigate="/favorites" active={current_page?(@current_path, "/favorites")}>
@@ -46,6 +46,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                   Permissions
                 </.nav_link>
               <% end %>
+              
               <%= if show_settings_link?(@current_user) do %>
                 <.nav_link
                   navigate="/settings"
@@ -56,18 +57,25 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
               <% end %>
             </div>
           </div>
-
+          
           <div class="hidden sm:ml-6 sm:flex sm:items-center sm:gap-3">
-            <button
-              id="buzz-mode-toggle-desktop"
-              type="button"
-              phx-hook="BuzzModeToggle"
-              data-buzz-toggle
-              class="inline-flex items-center rounded-md border border-amber-400 bg-gray-900 px-3 py-1.5 text-sm font-medium text-amber-300 shadow-sm transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-              aria-pressed="false"
-            >
-              Buzz Mode: Off
-            </button>
+            <div class="inline-flex items-center gap-2">
+              <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Buzz Mode</span>
+              <label class="bee-switch">
+                <input
+                  id="buzz-mode-toggle-desktop"
+                  type="checkbox"
+                  phx-hook="BuzzModeToggle"
+                  data-buzz-toggle
+                  role="switch"
+                  aria-label="Toggle Buzz Mode"
+                  aria-checked="false"
+                />
+                <span class="slider">
+                  <span class="bee">🐝</span>
+                </span>
+              </label>
+            </div>
             <%= if @current_user do %>
               <.link
                 href={~p"/auth/discord"}
@@ -76,6 +84,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                 Re-auth
               </.link>
             <% end %>
+            
             <div class={desktop_user_pills_classes(users)}>
               <%= users
                   |> Enum.map(fn user -> %>
@@ -99,7 +108,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
               <% end) %>
             </div>
           </div>
-
+          
           <div class="-mr-2 flex items-center sm:hidden">
             <button
               type="button"
@@ -166,6 +175,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
               Permissions
             </.mobile_nav_link>
           <% end %>
+          
           <%= if show_settings_link?(@current_user) do %>
             <.mobile_nav_link
               navigate="/settings"
@@ -174,6 +184,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
               Settings
             </.mobile_nav_link>
           <% end %>
+          
           <%= if @current_user do %>
             <.link
               href={~p"/auth/discord"}
@@ -182,18 +193,26 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
               Re-auth
             </.link>
           <% end %>
-          <button
-            id="buzz-mode-toggle-mobile"
-            type="button"
-            phx-hook="BuzzModeToggle"
-            data-buzz-toggle
-            class="block w-full text-left pl-4 pr-4 py-3 border-l-4 border-transparent text-base font-medium leading-relaxed tracking-wide text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200"
-            aria-pressed="false"
-          >
-            Buzz Mode: Off
-          </button>
+          
+          <div class="flex items-center justify-between pl-4 pr-4 py-3 border-l-4 border-transparent text-base font-medium leading-relaxed tracking-wide text-gray-600 dark:text-gray-300">
+            <span>Buzz Mode</span>
+            <label class="bee-switch">
+              <input
+                id="buzz-mode-toggle-mobile"
+                type="checkbox"
+                phx-hook="BuzzModeToggle"
+                data-buzz-toggle
+                role="switch"
+                aria-label="Toggle Buzz Mode"
+                aria-checked="false"
+              />
+              <span class="slider">
+                <span class="bee">🐝</span>
+              </span>
+            </label>
+          </div>
         </div>
-
+        
         <div class="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
           <div class="space-y-2 px-4">
             <%= users

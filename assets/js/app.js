@@ -50,9 +50,11 @@ const applyBuzzMode = (enabled) => {
     document.body.classList.toggle(BUZZ_MODE_CLASS, enabled)
   }
 
-  document.querySelectorAll("[data-buzz-toggle]").forEach((button) => {
-    button.setAttribute("aria-pressed", enabled ? "true" : "false")
-    button.textContent = enabled ? "Buzz Mode: On" : "Buzz Mode: Off"
+  document.querySelectorAll("[data-buzz-toggle]").forEach((toggle) => {
+    if ("checked" in toggle) {
+      toggle.checked = enabled
+    }
+    toggle.setAttribute("aria-checked", enabled ? "true" : "false")
   })
 }
 
@@ -753,17 +755,16 @@ Hooks.BuzzModeToggle = {
       applyBuzzMode(readBuzzModePreference())
     }
 
-    this.handleClick = (event) => {
-      event.preventDefault()
-      const nextEnabled = !readBuzzModePreference()
+    this.handleChange = (event) => {
+      const nextEnabled = Boolean(event.target.checked)
       saveBuzzModePreference(nextEnabled)
       applyBuzzMode(nextEnabled)
     }
 
-    this.el.addEventListener("click", this.handleClick)
+    this.el.addEventListener("change", this.handleChange)
   },
   destroyed() {
-    this.el.removeEventListener("click", this.handleClick)
+    this.el.removeEventListener("change", this.handleChange)
   }
 }
 

@@ -70,6 +70,52 @@ body {
 .phx-change-loading .search-spinner { display: inline; }
 .phx-change-loading .search-icon { display: none; }
 
+/* Bee toggle for Buzz Mode */
+.bee-switch {
+  display: inline-flex;
+  align-items: center;
+}
+
+.bee-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.bee-switch .slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 80px;
+  height: 40px;
+  background-color: #f1f1f1;
+  border: 4px solid #f39c12;
+  border-radius: 40px;
+  cursor: pointer;
+  padding: 0 5px;
+  transition: background-color 0.4s ease;
+}
+
+.bee-switch .bee {
+  font-size: 24px;
+  line-height: 1;
+  display: block;
+  transition: transform 0.5s ease-in-out;
+}
+
+.bee-switch input:checked + .slider {
+  background-color: #ffe600;
+}
+
+.bee-switch input:checked + .slider .bee {
+  transform: translateX(42px) rotateY(180deg);
+}
+
+.bee-switch input:focus-visible + .slider {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4);
+}
+
 /* Buzz Mode: high-contrast black/yellow palette */
 html.buzz-mode,
 body.buzz-mode {

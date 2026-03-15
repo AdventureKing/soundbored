@@ -26,7 +26,9 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
       )
 
     assert html =~ "BeeBot"
-    assert html =~ "Buzz Mode: Off"
+    assert html =~ "buzz-mode-toggle-desktop"
+    assert html =~ "buzz-mode-toggle-mobile"
+    assert html =~ "🐝"
     assert html =~ "Sounds"
     assert html =~ "Favorites"
     assert html =~ "Stats"
@@ -58,7 +60,8 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
     assert html =~ "Permissions"
     assert html =~ "Settings"
     assert html =~ "Re-auth"
-    assert html =~ "Buzz Mode: Off"
+    assert html =~ "buzz-mode-toggle-desktop"
+    assert html =~ "buzz-mode-toggle-mobile"
     assert html =~ "/auth/discord"
     assert html =~ "user-alice"
     assert html =~ "user-bob"
@@ -95,7 +98,8 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
 
     assert html =~ "Permissions"
     assert html =~ "Re-auth"
-    assert html =~ "Buzz Mode: Off"
+    assert html =~ "buzz-mode-toggle-desktop"
+    assert html =~ "buzz-mode-toggle-mobile"
     refute html =~ "Settings"
   end
 
