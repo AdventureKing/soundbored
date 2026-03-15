@@ -186,30 +186,39 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
                 </h2>
                 <span class="text-xs text-gray-500 dark:text-gray-400">{length(@users)} online</span>
               </div>
-              <div class="flex flex-wrap gap-2">
+              <div class="rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800/50">
                 <%= if @users == [] do %>
                   <p class="text-sm text-gray-500 dark:text-gray-400">No members online.</p>
                 <% end %>
-                <%= for user <- @users do %>
-                  <% username = user_username(user) %>
-                  <% avatar = user_avatar(user) %>
-                  <span
-                    id={"mobile-user-#{username}"}
-                    data-username={username}
-                    class={[
-                      "inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors",
-                      SoundboardWeb.PresenceHandler.get_user_color(username)
-                    ]}
-                  >
-                    <img
-                      :if={avatar}
-                      src={avatar}
-                      class="h-5 w-5 rounded-full"
-                      alt={"#{username}'s avatar"}
-                    />
-                    <span class="truncate">{username}</span>
-                  </span>
-                <% end %>
+                <ul :if={@users != []} class="space-y-1">
+                  <%= for user <- @users do %>
+                    <% username = user_username(user) %>
+                    <% avatar = user_avatar(user) %>
+                    <li
+                      id={"mobile-user-#{username}"}
+                      data-username={username}
+                      class="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/60"
+                    >
+                      <div class="flex min-w-0 items-center gap-2">
+                        <img
+                          :if={avatar}
+                          src={avatar}
+                          class="h-7 w-7 rounded-full object-cover"
+                          alt={"#{username}'s avatar"}
+                        />
+                        <span
+                          :if={!avatar}
+                          class="inline-flex h-7 w-7 rounded-full bg-gray-200 dark:bg-gray-700"
+                        >
+                        </span>
+                        <span class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                          {username}
+                        </span>
+                      </div>
+                      <span class="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+                    </li>
+                  <% end %>
+                </ul>
               </div>
             </section>
           </div>
@@ -291,30 +300,39 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
               </h2>
               <span class="text-xs text-gray-500 dark:text-gray-400">{length(@users)} online</span>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div class="rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900/40">
               <%= if @users == [] do %>
                 <p class="text-sm text-gray-500 dark:text-gray-400">No members online.</p>
               <% end %>
-              <%= for user <- @users do %>
-                <% username = user_username(user) %>
-                <% avatar = user_avatar(user) %>
-                <span
-                  id={"desktop-user-#{username}"}
-                  data-username={username}
-                  class={[
-                    "inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors",
-                    SoundboardWeb.PresenceHandler.get_user_color(username)
-                  ]}
-                >
-                  <img
-                    :if={avatar}
-                    src={avatar}
-                    class="h-5 w-5 rounded-full"
-                    alt={"#{username}'s avatar"}
-                  />
-                  <span class="truncate">{username}</span>
-                </span>
-              <% end %>
+              <ul :if={@users != []} class="space-y-1">
+                <%= for user <- @users do %>
+                  <% username = user_username(user) %>
+                  <% avatar = user_avatar(user) %>
+                  <li
+                    id={"desktop-user-#{username}"}
+                    data-username={username}
+                    class="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <div class="flex min-w-0 items-center gap-2.5">
+                      <img
+                        :if={avatar}
+                        src={avatar}
+                        class="h-8 w-8 rounded-full object-cover"
+                        alt={"#{username}'s avatar"}
+                      />
+                      <span
+                        :if={!avatar}
+                        class="inline-flex h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700"
+                      >
+                      </span>
+                      <span class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                        {username}
+                      </span>
+                    </div>
+                    <span class="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+                  </li>
+                <% end %>
+              </ul>
             </div>
           </section>
         </div>
