@@ -8,7 +8,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
 
   @impl true
   def mount(socket) do
-    {:ok, assign(socket, :show_mobile_menu, false)}
+    {:ok, socket |> assign(:show_mobile_menu, false) |> assign(:desktop_nav_collapsed, false)}
   end
 
   @impl true
@@ -17,11 +17,16 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
   end
 
   @impl true
+  def handle_event("toggle-desktop-nav", _, socket) do
+    {:noreply, assign(socket, :desktop_nav_collapsed, !socket.assigns.desktop_nav_collapsed)}
+  end
+
+  @impl true
   def render(assigns) do
     assigns = assign(assigns, :users, visible_users(assigns[:presences]))
 
     ~H"""
-    <div>
+    <div id="desktop-nav-shell" phx-hook="DesktopNavState" data-collapsed={@desktop_nav_collapsed}>
       <div hidden aria-hidden="true">
         <span>🐝</span>
         <span>ðŸ</span>
@@ -219,14 +224,60 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
         </div>
       </div>
 
-      <aside class="hidden lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:w-72 lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white/95 lg:backdrop-blur dark:lg:border-gray-700 dark:lg:bg-gray-900/95">
+      <button
+        :if={@desktop_nav_collapsed}
+        id="expand-desktop-nav"
+        type="button"
+        phx-click="toggle-desktop-nav"
+        phx-target={@myself}
+        class="hidden lg:fixed lg:left-3 lg:top-3 lg:z-50 lg:inline-flex lg:h-10 lg:w-10 lg:items-center lg:justify-center lg:rounded-full lg:border lg:border-gray-200 lg:bg-white/95 lg:text-gray-700 lg:shadow-sm lg:backdrop-blur lg:transition-colors lg:hover:bg-gray-100 lg:focus:outline-none lg:focus:ring-2 lg:focus:ring-blue-500 dark:lg:border-gray-700 dark:lg:bg-gray-900/95 dark:lg:text-gray-200 dark:lg:hover:bg-gray-800"
+        aria-label="Expand navigation"
+        title="Expand navigation"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="h-5 w-5"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7" />
+        </svg>
+      </button>
+
+      <aside
+        :if={!@desktop_nav_collapsed}
+        class="hidden lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:w-72 lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white/95 lg:backdrop-blur dark:lg:border-gray-700 dark:lg:bg-gray-900/95"
+      >
         <div class="flex grow flex-col overflow-y-auto px-6 py-6">
-          <.link
-            navigate="/"
-            class="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100"
-          >
-            BeeBot &#x1F41D;
-          </.link>
+          <div class="flex items-start justify-between gap-3">
+            <.link
+              navigate="/"
+              class="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100"
+            >
+              BeeBot &#x1F41D;
+            </.link>
+            <button
+              type="button"
+              phx-click="toggle-desktop-nav"
+              phx-target={@myself}
+              class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+              aria-label="Collapse navigation"
+              title="Collapse navigation"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-5 w-5"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="m15 19-7-7 7-7" />
+              </svg>
+            </button>
+          </div>
           <p class="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
             Buzz Buzz &copy;
           </p>

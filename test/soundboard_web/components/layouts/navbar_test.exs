@@ -80,6 +80,16 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
     refute socket.assigns.show_mobile_menu
   end
 
+  test "toggle-desktop-nav flips desktop_nav_collapsed assign" do
+    {:ok, socket} = Navbar.mount(%Phoenix.LiveView.Socket{})
+
+    {:noreply, socket} = Navbar.handle_event("toggle-desktop-nav", %{}, socket)
+    assert socket.assigns.desktop_nav_collapsed
+
+    {:noreply, socket} = Navbar.handle_event("toggle-desktop-nav", %{}, socket)
+    refute socket.assigns.desktop_nav_collapsed
+  end
+
   test "hides settings link when admin user IDs are configured and user is not included" do
     Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["owner-1"])
 
@@ -144,5 +154,19 @@ defmodule SoundboardWeb.Components.Layouts.NavbarTest do
 
     assert html =~ "flex justify-between h-16 sm:min-h-24 sm:py-2"
     assert html =~ "text-sm text-gray-600 dark:text-gray-400 grid grid-flow-col grid-rows-2"
+  end
+
+  test "renders desktop expand control when nav is collapsed" do
+    html =
+      render_component(Navbar,
+        id: "navbar",
+        current_path: "/",
+        current_user: nil,
+        presences: %{},
+        desktop_nav_collapsed: true
+      )
+
+    assert html =~ "expand-desktop-nav"
+    refute html =~ "Collapse navigation"
   end
 end
