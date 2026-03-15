@@ -129,19 +129,91 @@ body {
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4);
 }
 
-/* Buzz Mode: high-contrast black/yellow palette */
+/* Buzz Mode: honey palette with non-black surfaces */
 html.buzz-mode,
 body.buzz-mode {
-  background-color: #070707 !important;
-  color: #f8d84a !important;
+  --buzz-bg: #070707;
+  --buzz-surface: #1c2531;
+  --buzz-surface-hover: #243346;
+  --buzz-border: rgba(248, 216, 74, 0.45);
+  --buzz-border-strong: rgba(248, 216, 74, 0.75);
+  --buzz-text: #f8d84a;
+  --buzz-text-hover: #ffe67d;
+  --buzz-accent: #f2c500;
+  --buzz-accent-soft: #f4b740;
+  --buzz-accent-text: #111111;
+  background-color: var(--buzz-bg) !important;
+  color: var(--buzz-text) !important;
 }
 
 .buzz-mode .bg-white,
+.buzz-mode .bg-white\/85,
+.buzz-mode .bg-white\/95,
+.buzz-mode .lg\:bg-white\/95,
 .buzz-mode .bg-gray-50,
 .buzz-mode .bg-gray-100,
+.buzz-mode .bg-gray-100\/70,
 .buzz-mode .bg-gray-800,
-.buzz-mode .bg-gray-900 {
-  background-color: #101010 !important;
+.buzz-mode .bg-gray-900,
+.buzz-mode .bg-amber-50,
+.buzz-mode .bg-emerald-50,
+.buzz-mode .bg-green-100,
+.buzz-mode .bg-indigo-100,
+.buzz-mode .bg-orange-100,
+.buzz-mode .bg-pink-100,
+.buzz-mode .bg-purple-100,
+.buzz-mode .bg-red-50,
+.buzz-mode .bg-red-100,
+.buzz-mode .bg-rose-50,
+.buzz-mode .bg-teal-100,
+.buzz-mode .bg-yellow-100,
+.buzz-mode .bg-zinc-50\/90,
+.buzz-mode .bg-zinc-100,
+.buzz-mode .bg-neutral-100,
+.buzz-mode .bg-slate-100,
+.buzz-mode .bg-stone-100,
+.buzz-mode .dark\:bg-gray-700,
+.buzz-mode .dark\:bg-gray-800,
+.buzz-mode .dark\:bg-gray-800\/50,
+.buzz-mode .dark\:bg-gray-800\/60,
+.buzz-mode .dark\:bg-gray-800\/85,
+.buzz-mode .dark\:bg-gray-900,
+.buzz-mode .dark\:bg-gray-900\/40,
+.buzz-mode .dark\:bg-gray-900\/95,
+.buzz-mode .lg\:bg-gray-900\/95,
+.buzz-mode .dark\:bg-gray-950,
+.buzz-mode .dark\:bg-amber-900\/20,
+.buzz-mode .dark\:bg-blue-900\/30,
+.buzz-mode .dark\:bg-blue-900\/40,
+.buzz-mode .dark\:bg-blue-900\/50,
+.buzz-mode .dark\:bg-green-900,
+.buzz-mode .dark\:bg-indigo-900,
+.buzz-mode .dark\:bg-zinc-900,
+.buzz-mode .dark\:bg-neutral-900,
+.buzz-mode .dark\:bg-orange-900,
+.buzz-mode .dark\:bg-pink-900,
+.buzz-mode .dark\:bg-purple-900,
+.buzz-mode .dark\:bg-red-900,
+.buzz-mode .dark\:bg-slate-900,
+.buzz-mode .dark\:bg-stone-900,
+.buzz-mode .dark\:bg-teal-900,
+.buzz-mode .dark\:bg-yellow-900,
+.buzz-mode .dark\:lg\:bg-gray-900\/95 {
+  background-color: var(--buzz-surface) !important;
+}
+
+.buzz-mode .bg-gray-900\/60 {
+  background-color: rgba(28, 37, 49, 0.85) !important;
+}
+
+.buzz-mode .bg-gray-500 {
+  background-color: var(--buzz-surface) !important;
+}
+
+.buzz-mode .bg-opacity-75,
+.buzz-mode .bg-gray-500.bg-opacity-75 {
+  background-color: rgba(28, 37, 49, 0.85) !important;
+  --tw-bg-opacity: 1 !important;
 }
 
 .buzz-mode .shadow,
@@ -151,35 +223,55 @@ body.buzz-mode {
 .buzz-mode .rounded-lg.bg-gray-800,
 .buzz-mode .rounded-xl.bg-white,
 .buzz-mode .rounded-xl.bg-gray-800 {
-  border: 1px solid rgba(248, 216, 74, 0.75) !important;
+  border: 1px solid var(--buzz-border-strong) !important;
   box-shadow:
-    0 0 0 1px rgba(248, 216, 74, 0.45),
+    0 0 0 1px var(--buzz-border),
     0 8px 20px rgba(0, 0, 0, 0.55) !important;
 }
 
 .buzz-mode .border-gray-200,
+.buzz-mode .border-gray-200\/70,
+.buzz-mode .border-gray-200\/80,
 .buzz-mode .border-gray-300,
 .buzz-mode .border-gray-600,
-.buzz-mode .border-gray-700 {
-  border-color: rgba(248, 216, 74, 0.45) !important;
+.buzz-mode .border-gray-700,
+.buzz-mode .border-zinc-200,
+.buzz-mode .border-zinc-300,
+.buzz-mode .border-blue-200,
+.buzz-mode .border-blue-500\/60,
+.buzz-mode .border-amber-200,
+.buzz-mode .border-amber-500\/80,
+.buzz-mode .border-rose-400,
+.buzz-mode .dark\:border-gray-600,
+.buzz-mode .dark\:border-gray-700,
+.buzz-mode .lg\:border-gray-200,
+.buzz-mode .dark\:lg\:border-gray-700,
+.buzz-mode .dark\:border-blue-800,
+.buzz-mode .dark\:border-amber-700\/40 {
+  border-color: var(--buzz-border) !important;
 }
 
-.buzz-mode .text-gray-100,
-.buzz-mode .text-gray-200,
-.buzz-mode .text-gray-300,
-.buzz-mode .text-gray-400,
-.buzz-mode .text-gray-500,
-.buzz-mode .text-gray-600,
-.buzz-mode .text-gray-700,
-.buzz-mode .text-gray-800,
-.buzz-mode .text-gray-900,
-.buzz-mode .text-blue-700,
-.buzz-mode .text-blue-100,
-.buzz-mode .text-red-700,
-.buzz-mode .text-green-700 {
-  color: #f8d84a !important;
+.buzz-mode [class*="text-gray-"],
+.buzz-mode [class*="text-zinc-"],
+.buzz-mode [class*="text-neutral-"],
+.buzz-mode [class*="text-slate-"],
+.buzz-mode [class*="text-stone-"],
+.buzz-mode [class*="text-blue-"],
+.buzz-mode [class*="text-red-"],
+.buzz-mode [class*="text-green-"],
+.buzz-mode [class*="text-amber-"],
+.buzz-mode [class*="text-emerald-"],
+.buzz-mode [class*="text-indigo-"],
+.buzz-mode [class*="text-orange-"],
+.buzz-mode [class*="text-pink-"],
+.buzz-mode [class*="text-purple-"],
+.buzz-mode [class*="text-teal-"],
+.buzz-mode [class*="text-yellow-"],
+.buzz-mode [class*="text-rose-"] {
+  color: var(--buzz-text) !important;
 }
 
+.buzz-mode .bg-zinc-900,
 .buzz-mode .bg-blue-50,
 .buzz-mode .bg-blue-600,
 .buzz-mode .bg-blue-700,
@@ -188,13 +280,16 @@ body.buzz-mode {
 .buzz-mode .bg-red-600,
 .buzz-mode .bg-red-700,
 .buzz-mode .bg-green-600 {
-  background-color: #f2c500 !important;
-  color: #111111 !important;
+  background-color: var(--buzz-accent) !important;
+  color: var(--buzz-accent-text) !important;
 }
 
 .buzz-mode .bg-blue-100,
-.buzz-mode .dark\:bg-blue-900 {
-  background-color: #f4b740 !important;
+.buzz-mode .dark\:bg-blue-900,
+.buzz-mode .dark\:bg-blue-900\/30,
+.buzz-mode .dark\:bg-blue-900\/40,
+.buzz-mode .dark\:bg-blue-900\/50 {
+  background-color: var(--buzz-accent-soft) !important;
 }
 
 .buzz-mode .bg-blue-100.text-blue-700,
@@ -207,30 +302,67 @@ body.buzz-mode {
 .buzz-mode textarea,
 .buzz-mode pre,
 .buzz-mode code {
-  background-color: #0d0d0d !important;
-  color: #f8d84a !important;
-  border-color: rgba(248, 216, 74, 0.45) !important;
+  background-color: var(--buzz-surface) !important;
+  color: var(--buzz-text) !important;
+  border-color: var(--buzz-border) !important;
+}
+
+.buzz-mode .focus\:ring-offset-2,
+.buzz-mode .dark\:focus\:ring-offset-gray-800,
+.buzz-mode .dark\:focus\:ring-offset-gray-900 {
+  --tw-ring-offset-color: var(--buzz-surface) !important;
 }
 
 .buzz-mode .hover\:bg-gray-50:hover,
 .buzz-mode .hover\:bg-gray-100:hover,
-.buzz-mode .dark\:hover\:bg-gray-700:hover {
-  background-color: #1a1a1a !important;
+.buzz-mode .hover\:bg-gray-200:hover,
+.buzz-mode .hover\:bg-gray-300:hover,
+.buzz-mode .hover\:bg-gray-600:hover,
+.buzz-mode .hover\:bg-gray-700\/60:hover,
+.buzz-mode .hover\:bg-gray-800:hover,
+.buzz-mode .hover\:bg-zinc-50:hover,
+.buzz-mode .dark\:hover\:bg-gray-600:hover,
+.buzz-mode .dark\:hover\:bg-gray-700:hover,
+.buzz-mode .dark\:hover\:bg-gray-700\/60:hover,
+.buzz-mode .dark\:hover\:bg-gray-800:hover {
+  background-color: var(--buzz-surface-hover) !important;
 }
 
+.buzz-mode .hover\:bg-zinc-700:hover,
+.buzz-mode .hover\:bg-amber-500\/10:hover,
+.buzz-mode .hover\:bg-blue-50:hover,
+.buzz-mode .hover\:bg-blue-100:hover,
+.buzz-mode .hover\:bg-blue-500:hover,
+.buzz-mode .hover\:bg-blue-500\/10:hover,
+.buzz-mode .hover\:bg-blue-700:hover,
+.buzz-mode .hover\:bg-red-500:hover,
+.buzz-mode .hover\:bg-red-700:hover,
+.buzz-mode .dark\:hover\:bg-blue-900:hover,
 .buzz-mode .hover\:bg-green-50:hover,
 .buzz-mode .dark\:hover\:bg-green-900\/20:hover {
   background-color: rgba(255, 170, 0, 0.2) !important;
 }
 
 .buzz-mode .hover\:text-gray-700:hover,
+.buzz-mode .hover\:text-gray-500:hover,
 .buzz-mode .hover\:text-gray-800:hover,
+.buzz-mode .hover\:text-gray-900:hover,
+.buzz-mode .hover\:text-zinc-700:hover,
+.buzz-mode .hover\:text-blue-500:hover,
+.buzz-mode .hover\:text-blue-600:hover,
+.buzz-mode .dark\:hover\:text-blue-200:hover,
+.buzz-mode .dark\:hover\:text-blue-400:hover,
+.buzz-mode .hover\:text-green-600:hover,
+.buzz-mode .dark\:hover\:text-green-400:hover,
+.buzz-mode .hover\:text-red-500:hover,
+.buzz-mode .dark\:hover\:text-red-500:hover,
+.buzz-mode .dark\:hover\:text-gray-100:hover,
 .buzz-mode .dark\:hover\:text-gray-200:hover {
-  color: #ffe67d !important;
+  color: var(--buzz-text-hover) !important;
 }
 
 .buzz-mode a {
-  color: #ffe67d;
+  color: var(--buzz-text-hover);
 }
 
 .buzz-mode a:hover {
