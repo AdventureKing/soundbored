@@ -121,6 +121,75 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       end
     end
 
+    test "can select and filter by multiple tags", %{conn: conn, user: user} do
+      alpha =
+        %Tag{}
+        |> Tag.changeset(%{name: "alpha"})
+        |> Repo.insert!()
+
+      beta =
+        %Tag{}
+        |> Tag.changeset(%{name: "beta"})
+        |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "alpha-only.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [alpha]
+      })
+      |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "beta-only.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [beta]
+      })
+      |> Repo.insert!()
+
+      %Sound{}
+      |> Sound.changeset(%{
+        filename: "alpha-beta.mp3",
+        source_type: "local",
+        user_id: user.id,
+        tags: [alpha, beta]
+      })
+      |> Repo.insert!()
+
+      {:ok, view, _html} = live(conn, "/")
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='alpha']")
+      |> render_click()
+
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-only.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='beta-only.mp3']")
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='beta']")
+      |> render_click()
+
+      refute has_element?(view, "[phx-click='play'][phx-value-name='alpha-only.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-beta.mp3']")
+      refute has_element?(view, "[phx-click='play'][phx-value-name='beta-only.mp3']")
+
+      rendered = render(view)
+      assert rendered =~ "Active filter:"
+      assert rendered =~ "alpha, beta"
+
+      view
+      |> element("#tag-filter-panel button[phx-value-tag='alpha']")
+      |> render_click()
+
+      refute has_element?(view, "[phx-click='play'][phx-value-name='alpha-only.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='alpha-beta.mp3']")
+      assert has_element?(view, "[phx-click='play'][phx-value-name='beta-only.mp3']")
+    end
+
     test "shows featured tags above regular tag filters", %{conn: conn, user: user} do
       featured_tag =
         %Tag{}

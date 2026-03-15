@@ -109,8 +109,12 @@ defmodule SoundboardWeb.SoundboardLive do
         {:noreply, socket}
 
       tag ->
-        current_tag = List.first(socket.assigns.selected_tags)
-        selected_tags = if current_tag && current_tag.id == tag.id, do: [], else: [tag]
+        selected_tags =
+          if tag_selected?(tag, socket.assigns.selected_tags) do
+            Enum.reject(socket.assigns.selected_tags, &(&1.id == tag.id))
+          else
+            socket.assigns.selected_tags ++ [tag]
+          end
 
         {:noreply,
          socket
