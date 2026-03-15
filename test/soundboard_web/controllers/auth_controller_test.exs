@@ -63,7 +63,7 @@ defmodule SoundboardWeb.AuthControllerTest do
         extra: %Ueberauth.Auth.Extra{
           raw_info: %{
             guilds: [%{"id" => "guild-1"}],
-            member: %{"roles" => ["clip-uploader", "tester"]}
+            member: %{"nick" => "GuildNick", "roles" => ["clip-uploader", "tester"]}
           }
         }
       }
@@ -78,7 +78,7 @@ defmodule SoundboardWeb.AuthControllerTest do
 
       user = Repo.get_by(User, discord_id: "12345")
       assert user
-      assert user.username == "TestUser"
+      assert user.username == "GuildNick"
       assert user.avatar == "test_avatar.jpg"
       assert user.discord_roles == ["clip-uploader", "tester"]
     end
@@ -110,7 +110,7 @@ defmodule SoundboardWeb.AuthControllerTest do
         extra: %{
           raw_info: %{
             guilds: [%{"id" => "guild-1"}],
-            member: %{"roles" => ["new-role", "tester"]}
+            member: %{"nick" => "GuildNickUpdated", "roles" => ["new-role", "tester"]}
           }
         }
       }
@@ -128,9 +128,39 @@ defmodule SoundboardWeb.AuthControllerTest do
       assert final_count == initial_count + 1
 
       refreshed_user = Repo.get!(User, existing_user.id)
-      assert refreshed_user.username == "TestUser"
+      assert refreshed_user.username == "GuildNickUpdated"
       assert refreshed_user.avatar == "test_avatar.jpg"
       assert refreshed_user.discord_roles == ["new-role", "tester"]
+    end
+
+    test "callback/2 falls back to OAuth nickname when guild nickname is unavailable", %{
+      conn: conn
+    } do
+      auth_data = %Ueberauth.Auth{
+        uid: "fallback-user-1",
+        info: %Ueberauth.Auth.Info{
+          nickname: "OAuthNickname",
+          image: "fallback_avatar.jpg"
+        },
+        credentials: %Ueberauth.Auth.Credentials{
+          token: "valid-token"
+        },
+        extra: %Ueberauth.Auth.Extra{
+          raw_info: %{
+            guilds: [%{"id" => "guild-1"}],
+            member: %{"roles" => ["member"]}
+          }
+        }
+      }
+
+      conn =
+        conn
+        |> assign(:ueberauth_auth, auth_data)
+        |> get(~p"/auth/discord/callback")
+
+      assert redirected_to(conn) == "/"
+      user = Repo.get_by(User, discord_id: "fallback-user-1")
+      assert user.username == "OAuthNickname"
     end
 
     test "callback/2 rejects users who are not in the required guild", %{conn: conn} do
