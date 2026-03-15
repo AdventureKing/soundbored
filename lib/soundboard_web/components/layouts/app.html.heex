@@ -1,27 +1,16 @@
-<% presence_map = if is_map(@presences), do: @presences, else: %{}
+<.live_component
+  module={SoundboardWeb.Components.Layouts.Navbar}
+  id="navbar"
+  current_user={@current_user}
+  current_path={@current_path}
+  presences={@presences}
+/>
 
-visible_user_count =
-  presence_map
-  |> Enum.flat_map(fn {_id, presence} ->
-    Enum.map(List.wrap(Map.get(presence, :metas, [])), fn meta ->
-      meta
-      |> Map.get(:user, %{})
-      |> Map.get(:username)
-    end)
-  end)
-  |> Enum.reject(&is_nil/1)
-  |> Enum.uniq()
-  |> length() %>
-<header class={["h-16", visible_user_count >= 6 && "sm:h-24"]}>
-  <.live_component
-    module={SoundboardWeb.Components.Layouts.Navbar}
-    id="navbar"
-    current_user={@current_user}
-    current_path={@current_path}
-    presences={@presences}
-  />
-</header>
-
-<main class="">
-  <div><.flash_group flash={@flash} /> {@inner_content}</div>
+<main class="min-h-screen bg-gray-100/70 text-gray-900 dark:bg-gray-950 dark:text-gray-100 pt-16 lg:pt-0 lg:pl-72">
+  <div class="px-4 pt-4 sm:px-6 lg:px-8">
+    <.flash_group flash={@flash} />
+  </div>
+  <div class="pb-8">
+    {@inner_content}
+  </div>
 </main>

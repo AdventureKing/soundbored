@@ -117,7 +117,6 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                   data-preview-src={preview_src}
                   preview_disabled={is_nil(preview_src) or preview_src == ""}
                 />
-
                 <%= if Permissions.can_manage_settings?(@current_user) do %>
                   <div class="mt-4 text-left">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -136,8 +135,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     </p>
                   </div>
                 <% end %>
-                
-    <!-- Tags -->
+                <!-- Tags -->
                 <div class="text-left">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Tags

@@ -32,6 +32,7 @@ defmodule SoundboardWeb.PermissionsLive do
       <section class="space-y-3">
         <header class="space-y-1">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Clip Playback</h2>
+
           <p class="text-sm text-gray-600 dark:text-gray-400">
             Play access is decided from your Discord roles.
           </p>
@@ -51,12 +52,17 @@ defmodule SoundboardWeb.PermissionsLive do
 
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
-              <span class="font-semibold">Your roles:</span>
-              {format_role_names(@play_permission.user_ids, @role_name_map)}
+              <span class="font-semibold">Your roles:</span> {format_role_names(
+                @play_permission.user_ids,
+                @role_name_map
+              )}
             </div>
+
             <div>
-              <span class="font-semibold">Allowed player roles:</span>
-              {format_role_names(@play_permission.required_ids, @role_name_map)}
+              <span class="font-semibold">Allowed player roles:</span> {format_role_names(
+                @play_permission.required_ids,
+                @role_name_map
+              )}
             </div>
           </div>
         </div>
@@ -65,6 +71,7 @@ defmodule SoundboardWeb.PermissionsLive do
       <section class="space-y-3">
         <header class="space-y-1">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Clip Upload</h2>
+
           <p class="text-sm text-gray-600 dark:text-gray-400">
             Upload access is decided from your Discord roles.
           </p>
@@ -84,12 +91,17 @@ defmodule SoundboardWeb.PermissionsLive do
 
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
-              <span class="font-semibold">Your roles:</span>
-              {format_role_names(@upload_permission.user_ids, @role_name_map)}
+              <span class="font-semibold">Your roles:</span> {format_role_names(
+                @upload_permission.user_ids,
+                @role_name_map
+              )}
             </div>
+
             <div>
-              <span class="font-semibold">Allowed uploader roles:</span>
-              {format_role_names(@upload_permission.required_ids, @role_name_map)}
+              <span class="font-semibold">Allowed uploader roles:</span> {format_role_names(
+                @upload_permission.required_ids,
+                @role_name_map
+              )}
             </div>
           </div>
         </div>
@@ -98,6 +110,7 @@ defmodule SoundboardWeb.PermissionsLive do
       <section :if={@settings_permission.allowed?} class="space-y-3">
         <header class="space-y-1">
           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Settings Access</h2>
+
           <p class="text-sm text-gray-600 dark:text-gray-400">
             Only users with an allowed Discord user ID can open Settings.
           </p>
@@ -117,12 +130,15 @@ defmodule SoundboardWeb.PermissionsLive do
 
           <div class="text-xs text-gray-700 dark:text-gray-300">
             <div>
-              <span class="font-semibold">Your Discord user ID:</span>
-              {format_ids(@settings_permission.user_ids)}
+              <span class="font-semibold">Your Discord user ID:</span> {format_ids(
+                @settings_permission.user_ids
+              )}
             </div>
+
             <div>
-              <span class="font-semibold">Allowed settings admin user IDs:</span>
-              {format_ids(@settings_permission.required_ids)}
+              <span class="font-semibold">Allowed settings admin user IDs:</span> {format_ids(
+                @settings_permission.required_ids
+              )}
             </div>
           </div>
         </div>

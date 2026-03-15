@@ -128,7 +128,11 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
 
       on_exit(fn ->
-        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
       end)
 
       {:ok, _view, html} = live(conn, "/")
@@ -144,7 +148,11 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["different-admin"])
 
       on_exit(fn ->
-        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
       end)
 
       {:ok, _view, html} = live(conn, "/")
@@ -160,7 +168,11 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, [user.discord_id])
 
       on_exit(fn ->
-        Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
       end)
 
       {:ok, view, _html} = live(conn, "/")
