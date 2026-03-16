@@ -1159,11 +1159,13 @@ body {
 
 .bb-view {
   min-height: 100%;
+  height: 100%;
   background: var(--bb-bg-primary);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
 }
 
 .bb-view-header {
@@ -1255,6 +1257,31 @@ body {
   color: var(--bb-text-primary);
   font-size: 16px;
   font-weight: 600;
+}
+
+.bb-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bb-section-toggle {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 0.5px solid var(--bb-border-secondary);
+  background: transparent;
+  color: var(--bb-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-section-toggle:hover {
+  background: var(--bb-bg-tertiary);
+  color: var(--bb-text-primary);
 }
 
 .bb-section-copy {
