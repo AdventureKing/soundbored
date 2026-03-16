@@ -52,7 +52,12 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
             <div class="bb-modal-body">
               <h3 class="bb-modal-title">Edit Sound</h3>
 
-              <form phx-submit="save_sound" phx-change="validate_sound" id="edit-form" class="bb-modal-form">
+              <form
+                phx-submit="save_sound"
+                phx-change="validate_sound"
+                id="edit-form"
+                class="bb-modal-form"
+              >
                 <input type="hidden" name="sound_id" value={@current_sound.id} />
                 <input type="hidden" name="source_type" value={@current_sound.source_type} />
                 <input type="hidden" name="url" value={@current_sound.url} />
@@ -191,10 +196,16 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
     """
   end
 
-  defp can_delete_sound?(%{user_id: owner_id}, %{id: user_id} = current_user)
-       when is_integer(owner_id) and is_integer(user_id) do
-    owner_id == user_id or Permissions.can_manage_settings?(current_user)
+  defp can_delete_sound?(sound, current_user) when is_map(sound) and is_map(current_user) do
+    owner?(sound, current_user) or Permissions.can_manage_settings?(current_user)
   end
 
   defp can_delete_sound?(_sound, _current_user), do: false
+
+  defp owner?(%{user_id: owner_id}, %{id: user_id}), do: ids_match?(owner_id, user_id)
+  defp owner?(_sound, _current_user), do: false
+
+  defp ids_match?(nil, _), do: false
+  defp ids_match?(_, nil), do: false
+  defp ids_match?(left, right), do: to_string(left) == to_string(right)
 end

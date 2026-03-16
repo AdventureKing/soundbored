@@ -7,8 +7,8 @@ defmodule SoundboardWeb.Components.Soundboard.DeleteModal do
   def delete_modal(assigns) do
     ~H"""
     <%= if @show_delete_confirm do %>
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-50">
-        <div class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" style="z-index: 70;">
+        <div class="fixed inset-0 overflow-y-auto" style="z-index: 71;">
           <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
             <div class="relative transform rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
               <div class="p-6">
