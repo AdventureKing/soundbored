@@ -610,6 +610,25 @@ defmodule SoundboardWeb.SoundboardLive do
     Enum.random(sounds)
   end
 
+  defp sound_card_dom_id(sound) do
+    "sound-card-" <> sound_dom_key(sound)
+  end
+
+  defp sound_player_dom_id(sound) do
+    "local-play-" <> sound_dom_key(sound)
+  end
+
+  defp sound_dom_key(sound) do
+    case Map.get(sound, :id) || Map.get(sound, "id") do
+      nil ->
+        filename = Map.get(sound, :filename) || Map.get(sound, "filename") || inspect(sound)
+        "f#{:erlang.phash2(filename, 1_000_000)}"
+
+      id ->
+        to_string(id)
+    end
+  end
+
   defp filter_to_favorites(sounds, false, _favorite_sound_ids), do: sounds
 
   defp filter_to_favorites(sounds, true, favorite_sound_ids) do

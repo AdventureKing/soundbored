@@ -807,12 +807,17 @@ body {
 }
 
 .bb-sound-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  column-count: 3;
+  column-gap: 10px;
 }
 
 .bb-sound-card {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 10px;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
   position: relative;
   z-index: 2;
   border-radius: 12px;
@@ -1596,7 +1601,7 @@ body {
 
 @media (max-width: 1279px) {
   .bb-sound-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-count: 2;
   }
 }
 
@@ -1614,7 +1619,7 @@ body {
 
 @media (max-width: 767px) {
   .bb-sound-grid {
-    grid-template-columns: minmax(0, 1fr);
+    column-count: 1;
   }
 
   .bb-main-header {

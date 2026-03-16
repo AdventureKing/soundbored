@@ -175,20 +175,22 @@ Hooks.LocalPlayer = {
     this.cleanup = null
     this.previewTimer = null
     this.previewStartedAt = null
-    this.cardEl = this.el.closest(".bb-sound-card")
-    this.previewTimeEl = this.cardEl?.querySelector("[data-role='preview-time']") || null
-    this.previewWaveEl = this.cardEl?.querySelector(".bb-preview-wave") || null
+    this.cardEl = null
+    this.previewTimeEl = null
+    this.previewWaveEl = null
     this.previewBars = []
     this.waveHeights = [6, 10, 14, 18, 14, 18, 10, 14, 18, 14, 10, 6, 14, 10, 18, 14, 6, 14, 10, 18]
     this.waveBarWidth = 3
     this.waveGap = 2
     this.handleClick = this.handleClick.bind(this)
     this.handleWindowResize = this.handleWindowResize.bind(this)
+    this.syncPreviewElements()
     this.el.addEventListener("click", this.handleClick)
     this.rebuildPreviewBars()
     window.addEventListener("resize", this.handleWindowResize)
   },
   updated() {
+    this.syncPreviewElements()
     this.rebuildPreviewBars()
     if (this.audio && !this.audio.paused) {
       this.configureGain(this.readGain())
@@ -201,6 +203,11 @@ Hooks.LocalPlayer = {
   },
   handleWindowResize() {
     this.rebuildPreviewBars()
+  },
+  syncPreviewElements() {
+    this.cardEl = this.el.closest(".bb-sound-card")
+    this.previewTimeEl = this.cardEl?.querySelector("[data-role='preview-time']") || null
+    this.previewWaveEl = this.cardEl?.querySelector(".bb-preview-wave") || null
   },
   rebuildPreviewBars() {
     if (!this.previewWaveEl) {
