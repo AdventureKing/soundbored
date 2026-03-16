@@ -34,13 +34,14 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
   describe "Soundboard LiveView" do
     test "mounts successfully with user session", %{conn: conn} do
-      {:ok, _, html} = live(conn, "/")
+      {:ok, view, html} = live(conn, "/")
 
       assert html =~ "Sounds"
       # Check for the main content instead of a specific container
       assert html =~ "BeeBot"
       assert html =~ "Cooldown"
       assert html =~ "sidebar-cooldown-desktop"
+      assert render(view) =~ "clip-duration"
     end
 
     test "can search sounds", %{conn: conn} do

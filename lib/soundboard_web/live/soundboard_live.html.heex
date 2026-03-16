@@ -213,7 +213,10 @@
                         {display_name(sound.filename)}
                       </div>
                       <%= if sound.user && sound.user.username do %>
-                        <div class="bb-card-uploader">{sound.user.username}</div>
+                        <div class="bb-card-uploader">
+                          <.icon name="hero-arrow-up-tray" class="bb-card-uploader-icon h-4 w-4" />
+                          <span class="bb-card-uploader-name">{sound.user.username}</span>
+                        </div>
                       <% end %>
                     </div>
 
@@ -274,19 +277,23 @@
                     <div data-role="preview-time" class="bb-preview-time">0:00</div>
                   </div>
 
-                  <div class="bb-card-tags">
-                    <%= for tag <- sound.tags do %>
-                      <button
-                        phx-click="toggle_tag_filter"
-                        phx-value-tag={tag.name}
-                        class={[
-                          "bb-card-tag",
-                          if(tag_selected?(tag, @selected_tags), do: "active", else: "")
-                        ]}
-                      >
-                        {tag.name}
-                      </button>
-                    <% end %>
+                  <div class="bb-card-tags-row">
+                    <div class="bb-card-tags">
+                      <%= for tag <- sound.tags do %>
+                        <button
+                          phx-click="toggle_tag_filter"
+                          phx-value-tag={tag.name}
+                          class={[
+                            "bb-card-tag",
+                            if(tag_selected?(tag, @selected_tags), do: "active", else: "")
+                          ]}
+                        >
+                          {tag.name}
+                        </button>
+                      <% end %>
+                    </div>
+
+                    <span data-role="clip-duration" class="bb-clip-duration">--:--</span>
                   </div>
                 </div>
               </div>

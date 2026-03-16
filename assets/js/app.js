@@ -178,6 +178,9 @@ Hooks.LocalPlayer = {
     this.cardEl = null
     this.previewTimeEl = null
     this.previewWaveEl = null
+    this.durationEl = null
+    this.durationSource = null
+    this.durationLoadToken = 0
     this.previewBars = []
     this.waveHeights = [6, 10, 14, 18, 14, 18, 10, 14, 18, 14, 10, 6, 14, 10, 18, 14, 6, 14, 10, 18]
     this.waveBarWidth = 3
@@ -187,16 +190,19 @@ Hooks.LocalPlayer = {
     this.syncPreviewElements()
     this.el.addEventListener("click", this.handleClick)
     this.rebuildPreviewBars()
+    this.loadClipDuration()
     window.addEventListener("resize", this.handleWindowResize)
   },
   updated() {
     this.syncPreviewElements()
     this.rebuildPreviewBars()
+    this.loadClipDuration()
     if (this.audio && !this.audio.paused) {
       this.configureGain(this.readGain())
     }
   },
   destroyed() {
+    this.durationLoadToken += 1
     this.el.removeEventListener("click", this.handleClick)
     window.removeEventListener("resize", this.handleWindowResize)
     this.stopPlayback()
@@ -208,6 +214,7 @@ Hooks.LocalPlayer = {
     this.cardEl = this.el.closest(".bb-sound-card")
     this.previewTimeEl = this.cardEl?.querySelector("[data-role='preview-time']") || null
     this.previewWaveEl = this.cardEl?.querySelector(".bb-preview-wave") || null
+    this.durationEl = this.cardEl?.querySelector("[data-role='clip-duration']") || null
   },
   rebuildPreviewBars() {
     if (!this.previewWaveEl) {
@@ -240,6 +247,71 @@ Hooks.LocalPlayer = {
     const raw = parseFloat(this.el.dataset.volume)
     return Number.isFinite(raw) ? clamp(raw, 0, BOOST_CAP) : 1
   },
+  resolveSource() {
+    const sourceType = this.el.dataset.sourceType
+    const url = this.el.dataset.url
+    const filename = this.el.dataset.filename
+
+    if (sourceType === "url" && url) {
+      return url
+    }
+    if (filename) {
+      return `/uploads/${filename}`
+    }
+    return null
+  },
+  loadClipDuration() {
+    if (!this.durationEl) {
+      return
+    }
+
+    const source = this.resolveSource()
+    if (!source) {
+      this.durationSource = null
+      this.durationEl.textContent = "--:--"
+      return
+    }
+
+    if (this.durationSource === source) {
+      return
+    }
+
+    this.durationSource = source
+    this.durationEl.textContent = "--:--"
+    this.durationLoadToken += 1
+    const token = this.durationLoadToken
+    const probe = new Audio()
+    probe.preload = "metadata"
+
+    const cleanup = () => {
+      probe.removeEventListener("loadedmetadata", onLoadedMetadata)
+      probe.removeEventListener("error", onError)
+      probe.src = ""
+    }
+
+    const onLoadedMetadata = () => {
+      if (token !== this.durationLoadToken) {
+        cleanup()
+        return
+      }
+
+      const duration = probe.duration
+      this.durationEl.textContent =
+        Number.isFinite(duration) && duration > 0 ? this.formatClipDuration(duration) : "--:--"
+      cleanup()
+    }
+
+    const onError = () => {
+      if (token === this.durationLoadToken && this.durationEl) {
+        this.durationEl.textContent = "--:--"
+      }
+      cleanup()
+    }
+
+    probe.addEventListener("loadedmetadata", onLoadedMetadata)
+    probe.addEventListener("error", onError)
+    probe.src = source
+  },
   async handleClick(event) {
     event.preventDefault()
     event.stopPropagation()
@@ -257,20 +329,14 @@ Hooks.LocalPlayer = {
   },
   async startPlayback() {
     this.stopPlayback()
-
-    const sourceType = this.el.dataset.sourceType
-    const url = this.el.dataset.url
-    const filename = this.el.dataset.filename
+    const source = this.resolveSource()
 
     const audio = new Audio()
 
-    if (sourceType === "url" && url) {
-      audio.src = url
-    } else if (filename) {
-      audio.src = `/uploads/${filename}`
-    } else {
+    if (!source) {
       return
     }
+    audio.src = source
 
     audio.addEventListener("ended", () => this.stopPlayback())
     audio.addEventListener("error", () => this.stopPlayback())
@@ -366,6 +432,18 @@ Hooks.LocalPlayer = {
     const safeSeconds = Math.max(0, Math.floor(totalSeconds))
     const minutes = Math.floor(safeSeconds / 60)
     const seconds = safeSeconds % 60
+    return `${minutes}:${String(seconds).padStart(2, "0")}`
+  },
+  formatClipDuration(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.floor(totalSeconds))
+    const hours = Math.floor(safeSeconds / 3600)
+    const minutes = Math.floor((safeSeconds % 3600) / 60)
+    const seconds = safeSeconds % 60
+
+    if (hours > 0) {
+      return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+    }
+
     return `${minutes}:${String(seconds).padStart(2, "0")}`
   },
   startPreviewUi() {
@@ -472,6 +550,9 @@ Hooks.CooldownTimer = {
       this.frame = null
     }
   },
+  setState(state) {
+    this.el.dataset.state = state
+  },
   tick() {
     if (!this.valueEl) {
       return
@@ -480,6 +561,7 @@ Hooks.CooldownTimer = {
     if (!this.endMs) {
       if (this.baseRemainingMs === null || this.startedAt === null) {
         this.valueEl.textContent = "Ready"
+        this.setState("ready")
         return
       }
     }
@@ -491,10 +573,12 @@ Hooks.CooldownTimer = {
 
     if (remaining <= 0) {
       this.valueEl.textContent = "Ready"
+      this.setState("ready")
       return
     }
 
     this.valueEl.textContent = formatCooldownDuration(remaining)
+    this.setState("cooling")
     this.frame = requestAnimationFrame(this.tick)
   }
 }

@@ -109,6 +109,14 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
     ~H"""
     <div class={["bb-sidebar", if(@collapsed, do: "collapsed", else: "")]}>
       <div class="bb-top-row">
+        <.link navigate="/" class="bb-brand" aria-label="BeeBot home" title="BeeBot home">
+          <span class="bb-brand-icon">&#x1F41D;</span>
+          <span class="bb-brand-text">
+            <span class="bb-brand-name">BeeBot</span>
+            <span class="bb-brand-sub">BUZZ BUZZ</span>
+          </span>
+        </.link>
+
         <button
           :if={!@mobile}
           id={if @collapsed, do: "expand-desktop-nav", else: "collapse-desktop-nav"}
@@ -136,15 +144,6 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
         </button>
       </div>
 
-      <.link navigate="/" class="bb-brand" aria-label="BeeBot home" title="BeeBot home">
-        <span class="bb-brand-icon">&#x1F41D;</span>
-        <span class="bb-brand-text">
-          <span class="bb-brand-name">BeeBot</span>
-          <span class="bb-brand-sub">BUZZ BUZZ</span>
-        </span>
-      </.link>
-
-      <div class="bb-nav-label">Nav</div>
       <nav class="bb-nav-list">
         <.beebot_nav_link
           navigate={nav_path(@preview_mode, :sounds)}
@@ -173,6 +172,17 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           label="Settings"
         />
       </nav>
+
+      <div
+        id={if @mobile, do: "sidebar-cooldown-mobile", else: "sidebar-cooldown-desktop"}
+        phx-hook="CooldownTimer"
+        data-cooldown-end-ms={@cooldown_end_ms || ""}
+        data-cooldown-remaining-ms={@cooldown_remaining_ms || ""}
+        class="bb-cooldown"
+      >
+        <span class="bb-cooldown-dot"></span>
+        <span class="bb-cooldown-text">Cooldown <span data-role="cooldown-value">Ready</span></span>
+      </div>
 
       <div class="bb-divider">
         <span class="line"></span>
@@ -208,17 +218,6 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
         <.link :if={@current_user} href={~p"/auth/discord"} class="bb-reauth-link">
           Re-auth
         </.link>
-
-        <div
-          id={if @mobile, do: "sidebar-cooldown-mobile", else: "sidebar-cooldown-desktop"}
-          phx-hook="CooldownTimer"
-          data-cooldown-end-ms={@cooldown_end_ms || ""}
-          data-cooldown-remaining-ms={@cooldown_remaining_ms || ""}
-          class="bb-cooldown"
-        >
-          <span class="bb-cooldown-dot"></span>
-          <span class="bb-cooldown-text">Cooldown <span data-role="cooldown-value">Ready</span></span>
-        </div>
       </div>
     </div>
     """
