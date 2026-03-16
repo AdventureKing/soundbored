@@ -643,10 +643,23 @@ body {
 .bb-tags-label {
   font-size: 10px;
   font-weight: 500;
-  color: var(--bb-text-tertiary);
+  color: var(--bb-text-primary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 6px;
+}
+
+.bb-featured-block {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.bb-featured-block .bb-tags-header-row {
+  margin-bottom: 8px;
+}
+
+.bb-tags-header-row {
+  margin-bottom: 8px;
 }
 
 .bb-tags-header-row {
@@ -654,6 +667,33 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.bb-tags-mode-toggle {
+  display: inline-flex;
+  border-radius: 8px;
+  border: 0.5px solid var(--bb-border-secondary);
+  background: var(--bb-bg-secondary);
+  overflow: hidden;
+}
+
+.bb-tags-mode-btn {
+  border: 0;
+  background: transparent;
+  color: var(--bb-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+.bb-tags-mode-btn:hover {
+  color: var(--bb-text-primary);
+  background: var(--bb-bg-tertiary);
+}
+
+.bb-tags-mode-btn.active {
+  background: #f5b800;
+  color: #412402;
 }
 
 .bb-tags-featured,

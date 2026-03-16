@@ -14,7 +14,7 @@ defmodule SoundboardWeb.SoundboardLive do
   import SoundboardWeb.Live.Support.LiveTags,
     only: [all_tags: 1, featured_tags: 1, tag_selected?: 2]
 
-  import SoundFilter, only: [filter_sounds: 3]
+  import SoundFilter, only: [filter_sounds: 4]
 
   @impl true
   def mount(_params, session, socket) do
@@ -59,6 +59,7 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
+    |> assign(:tag_filter_mode, "and")
     |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
     |> UploadFlow.assign_defaults()
@@ -123,6 +124,17 @@ defmodule SoundboardWeb.SoundboardLive do
          |> assign(:selected_tags, selected_tags)
          |> assign(:search_query, "")}
     end
+  end
+
+  @impl true
+  def handle_event("set_tag_filter_mode", %{"mode" => mode}, socket)
+      when mode in ["and", "or"] do
+    {:noreply, assign(socket, :tag_filter_mode, mode)}
+  end
+
+  @impl true
+  def handle_event("set_tag_filter_mode", _params, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -344,7 +356,11 @@ defmodule SoundboardWeb.SoundboardLive do
   def handle_event("play_random", _params, socket) do
     filtered_sounds =
       socket.assigns.uploaded_files
-      |> filter_sounds(socket.assigns.search_query, socket.assigns.selected_tags)
+      |> filter_sounds(
+        socket.assigns.search_query,
+        socket.assigns.selected_tags,
+        socket.assigns.tag_filter_mode
+      )
       |> filter_to_favorites(socket.assigns.favorites_only, socket.assigns.favorites)
 
     case get_random_sound(filtered_sounds) do

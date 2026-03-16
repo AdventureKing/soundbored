@@ -18,7 +18,7 @@
   <% limited_tags = if @show_all_tags, do: sorted_tags, else: Enum.take(sorted_tags, 24) %>
   <% filtered_sounds =
     @uploaded_files
-    |> filter_sounds(@search_query, @selected_tags)
+    |> filter_sounds(@search_query, @selected_tags, @tag_filter_mode)
     |> filter_to_favorites(@favorites_only, @favorites) %>
 
   <div class="bb-content-grid">
@@ -90,8 +90,29 @@
         />
       </form>
 
-      <div>
-        <div class="bb-tags-label">Featured Tags</div>
+      <div class="bb-featured-block">
+        <div class="bb-tags-header-row">
+          <span class="bb-tags-label">Featured Tags</span>
+          <div class="bb-tags-mode-toggle" role="group" aria-label="Tag match mode">
+            <button
+              type="button"
+              phx-click="set_tag_filter_mode"
+              phx-value-mode="and"
+              class={["bb-tags-mode-btn", if(@tag_filter_mode == "and", do: "active", else: "")]}
+            >
+              AND
+            </button>
+            <button
+              type="button"
+              phx-click="set_tag_filter_mode"
+              phx-value-mode="or"
+              class={["bb-tags-mode-btn", if(@tag_filter_mode == "or", do: "active", else: "")]}
+            >
+              OR
+            </button>
+          </div>
+        </div>
+
         <%= if sorted_featured_tags == [] do %>
           <p class="bb-muted-copy">No featured tags selected yet.</p>
         <% else %>
