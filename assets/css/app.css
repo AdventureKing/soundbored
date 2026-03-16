@@ -1175,6 +1175,7 @@ body {
 }
 
 .bb-modal-btn-primary,
+.bb-modal-btn-secondary,
 .bb-modal-btn-danger {
   flex: 1;
   border-radius: 8px;
@@ -1196,10 +1197,66 @@ body {
   cursor: not-allowed;
 }
 
+.bb-modal-btn-secondary {
+  border: 0.5px solid var(--bb-border-secondary);
+  background: var(--bb-bg-secondary);
+  color: var(--bb-text-primary);
+}
+
+.bb-modal-btn-secondary:hover {
+  background: var(--bb-bg-tertiary);
+}
+
 .bb-modal-btn-danger {
   border: 0;
   background: #b64343;
   color: #fff1f1;
+}
+
+.bb-file-input {
+  display: block;
+  width: 100%;
+  color: var(--bb-text-secondary);
+  font-size: 12px;
+}
+
+.bb-file-input::file-selector-button {
+  margin-right: 10px;
+  border: 0.5px solid var(--bb-border-secondary);
+  border-radius: 8px;
+  background: var(--bb-bg-secondary);
+  color: var(--bb-text-primary);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bb-file-input::file-selector-button:hover {
+  background: var(--bb-bg-tertiary);
+}
+
+.bb-modal-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  border: 0.5px solid rgba(245, 184, 0, 0.45);
+  background: rgba(245, 184, 0, 0.12);
+  color: #f2d489;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.bb-modal-tag-remove {
+  color: #f2d489;
+  opacity: 0.9;
+}
+
+.bb-modal-tag-remove:hover {
+  opacity: 1;
+  color: #f5b800;
 }
 
 .bb-view {
