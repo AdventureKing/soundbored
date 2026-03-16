@@ -64,6 +64,9 @@ defmodule SoundboardWeb.Router do
       pipe_through [:browser, :auth]
 
       live "/soundboard", SoundboardLive, :preview
+      live "/stats", StatsLive, :preview
+      live "/permissions", PermissionsLive, :preview
+      live "/settings", SettingsLive, :preview
     end
   end
 

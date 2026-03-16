@@ -814,10 +814,12 @@ body {
 
 .bb-sound-card {
   position: relative;
+  z-index: 2;
   border-radius: 12px;
   border: 0.5px solid var(--bb-border-tertiary);
-  background: var(--bb-bg-secondary);
+  background: rgb(30 32 39 / 0.9);
   transition: border-color 0.15s;
+  overflow: visible;
 }
 
 .bb-sound-card:hover {

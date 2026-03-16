@@ -9,16 +9,19 @@ defmodule SoundboardWeb.SettingsLive do
 
   @impl true
   def mount(_params, session, socket) do
+    preview_mode = Map.get(socket.assigns, :live_action) == :preview
     current_user = get_user_from_session(session)
 
-    if Permissions.can_manage_settings?(current_user) do
+    if preview_mode || Permissions.can_manage_settings?(current_user) do
       socket =
         socket
         |> mount_presence(session)
-        |> assign(:current_path, "/settings")
+        |> assign(:current_path, if(preview_mode, do: "/preview/settings", else: "/settings"))
+        |> assign(:preview_mode, preview_mode)
         |> assign(:current_user, current_user)
         |> assign(:tokens, [])
         |> assign(:new_token, nil)
+        |> assign(:example_token, nil)
         |> assign(:role_cooldown_filter, "")
         |> assign(:role_cooldown_sort_by, :role_name)
         |> assign(:role_cooldown_sort_dir, :asc)
@@ -43,6 +46,11 @@ defmodule SoundboardWeb.SettingsLive do
   end
 
   @impl true
+  def handle_event("create_token", _params, %{assigns: %{preview_mode: true}} = socket) do
+    {:noreply, put_flash(socket, :info, "Preview mode: token changes are disabled")}
+  end
+
+  @impl true
   def handle_event(
         "create_token",
         %{"label" => label},
@@ -61,6 +69,11 @@ defmodule SoundboardWeb.SettingsLive do
   end
 
   @impl true
+  def handle_event("revoke_token", _params, %{assigns: %{preview_mode: true}} = socket) do
+    {:noreply, put_flash(socket, :info, "Preview mode: token changes are disabled")}
+  end
+
+  @impl true
   def handle_event("revoke_token", %{"id" => id}, %{assigns: %{current_user: user}} = socket) do
     case ApiTokens.revoke_token(user, id) do
       {:ok, _} -> {:noreply, socket |> load_tokens() |> put_flash(:info, "Token revoked")}
@@ -68,6 +81,11 @@ defmodule SoundboardWeb.SettingsLive do
       {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Token not found")}
       {:error, _} -> {:noreply, put_flash(socket, :error, "Failed to revoke token")}
     end
+  end
+
+  @impl true
+  def handle_event("save_role_cooldowns", _params, %{assigns: %{preview_mode: true}} = socket) do
+    {:noreply, put_flash(socket, :info, "Preview mode: role cooldown changes are disabled")}
   end
 
   @impl true
@@ -127,6 +145,11 @@ defmodule SoundboardWeb.SettingsLive do
   end
 
   @impl true
+  def handle_event("save_featured_tags", _params, %{assigns: %{preview_mode: true}} = socket) do
+    {:noreply, put_flash(socket, :info, "Preview mode: featured tag changes are disabled")}
+  end
+
+  @impl true
   def handle_event("save_featured_tags", params, socket) do
     tag_ids = normalize_featured_tag_ids(Map.get(params, "featured_tag_ids", []))
 
@@ -139,7 +162,11 @@ defmodule SoundboardWeb.SettingsLive do
     end
   end
 
-  defp load_tokens(%{assigns: %{current_user: nil}} = socket), do: socket
+  defp load_tokens(%{assigns: %{current_user: nil}} = socket) do
+    socket
+    |> assign(:tokens, [])
+    |> assign(:example_token, socket.assigns[:new_token] || socket.assigns[:example_token] || nil)
+  end
 
   defp load_tokens(%{assigns: %{current_user: user}} = socket) do
     tokens = ApiTokens.list_tokens(user)

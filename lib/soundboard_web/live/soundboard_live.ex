@@ -34,7 +34,7 @@ defmodule SoundboardWeb.SoundboardLive do
     socket =
       socket
       |> mount_presence(session)
-      |> assign(:current_path, "/")
+      |> assign(:current_path, if(preview_mode, do: "/preview/soundboard", else: "/"))
       |> assign(:preview_mode, preview_mode)
       |> assign(:current_user, current_user)
       |> assign(:can_upload_clips, Permissions.can_upload_clips?(current_user))
@@ -445,7 +445,10 @@ defmodule SoundboardWeb.SoundboardLive do
         volume: 1.0,
         preview_mock: true,
         user: %{username: "Demp"},
-        tags: [%{id: -101, name: "beebot", featured: true}, %{id: -102, name: "memes", featured: false}]
+        tags: [
+          %{id: -101, name: "beebot", featured: true},
+          %{id: -102, name: "memes", featured: false}
+        ]
       },
       %{
         id: -2,
@@ -455,7 +458,10 @@ defmodule SoundboardWeb.SoundboardLive do
         volume: 1.0,
         preview_mock: true,
         user: %{username: "greydiel"},
-        tags: [%{id: -103, name: "gorlord", featured: true}, %{id: -104, name: "hot soup", featured: false}]
+        tags: [
+          %{id: -103, name: "gorlord", featured: true},
+          %{id: -104, name: "hot soup", featured: false}
+        ]
       },
       %{
         id: -3,
@@ -465,7 +471,88 @@ defmodule SoundboardWeb.SoundboardLive do
         volume: 1.0,
         preview_mock: true,
         user: %{username: "beebrother"},
-        tags: [%{id: -105, name: "beebot", featured: true}, %{id: -106, name: "reactions", featured: false}]
+        tags: [
+          %{id: -105, name: "beebot", featured: true},
+          %{id: -106, name: "reactions", featured: false}
+        ]
+      },
+      %{
+        id: -4,
+        filename: "queen-beat-drop.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "hive_admin"},
+        tags: [
+          %{id: -107, name: "beebot", featured: true},
+          %{id: -108, name: "hype", featured: false}
+        ]
+      },
+      %{
+        id: -5,
+        filename: "sticky-situation.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "toasty"},
+        tags: [
+          %{id: -109, name: "chaos", featured: true},
+          %{id: -110, name: "memes", featured: false}
+        ]
+      },
+      %{
+        id: -6,
+        filename: "pollinate-the-room.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "sprout"},
+        tags: [
+          %{id: -111, name: "reactions", featured: true},
+          %{id: -112, name: "beebot", featured: false}
+        ]
+      },
+      %{
+        id: -7,
+        filename: "honey-heist-alert.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "buzzed"},
+        tags: [
+          %{id: -113, name: "alerts", featured: true},
+          %{id: -114, name: "gorlord", featured: false}
+        ]
+      },
+      %{
+        id: -8,
+        filename: "comb-check-one-two.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "dipper"},
+        tags: [
+          %{id: -115, name: "testing", featured: true},
+          %{id: -116, name: "hot soup", featured: false}
+        ]
+      },
+      %{
+        id: -9,
+        filename: "wax-on-wax-off.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "beesly"},
+        tags: [
+          %{id: -117, name: "beebot", featured: true},
+          %{id: -118, name: "reactions", featured: false}
+        ]
       }
     ]
   end
@@ -513,7 +600,8 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   defp preview_edit_sound?(socket) do
-    socket.assigns[:preview_mode] && Map.get(socket.assigns[:current_sound] || %{}, :preview_mock, false)
+    socket.assigns[:preview_mode] &&
+      Map.get(socket.assigns[:current_sound] || %{}, :preview_mock, false)
   end
 
   defp get_random_sound([]), do: nil

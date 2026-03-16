@@ -7,12 +7,14 @@ defmodule SoundboardWeb.PermissionsLive do
 
   @impl true
   def mount(_params, session, socket) do
+    preview_mode = Map.get(socket.assigns, :live_action) == :preview
     current_user = get_user_from_session(session)
 
     {:ok,
      socket
      |> mount_presence(session)
-     |> assign(:current_path, "/permissions")
+     |> assign(:current_path, if(preview_mode, do: "/preview/permissions", else: "/permissions"))
+     |> assign(:preview_mode, preview_mode)
      |> assign(:current_user, current_user)
      |> assign(:role_name_map, role_name_map())
      |> assign(:play_permission, Permissions.permission_decision(current_user, :play_clips))

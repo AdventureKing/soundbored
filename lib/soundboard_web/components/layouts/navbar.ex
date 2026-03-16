@@ -65,6 +65,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
             current_user={@current_user}
             collapsed={false}
             mobile={true}
+            preview_mode={@preview_mode}
             myself={@myself}
             cooldown_end_ms={assigns[:cooldown_end_ms]}
             cooldown_remaining_ms={assigns[:cooldown_remaining_ms]}
@@ -82,6 +83,7 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           current_user={@current_user}
           collapsed={@desktop_nav_collapsed}
           mobile={false}
+          preview_mode={@preview_mode}
           myself={@myself}
           cooldown_end_ms={assigns[:cooldown_end_ms]}
           cooldown_remaining_ms={assigns[:cooldown_remaining_ms]}
@@ -96,19 +98,13 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
   attr :current_user, :any, default: nil
   attr :collapsed, :boolean, default: false
   attr :mobile, :boolean, default: false
+  attr :preview_mode, :boolean, default: false
   attr :myself, :any, default: nil
   attr :cooldown_end_ms, :any, default: nil
   attr :cooldown_remaining_ms, :any, default: nil
 
   defp sidebar_content(assigns) do
     assigns = assign(assigns, :show_settings, show_settings_link?(assigns.current_user))
-
-    assigns =
-      assign(
-        assigns,
-        :buzz_toggle_id,
-        if(assigns.mobile, do: "buzz-mode-toggle-mobile", else: "buzz-mode-toggle-desktop")
-      )
 
     ~H"""
     <div class={["bb-sidebar", if(@collapsed, do: "collapsed", else: "")]}>
@@ -151,28 +147,28 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
       <div class="bb-nav-label">Nav</div>
       <nav class="bb-nav-list">
         <.beebot_nav_link
-          navigate="/"
-          active={current_page?(@current_path, "/")}
+          navigate={nav_path(@preview_mode, :sounds)}
+          active={current_page?(@current_path, nav_path(@preview_mode, :sounds))}
           icon="hero-musical-note"
           label="Sounds"
         />
         <.beebot_nav_link
-          navigate="/stats"
-          active={current_page?(@current_path, "/stats")}
+          navigate={nav_path(@preview_mode, :stats)}
+          active={current_page?(@current_path, nav_path(@preview_mode, :stats))}
           icon="hero-chart-bar-square"
           label="Stats"
         />
         <.beebot_nav_link
-          :if={@current_user}
-          navigate="/permissions"
-          active={current_page?(@current_path, "/permissions")}
+          :if={@current_user || @preview_mode}
+          navigate={nav_path(@preview_mode, :permissions)}
+          active={current_page?(@current_path, nav_path(@preview_mode, :permissions))}
           icon="hero-shield-check"
           label="Permissions"
         />
         <.beebot_nav_link
-          :if={@show_settings}
-          navigate="/settings"
-          active={current_page?(@current_path, "/settings")}
+          :if={@show_settings || @preview_mode}
+          navigate={nav_path(@preview_mode, :settings)}
+          active={current_page?(@current_path, nav_path(@preview_mode, :settings))}
           icon="hero-cog-6-tooth"
           label="Settings"
         />
@@ -209,24 +205,6 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
       </div>
 
       <div class="bb-footer">
-        <div class="bb-buzz-row">
-          <span class="bb-buzz-label">Buzz Mode</span>
-          <label class="bee-switch">
-            <input
-              id={@buzz_toggle_id}
-              type="checkbox"
-              phx-hook="BuzzModeToggle"
-              data-buzz-toggle
-              role="switch"
-              aria-label="Toggle Buzz Mode"
-              aria-checked="false"
-            />
-            <span class="slider">
-              <span class="bee">&#x1F41D;</span>
-            </span>
-          </label>
-        </div>
-
         <.link :if={@current_user} href={~p"/auth/discord"} class="bb-reauth-link">
           Re-auth
         </.link>
@@ -288,6 +266,15 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
   defp current_page?(current_path, path), do: current_path == path
 
   defp show_settings_link?(current_user), do: Permissions.can_manage_settings?(current_user)
+
+  defp nav_path(true, :sounds), do: "/preview/soundboard"
+  defp nav_path(true, :stats), do: "/preview/stats"
+  defp nav_path(true, :permissions), do: "/preview/permissions"
+  defp nav_path(true, :settings), do: "/preview/settings"
+  defp nav_path(false, :sounds), do: "/"
+  defp nav_path(false, :stats), do: "/stats"
+  defp nav_path(false, :permissions), do: "/permissions"
+  defp nav_path(false, :settings), do: "/settings"
 
   defp member_id(true, username), do: "mobile-user-#{slug(username)}"
   defp member_id(false, username), do: "desktop-user-#{slug(username)}"

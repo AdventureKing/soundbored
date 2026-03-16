@@ -13,6 +13,8 @@ defmodule SoundboardWeb.StatsLive do
 
   @impl true
   def mount(_params, session, socket) do
+    preview_mode = Map.get(socket.assigns, :live_action) == :preview
+
     if connected?(socket) do
       :timer.send_interval(60 * 60 * 1000, self(), :check_week_rollover)
       PubSubTopics.subscribe_playback()
@@ -24,7 +26,8 @@ defmodule SoundboardWeb.StatsLive do
     {:ok,
      socket
      |> mount_presence(session)
-     |> assign(:current_path, "/stats")
+     |> assign(:current_path, if(preview_mode, do: "/preview/stats", else: "/stats"))
+     |> assign(:preview_mode, preview_mode)
      |> assign(:current_user, get_user_from_session(session))
      |> assign(:force_update, 0)
      |> assign(:selected_week, current_week)

@@ -180,97 +180,97 @@
           <% else %>
             <%= for sound <- filtered_sounds do %>
               <div class="bb-sound-card">
-                <button
-                  phx-click="play"
-                  phx-value-name={sound.filename}
-                  class="absolute inset-0 z-0 h-full w-full cursor-pointer"
-                >
-                </button>
+                  <button
+                    phx-click="play"
+                    phx-value-name={sound.filename}
+                    class="absolute inset-0 z-0 h-full w-full cursor-pointer"
+                  >
+                  </button>
 
-                <div class="bb-card-body">
-                  <div class="bb-card-top">
-                    <div class="bb-card-meta">
-                      <div class="bb-card-title" title={display_name(sound.filename)}>
-                        {display_name(sound.filename)}
+                  <div class="bb-card-body">
+                    <div class="bb-card-top">
+                      <div class="bb-card-meta">
+                        <div class="bb-card-title" title={display_name(sound.filename)}>
+                          {display_name(sound.filename)}
+                        </div>
+                        <%= if sound.user && sound.user.username do %>
+                          <div class="bb-card-uploader">{sound.user.username}</div>
+                        <% end %>
                       </div>
-                      <%= if sound.user && sound.user.username do %>
-                        <div class="bb-card-uploader">{sound.user.username}</div>
-                      <% end %>
+
+                      <div class="bb-card-actions">
+                        <button
+                          id={"local-play-#{Path.basename(sound.filename, Path.extname(sound.filename))}"}
+                          phx-hook="LocalPlayer"
+                          data-filename={sound.filename}
+                          data-source-type={sound.source_type}
+                          data-url={sound.url}
+                          data-volume={sound.volume || 1.0}
+                          class="bb-icon-btn"
+                          title="Preview"
+                        >
+                          <.icon name="hero-speaker-wave" class="play-icon h-4 w-4" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            class="stop-icon hidden h-4 w-4"
+                          >
+                            <path
+                              fill-rule="evenodd"
+                              d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
+                              clip-rule="evenodd"
+                            />
+                          </svg>
+                        </button>
+
+                        <%= if @current_user do %>
+                          <button
+                            phx-click="toggle_favorite"
+                            phx-value-sound-id={sound.id}
+                            class="bb-icon-btn"
+                            title="Favorite"
+                          >
+                            <%= if sound.id in @favorites do %>
+                              <.icon name="hero-heart-solid" class="h-4 w-4 text-red-500" />
+                            <% else %>
+                              <.icon name="hero-heart" class="h-4 w-4" />
+                            <% end %>
+                          </button>
+                        <% end %>
+
+                        <button
+                          phx-click="edit"
+                          phx-value-id={sound.id}
+                          class="bb-icon-btn"
+                          title="Edit"
+                        >
+                          <.icon name="hero-pencil-square" class="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div class="bb-card-actions">
-                      <button
-                        id={"local-play-#{Path.basename(sound.filename, Path.extname(sound.filename))}"}
-                        phx-hook="LocalPlayer"
-                        data-filename={sound.filename}
-                        data-source-type={sound.source_type}
-                        data-url={sound.url}
-                        data-volume={sound.volume || 1.0}
-                        class="bb-icon-btn"
-                        title="Preview"
-                      >
-                        <.icon name="hero-speaker-wave" class="play-icon h-4 w-4" />
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          class="stop-icon hidden h-4 w-4"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </button>
+                    <div class="bb-preview-bar">
+                      <div class="bb-preview-wave"></div>
+                      <div data-role="preview-time" class="bb-preview-time">0:00</div>
+                    </div>
 
-                      <%= if @current_user do %>
+                    <div class="bb-card-tags">
+                      <%= for tag <- sound.tags do %>
                         <button
-                          phx-click="toggle_favorite"
-                          phx-value-sound-id={sound.id}
-                          class="bb-icon-btn"
-                          title="Favorite"
+                          phx-click="toggle_tag_filter"
+                          phx-value-tag={tag.name}
+                          class={[
+                            "bb-card-tag",
+                            if(tag_selected?(tag, @selected_tags), do: "active", else: "")
+                          ]}
                         >
-                          <%= if sound.id in @favorites do %>
-                            <.icon name="hero-heart-solid" class="h-4 w-4 text-red-500" />
-                          <% else %>
-                            <.icon name="hero-heart" class="h-4 w-4" />
-                          <% end %>
+                          {tag.name}
                         </button>
                       <% end %>
-
-                      <button
-                        phx-click="edit"
-                        phx-value-id={sound.id}
-                        class="bb-icon-btn"
-                        title="Edit"
-                      >
-                        <.icon name="hero-pencil-square" class="h-4 w-4" />
-                      </button>
                     </div>
                   </div>
-
-                  <div class="bb-preview-bar">
-                    <div class="bb-preview-wave"></div>
-                    <div data-role="preview-time" class="bb-preview-time">0:00</div>
-                  </div>
-
-                  <div class="bb-card-tags">
-                    <%= for tag <- sound.tags do %>
-                      <button
-                        phx-click="toggle_tag_filter"
-                        phx-value-tag={tag.name}
-                        class={[
-                          "bb-card-tag",
-                          if(tag_selected?(tag, @selected_tags), do: "active", else: "")
-                        ]}
-                      >
-                        {tag.name}
-                      </button>
-                    <% end %>
-                  </div>
                 </div>
-              </div>
             <% end %>
           <% end %>
         <% end %>
