@@ -1,6 +1,8 @@
 defmodule Soundboard.Discord.Handler.CommandHandler do
   @moduledoc false
 
+  @suppress_embeds_flag 4
+
   alias Soundboard.Discord.Handler.VoiceRuntime
   alias Soundboard.Discord.Message
   alias Soundboard.PublicURL
@@ -12,7 +14,7 @@ defmodule Soundboard.Discord.Handler.CommandHandler do
 
       channel_id ->
         VoiceRuntime.join_voice_channel(msg.guild_id, channel_id)
-        Message.create(msg.channel_id, joined_message())
+        Message.create(msg.channel_id, joined_message_payload())
     end
   end
 
@@ -23,6 +25,13 @@ defmodule Soundboard.Discord.Handler.CommandHandler do
   end
 
   def handle_message(_msg), do: :ignore
+
+  defp joined_message_payload do
+    %{
+      content: joined_message(),
+      flags: @suppress_embeds_flag
+    }
+  end
 
   defp joined_message do
     url = PublicURL.current()
