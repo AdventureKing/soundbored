@@ -2413,15 +2413,16 @@ body.buzz-mode {
 
 .buzz-mode .bb-sound-card:hover {
   border-color: transparent;
+  background: rgb(30 32 39 / 0.9);
 }
 
 .buzz-mode .bb-sound-card:hover::before {
-  background-color: rgba(245, 184, 0, 0.3);
+  background-color: rgba(245, 184, 0, 0.24);
   background-image: linear-gradient(
     115deg,
-    transparent 33%,
-    rgba(255, 246, 200, 0.34) 50%,
-    transparent 67%
+    transparent 46%,
+    rgba(255, 241, 180, 0.28) 50%,
+    transparent 54%
   );
 }
 
