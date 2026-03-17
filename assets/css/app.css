@@ -17,7 +17,9 @@
 
 html {
   @apply bg-gray-900;
-  font-size: 18.7px;
+  font-size: 106.25%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   height: 100%;
   /* Hide scrollbar for Chrome, Safari and Opera */
   ::-webkit-scrollbar {
@@ -226,7 +228,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 22.18px;
+  font-size: 1.3047rem;
   flex-shrink: 0;
 }
 
@@ -238,20 +240,20 @@ body {
 
 .bb-brand-name {
   color: var(--bb-text-primary);
-  font-size: 20.94px;
+  font-size: 1.2318rem;
   font-weight: 600;
   line-height: 1.1;
 }
 
 .bb-brand-sub {
   color: var(--bb-text-secondary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   line-height: 1.1;
 }
 
 .bb-nav-label {
   color: var(--bb-text-tertiary);
-  font-size: 12.32px;
+  font-size: 0.7247rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -271,7 +273,7 @@ body {
   border-radius: 8px;
   color: var(--bb-text-secondary);
   text-decoration: none;
-  font-size: 16.02px;
+  font-size: 0.9424rem;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -310,7 +312,7 @@ body {
 
 .bb-divider .label {
   color: var(--bb-text-tertiary);
-  font-size: 12.32px;
+  font-size: 0.7247rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -349,7 +351,7 @@ body {
 .bb-avatar-fallback {
   background: var(--bb-bg-primary);
   color: var(--bb-text-primary);
-  font-size: 12.32px;
+  font-size: 0.7247rem;
   font-weight: 600;
 }
 
@@ -367,7 +369,7 @@ body {
 .bb-member-name,
 .bb-empty-members {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-footer {
@@ -386,7 +388,7 @@ body {
 
 .bb-buzz-label {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   white-space: nowrap;
 }
 
@@ -398,7 +400,7 @@ body {
   border: 0.5px solid var(--bb-border-secondary);
   color: var(--bb-text-secondary);
   text-decoration: none;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   padding: 7px 10px;
 }
 
@@ -427,7 +429,7 @@ body {
 
 .bb-cooldown-text {
   color: var(--bb-text-success);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -568,13 +570,13 @@ body {
 
 .bb-panel-title {
   color: var(--bb-text-primary);
-  font-size: 18.48px;
+  font-size: 1.0871rem;
   font-weight: 600;
 }
 
 .bb-panel-count {
   color: var(--bb-text-tertiary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-favorite-toggle {
@@ -605,7 +607,7 @@ body {
 .bb-btn-admin {
   border-radius: 8px;
   padding: 7px 10px;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   cursor: pointer;
 }
 
@@ -660,7 +662,7 @@ body {
   border: 0.5px solid var(--bb-border-secondary);
   background: var(--bb-bg-secondary);
   color: var(--bb-text-primary);
-  font-size: 16.02px;
+  font-size: 0.9424rem;
 }
 
 .bb-search-input:focus {
@@ -678,7 +680,7 @@ body {
 }
 
 .bb-tags-label {
-  font-size: 12.32px;
+  font-size: 0.7247rem;
   font-weight: 500;
   color: var(--bb-text-primary);
   letter-spacing: 0.08em;
@@ -718,7 +720,7 @@ body {
   border: 0;
   background: transparent;
   color: var(--bb-text-secondary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   font-weight: 600;
   padding: 4px 10px;
 }
@@ -746,7 +748,7 @@ body {
   gap: 5px;
   padding: 4px 9px;
   border-radius: 999px;
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   border: 0.5px solid transparent;
 }
 
@@ -776,7 +778,7 @@ body {
 }
 
 .bb-tag-count {
-  font-size: 12.32px;
+  font-size: 0.7247rem;
   opacity: 0.72;
 }
 
@@ -784,7 +786,7 @@ body {
   border: 0;
   background: transparent;
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-clear-link:hover {
@@ -797,7 +799,7 @@ body {
   border: 0.5px solid #5a3d00;
   background: #2e2510;
   color: #fac775;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   padding: 7px 9px;
 }
 
@@ -811,7 +813,7 @@ body {
   border: 0.5px solid var(--bb-border-secondary);
   color: var(--bb-text-secondary);
   background: transparent;
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   padding: 4px 10px;
 }
 
@@ -822,7 +824,7 @@ body {
 
 .bb-muted-copy {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-main {
@@ -844,13 +846,13 @@ body {
 
 .bb-main-title {
   color: var(--bb-text-primary);
-  font-size: 24.64px;
+  font-size: 1.4494rem;
   font-weight: 600;
 }
 
 .bb-main-subtitle {
   color: var(--bb-text-tertiary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-main-subtitle-right {
@@ -871,14 +873,14 @@ body {
 
 .bb-cooldown-label {
   color: var(--bb-text-secondary);
-  font-size: 12.32px;
+  font-size: 0.7247rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .bb-cooldown-value {
   color: var(--bb-text-primary);
-  font-size: 18.48px;
+  font-size: 1.0871rem;
   font-weight: 700;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -932,7 +934,7 @@ body {
 
 .bb-card-title {
   color: var(--bb-text-primary);
-  font-size: 27px;
+  font-size: 1.5882rem;
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
@@ -945,7 +947,7 @@ body {
   align-items: center;
   gap: 6px;
   color: var(--bb-text-tertiary);
-  font-size: 20px;
+  font-size: 1.1765rem;
   margin-top: 1px;
   min-width: 0;
 }
@@ -1003,7 +1005,7 @@ body {
   flex-shrink: 0;
   white-space: nowrap;
   color: var(--bb-text-tertiary);
-  font-size: 23.25px;
+  font-size: 1.3676rem;
   line-height: 1;
   letter-spacing: 0.03em;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1056,7 +1058,7 @@ body {
   border: 0.5px solid var(--bb-border-tertiary);
   background: var(--bb-bg-tertiary);
   color: var(--bb-text-secondary);
-  font-size: 21px;
+  font-size: 1.2353rem;
   font-weight: 600;
   line-height: 1;
   text-align: center;
@@ -1134,7 +1136,7 @@ body {
   min-width: 30px;
   text-align: right;
   color: var(--bb-text-secondary);
-  font-size: 21px;
+  font-size: 1.2353rem;
   flex-shrink: 0;
 }
 
@@ -1148,7 +1150,7 @@ body {
   border: 0.5px dashed var(--bb-border-secondary);
   color: var(--bb-text-secondary);
   text-align: center;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   padding: 28px 12px;
 }
 
@@ -1211,7 +1213,7 @@ body {
 
 .bb-modal-title {
   color: var(--bb-text-primary);
-  font-size: 19.71px;
+  font-size: 1.1594rem;
   font-weight: 600;
   margin-bottom: 14px;
 }
@@ -1229,7 +1231,7 @@ body {
 .bb-label {
   display: block;
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 600;
   margin-bottom: 6px;
 }
@@ -1239,7 +1241,7 @@ body {
   border-radius: 8px;
   background: var(--bb-bg-secondary);
   color: var(--bb-text-primary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   padding: 8px 10px;
   word-break: break-word;
 }
@@ -1269,13 +1271,13 @@ body {
 .bb-field-error {
   margin-top: 6px;
   color: #e87070;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-field-help {
   margin-top: 6px;
   color: var(--bb-text-tertiary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
 }
 
 .bb-tag-field {
@@ -1293,7 +1295,7 @@ body {
   align-items: center;
   gap: 8px;
   color: var(--bb-text-primary);
-  font-size: 16.02px;
+  font-size: 0.9424rem;
 }
 
 .bb-check {
@@ -1312,7 +1314,7 @@ body {
   flex: 1;
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 600;
 }
 
@@ -1349,7 +1351,7 @@ body {
   display: block;
   width: 100%;
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-file-input::file-selector-button {
@@ -1359,7 +1361,7 @@ body {
   background: var(--bb-bg-secondary);
   color: var(--bb-text-primary);
   padding: 6px 10px;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1377,7 +1379,7 @@ body {
   background: rgba(245, 184, 0, 0.12);
   color: #f2d489;
   padding: 2px 10px;
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   font-weight: 600;
 }
 
@@ -1412,14 +1414,14 @@ body {
 
 .bb-view-title {
   color: var(--bb-text-primary);
-  font-size: 24.64px;
+  font-size: 1.4494rem;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .bb-view-subtitle {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   margin-top: 2px;
 }
 
@@ -1463,12 +1465,12 @@ body {
   align-items: center;
   gap: 6px;
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-week-range {
   color: var(--bb-text-tertiary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
 }
 
 .bb-section-grid {
@@ -1489,7 +1491,7 @@ body {
 
 .bb-section-heading {
   color: var(--bb-text-primary);
-  font-size: 19.71px;
+  font-size: 1.1594rem;
   font-weight: 600;
 }
 
@@ -1520,7 +1522,7 @@ body {
 
 .bb-section-copy {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-stat-list {
@@ -1549,7 +1551,7 @@ body {
 
 .bb-stat-pill-name {
   color: var(--bb-text-primary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1558,7 +1560,7 @@ body {
 
 .bb-stat-count {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   white-space: nowrap;
 }
 
@@ -1587,7 +1589,7 @@ body {
 
 .bb-click-title {
   color: var(--bb-text-primary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1596,7 +1598,7 @@ body {
 
 .bb-click-subtitle {
   color: var(--bb-text-secondary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
 }
 
 .bb-click-right {
@@ -1608,13 +1610,13 @@ body {
 
 .bb-click-time {
   color: var(--bb-text-tertiary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   white-space: nowrap;
 }
 
 .bb-empty-copy {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-form-stack {
@@ -1625,7 +1627,7 @@ body {
 
 .bb-field-label {
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 600;
 }
 
@@ -1635,7 +1637,7 @@ body {
   border: 0.5px solid var(--bb-border-secondary);
   background: var(--bb-bg-tertiary);
   color: var(--bb-text-primary);
-  font-size: 16.02px;
+  font-size: 0.9424rem;
   padding: 8px 9px;
   box-shadow: none;
 }
@@ -1657,7 +1659,7 @@ body {
   border: 0.5px solid var(--bb-border-secondary);
   background: var(--bb-bg-tertiary);
   color: var(--bb-text-primary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   padding: 4px 9px;
 }
 
@@ -1676,7 +1678,7 @@ body {
   border-radius: 8px;
   border: 0;
   padding: 8px 12px;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
   font-weight: 600;
 }
 
@@ -1735,14 +1737,14 @@ body {
 
 .bb-table th {
   color: var(--bb-text-tertiary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .bb-table td {
   color: var(--bb-text-primary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-sort-btn {
@@ -1769,7 +1771,7 @@ body {
   border: 0.5px solid var(--bb-border-secondary);
   background: var(--bb-bg-tertiary);
   color: var(--bb-text-secondary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   padding: 4px 7px;
 }
 
@@ -1787,7 +1789,7 @@ body {
   border: 0.5px solid var(--bb-border-tertiary);
   background: var(--bb-bg-tertiary);
   color: var(--bb-text-primary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
   line-height: 1.35;
   padding: 8px 10px;
   overflow-x: auto;
@@ -1795,7 +1797,7 @@ body {
 
 .bb-muted-note {
   color: var(--bb-text-secondary);
-  font-size: 13.55px;
+  font-size: 0.7971rem;
 }
 
 .bb-status-allowed {
@@ -1813,7 +1815,7 @@ body {
   flex-direction: column;
   gap: 6px;
   color: var(--bb-text-secondary);
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 .bb-meta-list strong {
@@ -1825,7 +1827,7 @@ body {
   min-width: 158px;
   padding-top: 6px;
   padding-bottom: 6px;
-  font-size: 14.78px;
+  font-size: 0.8694rem;
 }
 
 @media (max-width: 1279px) {
@@ -1921,7 +1923,7 @@ body {
   top: 50%;
   width: 24px;
   height: 24px;
-  font-size: 24.64px;
+  font-size: 1.4494rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -2186,5 +2188,4 @@ body.buzz-mode {
 .buzz-mode a:hover {
   color: #fff1a8;
 }
-
 
