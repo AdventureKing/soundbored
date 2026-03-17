@@ -33,4 +33,38 @@ defmodule SoundboardWeb.Soundboard.SoundFilterTest do
                SoundFilter.filter_sounds(sounds, "reaction", [])
     end
   end
+
+  describe "filter_sounds/4" do
+    test "matches any selected tag in OR mode" do
+      alpha = %{id: 1, name: "alpha"}
+      beta = %{id: 2, name: "beta"}
+
+      sounds = [
+        %{filename: "alpha-beta.mp3", tags: [alpha, beta]},
+        %{filename: "alpha-only.mp3", tags: [alpha]},
+        %{filename: "beta-only.mp3", tags: [beta]},
+        %{filename: "none.mp3", tags: []}
+      ]
+
+      matches =
+        SoundFilter.filter_sounds(sounds, "", [alpha, beta], :or)
+        |> Enum.map(& &1.filename)
+
+      assert Enum.sort(matches) == Enum.sort(["alpha-beta.mp3", "alpha-only.mp3", "beta-only.mp3"])
+    end
+
+    test "supports string tag filter mode values" do
+      alpha = %{id: 1, name: "alpha"}
+      beta = %{id: 2, name: "beta"}
+
+      sounds = [
+        %{filename: "alpha-beta.mp3", tags: [alpha, beta]},
+        %{filename: "alpha-only.mp3", tags: [alpha]}
+      ]
+
+      assert [%{filename: "alpha-beta.mp3"}, %{filename: "alpha-only.mp3"}] =
+               SoundFilter.filter_sounds(sounds, "", [alpha, beta], "or")
+               |> Enum.sort_by(& &1.filename)
+    end
+  end
 end

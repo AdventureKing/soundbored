@@ -5,7 +5,6 @@ defmodule SoundboardWeb.SoundboardLive do
   import EditModal
   import DeleteModal
   import UploadModal
-  import SoundboardWeb.Components.Soundboard.TagComponents, only: [tag_filter_button: 1]
   alias Soundboard.{Favorites, PlaybackCooldown, PubSubTopics, Sounds}
   alias Soundboard.Accounts.Permissions
   alias SoundboardWeb.Live.SoundboardLive.{EditFlow, UploadFlow}
@@ -15,10 +14,11 @@ defmodule SoundboardWeb.SoundboardLive do
   import SoundboardWeb.Live.Support.LiveTags,
     only: [all_tags: 1, featured_tags: 1, tag_selected?: 2]
 
-  import SoundFilter, only: [filter_sounds: 3]
+  import SoundFilter, only: [filter_sounds: 4]
 
   @impl true
   def mount(_params, session, socket) do
+    preview_mode = Map.get(socket.assigns, :live_action) == :preview
     current_user = get_user_from_session(session)
 
     socket =
@@ -34,7 +34,8 @@ defmodule SoundboardWeb.SoundboardLive do
     socket =
       socket
       |> mount_presence(session)
-      |> assign(:current_path, "/")
+      |> assign(:current_path, if(preview_mode, do: "/preview/soundboard", else: "/"))
+      |> assign(:preview_mode, preview_mode)
       |> assign(:current_user, current_user)
       |> assign(:can_upload_clips, Permissions.can_upload_clips?(current_user))
       |> assign(:can_manage_settings, Permissions.can_manage_settings?(current_user))
@@ -58,6 +59,7 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
+    |> assign(:tag_filter_mode, "and")
     |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
     |> UploadFlow.assign_defaults()
@@ -104,6 +106,11 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
+  def handle_event("clear_search", _params, socket) do
+    {:noreply, assign(socket, :search_query, "")}
+  end
+
+  @impl true
   def handle_event("toggle_tag_filter", %{"tag" => tag_name}, socket) do
     case Enum.find(all_tags(socket.assigns.uploaded_files), &(&1.name == tag_name)) do
       nil ->
@@ -125,6 +132,17 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
+  def handle_event("set_tag_filter_mode", %{"mode" => mode}, socket)
+      when mode in ["and", "or"] do
+    {:noreply, assign(socket, :tag_filter_mode, mode)}
+  end
+
+  @impl true
+  def handle_event("set_tag_filter_mode", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("toggle_favorites_filter", _params, socket) do
     {:noreply, assign(socket, :favorites_only, !socket.assigns.favorites_only)}
   end
@@ -136,7 +154,13 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("edit", %{"id" => id}, socket) do
-    EditFlow.open_modal(socket, id)
+    case preview_mock_sound(socket, id) do
+      nil ->
+        EditFlow.open_modal(socket, id)
+
+      sound ->
+        {:noreply, open_preview_edit_modal(socket, sound)}
+    end
   end
 
   @impl true
@@ -189,17 +213,29 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("add_tag", %{"key" => key} = params, socket) do
-    EditFlow.add_tag(socket, key, Map.get(params, "value", ""))
+    if preview_edit_sound?(socket) do
+      {:noreply, put_flash(socket, :info, "Preview mode: edit actions are disabled")}
+    else
+      EditFlow.add_tag(socket, key, Map.get(params, "value", ""))
+    end
   end
 
   @impl true
   def handle_event("remove_tag", %{"tag" => tag_name}, socket) do
-    EditFlow.remove_tag(socket, tag_name)
+    if preview_edit_sound?(socket) do
+      {:noreply, put_flash(socket, :info, "Preview mode: edit actions are disabled")}
+    else
+      EditFlow.remove_tag(socket, tag_name)
+    end
   end
 
   @impl true
   def handle_event("select_tag_suggestion", %{"tag" => tag_name}, socket) do
-    EditFlow.select_tag_suggestion(socket, tag_name)
+    if preview_edit_sound?(socket) do
+      {:noreply, put_flash(socket, :info, "Preview mode: edit actions are disabled")}
+    else
+      EditFlow.select_tag_suggestion(socket, tag_name)
+    end
   end
 
   @impl true
@@ -209,12 +245,20 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("select_tag", %{"tag" => tag_name}, socket) do
-    EditFlow.select_tag(socket, tag_name)
+    if preview_edit_sound?(socket) do
+      {:noreply, put_flash(socket, :info, "Preview mode: edit actions are disabled")}
+    else
+      EditFlow.select_tag(socket, tag_name)
+    end
   end
 
   @impl true
   def handle_event("save_sound", params, socket) do
-    EditFlow.save_sound(socket, params)
+    if preview_edit_sound?(socket) do
+      {:noreply, put_flash(socket, :info, "Preview mode: save is disabled")}
+    else
+      EditFlow.save_sound(socket, params)
+    end
   end
 
   @impl true
@@ -269,7 +313,11 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("show_delete_confirm", _params, socket) do
-    EditFlow.show_delete_confirm(socket)
+    if preview_edit_sound?(socket) do
+      {:noreply, put_flash(socket, :info, "Preview mode: delete is disabled")}
+    else
+      EditFlow.show_delete_confirm(socket)
+    end
   end
 
   @impl true
@@ -279,7 +327,11 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("delete_sound", _params, socket) do
-    EditFlow.delete_sound(socket)
+    if preview_edit_sound?(socket) do
+      {:noreply, put_flash(socket, :info, "Preview mode: delete is disabled")}
+    else
+      EditFlow.delete_sound(socket)
+    end
   end
 
   @impl true
@@ -309,7 +361,11 @@ defmodule SoundboardWeb.SoundboardLive do
   def handle_event("play_random", _params, socket) do
     filtered_sounds =
       socket.assigns.uploaded_files
-      |> filter_sounds(socket.assigns.search_query, socket.assigns.selected_tags)
+      |> filter_sounds(
+        socket.assigns.search_query,
+        socket.assigns.selected_tags,
+        socket.assigns.tag_filter_mode
+      )
       |> filter_to_favorites(socket.assigns.favorites_only, socket.assigns.favorites)
 
     case get_random_sound(filtered_sounds) do
@@ -388,7 +444,185 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   defp load_sound_files(socket) do
-    assign(socket, :uploaded_files, Sounds.list_detailed())
+    sounds = Sounds.list_detailed()
+
+    sounds =
+      if socket.assigns[:preview_mode] && sounds == [] do
+        preview_sounds()
+      else
+        sounds
+      end
+
+    assign(socket, :uploaded_files, sounds)
+  end
+
+  defp preview_sounds do
+    [
+      %{
+        id: -1,
+        filename: "beebot-sting.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "Demp"},
+        tags: [
+          %{id: -101, name: "beebot", featured: true},
+          %{id: -102, name: "memes", featured: false}
+        ]
+      },
+      %{
+        id: -2,
+        filename: "ship-me-sooner.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "greydiel"},
+        tags: [
+          %{id: -103, name: "gorlord", featured: true},
+          %{id: -104, name: "hot soup", featured: false}
+        ]
+      },
+      %{
+        id: -3,
+        filename: "we-sting-for-you.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "beebrother"},
+        tags: [
+          %{id: -105, name: "beebot", featured: true},
+          %{id: -106, name: "reactions", featured: false}
+        ]
+      },
+      %{
+        id: -4,
+        filename: "queen-beat-drop.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "hive_admin"},
+        tags: [
+          %{id: -107, name: "beebot", featured: true},
+          %{id: -108, name: "hype", featured: false}
+        ]
+      },
+      %{
+        id: -5,
+        filename: "sticky-situation.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "toasty"},
+        tags: [
+          %{id: -109, name: "chaos", featured: true},
+          %{id: -110, name: "memes", featured: false}
+        ]
+      },
+      %{
+        id: -6,
+        filename: "pollinate-the-room.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "sprout"},
+        tags: [
+          %{id: -111, name: "reactions", featured: true},
+          %{id: -112, name: "beebot", featured: false}
+        ]
+      },
+      %{
+        id: -7,
+        filename: "honey-heist-alert.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "buzzed"},
+        tags: [
+          %{id: -113, name: "alerts", featured: true},
+          %{id: -114, name: "gorlord", featured: false}
+        ]
+      },
+      %{
+        id: -8,
+        filename: "comb-check-one-two.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "dipper"},
+        tags: [
+          %{id: -115, name: "testing", featured: true},
+          %{id: -116, name: "hot soup", featured: false}
+        ]
+      },
+      %{
+        id: -9,
+        filename: "wax-on-wax-off.mp3",
+        source_type: "url",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+        volume: 1.0,
+        preview_mock: true,
+        user: %{username: "beesly"},
+        tags: [
+          %{id: -117, name: "beebot", featured: true},
+          %{id: -118, name: "reactions", featured: false}
+        ]
+      }
+    ]
+  end
+
+  defp preview_mock_sound(socket, id) do
+    if socket.assigns[:preview_mode] do
+      Enum.find(socket.assigns[:uploaded_files] || [], fn sound ->
+        Map.get(sound, :preview_mock, false) && to_string(sound.id) == to_string(id)
+      end)
+    else
+      nil
+    end
+  end
+
+  defp open_preview_edit_modal(socket, sound) do
+    preview_sound =
+      sound
+      |> Map.put_new(:tags, [])
+      |> Map.put_new(:user_sound_settings, [])
+      |> Map.put_new(:internal_cooldown_seconds, 0)
+      |> Map.put_new(:source_type, "url")
+      |> Map.put_new(:url, "")
+      |> Map.put_new(:volume, 1.0)
+      |> Map.put_new(:filename, "preview-sound.mp3")
+      |> Map.put_new(:user_id, nil)
+
+    edit_state = %EditFlow.State{
+      show_modal: true,
+      current_sound: preview_sound,
+      tag_input: "",
+      tag_suggestions: [],
+      show_delete_confirm: false,
+      edit_name_error: nil,
+      current_user_id: nil
+    }
+
+    socket
+    |> assign(:edit_state, edit_state)
+    |> assign(:show_modal, true)
+    |> assign(:current_sound, preview_sound)
+    |> assign(:tag_input, "")
+    |> assign(:tag_suggestions, [])
+    |> assign(:show_delete_confirm, false)
+    |> assign(:edit_name_error, nil)
+  end
+
+  defp preview_edit_sound?(socket) do
+    socket.assigns[:preview_mode] &&
+      Map.get(socket.assigns[:current_sound] || %{}, :preview_mock, false)
   end
 
   defp get_random_sound([]), do: nil
@@ -397,12 +631,44 @@ defmodule SoundboardWeb.SoundboardLive do
     Enum.random(sounds)
   end
 
+  defp sound_card_dom_id(sound) do
+    "sound-card-" <> sound_dom_key(sound)
+  end
+
+  defp sound_player_dom_id(sound) do
+    "local-play-" <> sound_dom_key(sound)
+  end
+
+  defp sound_dom_key(sound) do
+    case Map.get(sound, :id) || Map.get(sound, "id") do
+      nil ->
+        filename = Map.get(sound, :filename) || Map.get(sound, "filename") || inspect(sound)
+        "f#{:erlang.phash2(filename, 1_000_000)}"
+
+      id ->
+        to_string(id)
+    end
+  end
+
   defp filter_to_favorites(sounds, false, _favorite_sound_ids), do: sounds
 
   defp filter_to_favorites(sounds, true, favorite_sound_ids) do
     favorite_sound_ids = MapSet.new(favorite_sound_ids)
     Enum.filter(sounds, &MapSet.member?(favorite_sound_ids, &1.id))
   end
+
+  defp can_edit_sound_card?(_sound, _current_user, true), do: true
+
+  defp can_edit_sound_card?(sound, current_user, _can_manage_settings) do
+    owner?(sound, current_user)
+  end
+
+  defp owner?(%{user_id: owner_id}, %{id: user_id}), do: ids_match?(owner_id, user_id)
+  defp owner?(_sound, _current_user), do: false
+
+  defp ids_match?(nil, _), do: false
+  defp ids_match?(_, nil), do: false
+  defp ids_match?(left, right), do: to_string(left) == to_string(right)
 
   defp handle_progress(:audio, _entry, socket) do
     {:noreply, socket}

@@ -29,23 +29,26 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
       end)
 
     ~H"""
-    <div
-      class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-10"
-      phx-window-keydown="close_modal_key"
-      phx-key="Escape"
-    >
-      <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-          <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-            <div class="absolute right-0 top-0 pr-4 pt-4">
-              <button
-                phx-click="close_modal"
-                type="button"
-                class="rounded-md bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-              >
+    <% volume_percent = Volume.decimal_to_percent(@current_sound.volume) %>
+    <% edit_preview_src =
+      if @current_sound.source_type == "url" do
+        @current_sound.url || ""
+      else
+        case @current_sound.filename do
+          filename when is_binary(filename) and filename != "" -> "/uploads/#{filename}"
+          _ -> ""
+        end
+      end %>
+    <% edit_preview_disabled = edit_preview_src == "" %>
+    <div class="bb-modal-overlay" phx-window-keydown="close_modal_key" phx-key="Escape">
+      <div class="bb-modal-scroll">
+        <div class="bb-modal-wrap">
+          <div class="bb-modal-panel">
+            <div class="bb-modal-close-wrap">
+              <button phx-click="close_modal" type="button" class="bb-modal-close-btn">
                 <span class="sr-only">Close</span>
                 <svg
-                  class="h-6 w-6"
+                  class="h-5 w-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
@@ -56,21 +59,22 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
               </button>
             </div>
 
-            <div class="mt-3 text-center sm:mt-5">
-              <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-gray-100 mb-4">
-                Edit Sound
-              </h3>
+            <div class="bb-modal-body">
+              <h3 class="bb-modal-title">Edit Sound</h3>
 
-              <form phx-submit="save_sound" phx-change="validate_sound" id="edit-form" class="mt-4">
+              <form
+                phx-submit="save_sound"
+                phx-change="validate_sound"
+                id="edit-form"
+                class="bb-modal-form"
+              >
                 <input type="hidden" name="sound_id" value={@current_sound.id} />
                 <input type="hidden" name="source_type" value={@current_sound.source_type} />
                 <input type="hidden" name="url" value={@current_sound.url} />
-                <!-- Display current source type (non-editable) -->
-                <div class="mb-4 text-left">
-                  <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Source
-                  </label>
-                  <div class="mt-1 text-sm text-gray-700 dark:text-gray-300">
+
+                <div class="bb-field">
+                  <label class="bb-label">Source</label>
+                  <div class="bb-source-box">
                     <%= if @current_sound.source_type == "url" do %>
                       URL: {@current_sound.url}
                     <% else %>
@@ -78,11 +82,9 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     <% end %>
                   </div>
                 </div>
-                <!-- Name Input with error message -->
-                <div class="mb-4">
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left">
-                    Name
-                  </label>
+
+                <div class="bb-field">
+                  <label class="bb-label">Name</label>
                   <input
                     type="text"
                     name="filename"
@@ -96,141 +98,111 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     required
                     placeholder="Sound name"
                     phx-debounce="400"
-                    class={"mt-1 block w-full rounded-md shadow-sm sm:text-sm
-                           dark:text-gray-100 #{if @edit_name_error, do: "border-red-300 focus:border-red-500 focus:ring-red-500", else: "border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500"}
-                           dark:bg-gray-700"}
+                    class={["bb-input", if(@edit_name_error, do: "bb-input-error", else: "")]}
                   />
                   <%= if @edit_name_error do %>
-                    <p class="mt-2 text-sm text-red-600 dark:text-red-400">{@edit_name_error}</p>
+                    <p class="bb-field-error">{@edit_name_error}</p>
                   <% end %>
                 </div>
-                <% volume_percent = Volume.decimal_to_percent(@current_sound.volume) %> <% preview_kind =
-                  if @current_sound.source_type == "url", do: "url", else: "existing" %> <% preview_src =
-                  if preview_kind == "existing",
-                    do: "/uploads/#{@current_sound.filename}",
-                    else: @current_sound.url %>
-                <VolumeControl.volume_control
-                  id="edit-volume-control"
-                  value={volume_percent}
-                  target="edit"
-                  data-preview-kind={preview_kind}
-                  data-preview-src={preview_src}
-                  preview_disabled={is_nil(preview_src) or preview_src == ""}
-                />
+
                 <%= if Permissions.can_manage_settings?(@current_user) do %>
-                  <div class="mt-4 text-left">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Internal Cooldown (seconds)
-                    </label>
+                  <div class="bb-field">
+                    <label class="bb-label">Internal Cooldown (seconds)</label>
                     <input
                       type="number"
                       name="internal_cooldown_seconds"
                       min="0"
                       step="1"
                       value={@current_sound.internal_cooldown_seconds || 0}
-                      class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm sm:text-sm dark:text-gray-100 dark:bg-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                      class="bb-input"
                     />
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p class="bb-field-help">
                       Prevent anyone from replaying this clip until the cooldown expires.
                     </p>
                   </div>
                 <% end %>
-                <!-- Tags -->
-                <div class="text-left">
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Tags
-                  </label>
-                  <TagComponents.tag_badge_list tags={@current_sound.tags} remove_event="remove_tag" />
+
+                <VolumeControl.volume_control
+                  id="edit-volume-control"
+                  value={volume_percent}
+                  target="edit"
+                  label="Clip Volume"
+                  preview_label="Preview Clip"
+                  preview_disabled={edit_preview_disabled}
+                  data-preview-kind="existing"
+                  data-preview-src={edit_preview_src}
+                />
+
+                <div class="bb-field">
+                  <label class="bb-label">Tags</label>
+                  <TagComponents.tag_badge_list
+                    tags={@current_sound.tags}
+                    remove_event="remove_tag"
+                    wrapper_class="mt-2 flex flex-wrap gap-2"
+                  />
                 </div>
-                <!-- Tag Input -->
-                <div class="mt-2 relative">
-                  <div>
-                    <TagComponents.tag_input_field
-                      value={@tag_input}
-                      placeholder="Type a tag and press Enter..."
-                      input_id="tag-input"
-                      phx-keyup="tag_input"
-                      phx-keydown="add_tag"
-                      onkeydown="
-                        if(event.key === 'Enter') {
-                          event.preventDefault();
-                          const value = this.value;
-                          requestAnimationFrame(() => this.value = '');
-                          return false;
-                        }
-                      "
-                      autocomplete="off"
-                    />
-                  </div>
+
+                <div class="bb-field bb-tag-field">
+                  <TagComponents.tag_input_field
+                    value={@tag_input}
+                    placeholder="Type a tag and press Enter..."
+                    input_id="tag-input"
+                    phx-keyup="tag_input"
+                    phx-keydown="add_tag"
+                    class="bb-input"
+                    onkeydown="
+                      if(event.key === 'Enter') {
+                        event.preventDefault();
+                        requestAnimationFrame(() => this.value = '');
+                        return false;
+                      }
+                    "
+                    autocomplete="off"
+                  />
 
                   <TagComponents.tag_suggestions_dropdown
                     tag_input={@tag_input}
                     tag_suggestions={@tag_suggestions}
                     select_event="select_tag"
+                    wrapper_class="absolute z-10 mt-1 w-full rounded-md border border-[rgba(255,255,255,0.18)] bg-[#1e2027] shadow-lg max-h-60 py-1 overflow-auto"
+                    suggestion_class="w-full text-left px-4 py-2 text-sm text-[#e2e0d8] hover:bg-[#16181e]"
                   />
                 </div>
-                <!-- Sound Settings -->
-                <div class="mt-5 mb-4">
-                  <div class="flex flex-col gap-3 text-left">
-                    <% user_setting =
-                      Enum.find(
-                        @current_sound.user_sound_settings || [],
-                        &(&1.user_id == @current_user.id)
-                      ) %>
-                    <label class="relative flex items-start">
-                      <div class="flex h-6 items-center">
-                        <input
-                          type="checkbox"
-                          name="is_join_sound"
-                          value="true"
-                          checked={user_setting && user_setting.is_join_sound}
-                          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                        />
-                      </div>
 
-                      <div class="ml-3 text-sm leading-6">
-                        <span class="font-medium text-gray-900 dark:text-gray-100">
-                          Play when I join voice
-                        </span>
-                      </div>
-                    </label>
-                    <label class="relative flex items-start">
-                      <div class="flex h-6 items-center">
-                        <input
-                          type="checkbox"
-                          name="is_leave_sound"
-                          value="true"
-                          checked={user_setting && user_setting.is_leave_sound}
-                          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                        />
-                      </div>
-
-                      <div class="ml-3 text-sm leading-6">
-                        <span class="font-medium text-gray-900 dark:text-gray-100">
-                          Play when I leave voice
-                        </span>
-                      </div>
-                    </label>
-                  </div>
+                <div class="bb-field bb-check-group">
+                  <% user_setting =
+                    Enum.find(
+                      @current_sound.user_sound_settings || [],
+                      &(&1.user_id == @current_user.id)
+                    ) %>
+                  <label class="bb-check-row">
+                    <input
+                      type="checkbox"
+                      name="is_join_sound"
+                      value="true"
+                      checked={user_setting && user_setting.is_join_sound}
+                      class="bb-check"
+                    />
+                    <span>Play when I join voice</span>
+                  </label>
+                  <label class="bb-check-row">
+                    <input
+                      type="checkbox"
+                      name="is_leave_sound"
+                      value="true"
+                      checked={user_setting && user_setting.is_leave_sound}
+                      class="bb-check"
+                    />
+                    <span>Play when I leave voice</span>
+                  </label>
                 </div>
 
-                <div class="mt-5 sm:mt-6 flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={@edit_name_error}
-                    class={"flex-1 rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm
-                            #{if @edit_name_error,
-                              do: "bg-gray-400 cursor-not-allowed",
-                              else: "bg-blue-600 hover:bg-blue-500"}"}
-                  >
+                <div class="bb-modal-actions">
+                  <button type="submit" disabled={@edit_name_error} class="bb-modal-btn-primary">
                     Save Changes
                   </button>
                   <%= if can_delete_sound?(@current_sound, @current_user) do %>
-                    <button
-                      type="button"
-                      phx-click="show_delete_confirm"
-                      class="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
-                    >
+                    <button type="button" phx-click="show_delete_confirm" class="bb-modal-btn-danger">
                       Delete Sound
                     </button>
                   <% end %>
@@ -244,10 +216,16 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
     """
   end
 
-  defp can_delete_sound?(%{user_id: owner_id}, %{id: user_id} = current_user)
-       when is_integer(owner_id) and is_integer(user_id) do
-    owner_id == user_id or Permissions.can_manage_settings?(current_user)
+  defp can_delete_sound?(sound, current_user) when is_map(sound) and is_map(current_user) do
+    owner?(sound, current_user) or Permissions.can_manage_settings?(current_user)
   end
 
   defp can_delete_sound?(_sound, _current_user), do: false
+
+  defp owner?(%{user_id: owner_id}, %{id: user_id}), do: ids_match?(owner_id, user_id)
+  defp owner?(_sound, _current_user), do: false
+
+  defp ids_match?(nil, _), do: false
+  defp ids_match?(_, nil), do: false
+  defp ids_match?(left, right), do: to_string(left) == to_string(right)
 end

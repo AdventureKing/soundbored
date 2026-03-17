@@ -34,13 +34,14 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
   describe "Soundboard LiveView" do
     test "mounts successfully with user session", %{conn: conn} do
-      {:ok, _, html} = live(conn, "/")
+      {:ok, view, html} = live(conn, "/")
 
       assert html =~ "Sounds"
       # Check for the main content instead of a specific container
       assert html =~ "BeeBot"
       assert html =~ "Cooldown"
-      assert html =~ "playback-cooldown-timer"
+      assert html =~ "sidebar-cooldown-desktop"
+      assert render(view) =~ "clip-duration"
     end
 
     test "can search sounds", %{conn: conn} do
@@ -52,6 +53,26 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
       rendered = render(view)
       assert rendered =~ "test.mp3"
+    end
+
+    test "can clear search query from find sounds", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      refute has_element?(view, "button[phx-click='clear_search']")
+
+      view
+      |> element("form")
+      |> render_change(%{"query" => "test"})
+
+      assert has_element?(view, "input[name='query'][value='test']")
+      assert has_element?(view, "button[phx-click='clear_search']")
+
+      view
+      |> element("button[phx-click='clear_search']")
+      |> render_click()
+
+      assert has_element?(view, "input[name='query'][value='']")
+      refute has_element?(view, "button[phx-click='clear_search']")
     end
 
     test "can play sound", %{conn: conn, sound: sound} do
@@ -444,7 +465,48 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert_in_delta updated_sound.volume, 0.8, 0.0001
     end
 
-    test "shared sounds can be edited by any signed-in user and deleted by settings admins", %{
+    test "hides edit button for sounds uploaded by others when viewer is not an admin", %{
+      conn: conn,
+      sound: sound
+    } do
+      original_admin_user_ids =
+        Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["different-admin"])
+
+      on_exit(fn ->
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
+      end)
+
+      {:ok, other_user} =
+        %User{}
+        |> User.changeset(%{
+          username: "other_non_admin_#{System.unique_integer([:positive])}",
+          discord_id: Integer.to_string(System.unique_integer([:positive])),
+          avatar: "other.jpg"
+        })
+        |> Repo.insert()
+
+      {:ok, other_sound} =
+        %Sound{}
+        |> Sound.changeset(%{
+          filename: "other-non-admin-owned.mp3",
+          source_type: "local",
+          user_id: other_user.id
+        })
+        |> Repo.insert()
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "[phx-click='edit'][phx-value-id='#{sound.id}']")
+      refute has_element?(view, "[phx-click='edit'][phx-value-id='#{other_sound.id}']")
+    end
+
+    test "settings admins can edit and delete sounds uploaded by others", %{
       conn: conn,
       user: user
     } do

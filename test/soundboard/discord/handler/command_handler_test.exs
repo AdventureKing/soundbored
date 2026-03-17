@@ -43,10 +43,11 @@ defmodule Soundboard.Discord.Handler.CommandHandlerTest do
         author: %{id: "user-1"}
       })
 
-      assert_receive {:created_message, "text-1", body}
-      assert body =~ "Joined your voice channel!"
-      assert body =~ SoundboardWeb.Endpoint.url()
-      refute body =~ "nil://"
+      assert_receive {:created_message, "text-1", payload}
+      assert payload.content =~ "Joined your voice channel!"
+      assert payload.content =~ SoundboardWeb.Endpoint.url()
+      refute payload.content =~ "nil://"
+      assert payload.flags == 4
     end
   end
 

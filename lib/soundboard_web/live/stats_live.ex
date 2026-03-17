@@ -13,6 +13,8 @@ defmodule SoundboardWeb.StatsLive do
 
   @impl true
   def mount(_params, session, socket) do
+    preview_mode = Map.get(socket.assigns, :live_action) == :preview
+
     if connected?(socket) do
       :timer.send_interval(60 * 60 * 1000, self(), :check_week_rollover)
       PubSubTopics.subscribe_playback()
@@ -24,7 +26,8 @@ defmodule SoundboardWeb.StatsLive do
     {:ok,
      socket
      |> mount_presence(session)
-     |> assign(:current_path, "/stats")
+     |> assign(:current_path, if(preview_mode, do: "/preview/stats", else: "/stats"))
+     |> assign(:preview_mode, preview_mode)
      |> assign(:current_user, get_user_from_session(session))
      |> assign(:force_update, 0)
      |> assign(:selected_week, current_week)
@@ -122,24 +125,24 @@ defmodule SoundboardWeb.StatsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id="stats" class="max-w-6xl mx-auto px-4 py-8">
-      <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Stats</h1>
+    <div id="stats" class="bb-view">
+      <div class="bb-view-header">
+        <div>
+          <h1 class="bb-view-title">Stats</h1>
+          <p class="bb-view-subtitle">Weekly sound activity and recent highlights.</p>
+        </div>
 
-        <div class="flex items-center gap-4">
+        <div class="bb-view-controls">
           <button
             phx-click="previous_week"
-            class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            class="bb-icon-control"
           >
             <.icon name="hero-chevron-left-solid" class="h-5 w-5" />
           </button>
-          <div class="flex flex-col items-start gap-1">
-            <form
-              phx-change="select_week"
-              phx-submit="select_week"
-              class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
-            >
-              <label for="week-picker" class="whitespace-nowrap">Week of</label>
+
+          <div class="bb-week-picker">
+            <form phx-change="select_week" phx-submit="select_week" class="bb-week-input-row">
+              <label for="week-picker">Week of</label>
               <input
                 type="date"
                 id="week-picker"
@@ -147,11 +150,11 @@ defmodule SoundboardWeb.StatsLive do
                 value={date_input_value(@selected_week)}
                 max={date_input_value(@current_week)}
                 phx-debounce="blur"
-                class="border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                class="bb-input"
               />
             </form>
 
-            <span class="text-xs text-gray-500 dark:text-gray-400">
+            <span class="bb-week-range">
               {format_date_range(@selected_week)}
             </span>
           </div>
@@ -160,7 +163,7 @@ defmodule SoundboardWeb.StatsLive do
             phx-click="next_week"
             disabled={@selected_week == @current_week}
             class={[
-              "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200",
+              "bb-icon-control",
               @selected_week == @current_week && "opacity-50 cursor-not-allowed"
             ]}
           >
@@ -169,15 +172,15 @@ defmodule SoundboardWeb.StatsLive do
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Top Users</h2>
+      <div class="bb-section-grid">
+        <section class="bb-section-card">
+          <h2 class="bb-section-heading">Top Users</h2>
 
-          <div class="space-y-2">
+          <div class="bb-stat-list">
             <%= for {username, count} <- @top_users do %>
-              <div class="flex justify-between items-center" id={"user-stat-#{username}"}>
+              <div class="bb-stat-item" id={"user-stat-#{username}"}>
                 <span class={[
-                  "px-2 py-1 rounded-full text-sm flex items-center gap-1",
+                  "bb-stat-pill rounded-full px-2 py-1",
                   get_user_color_from_presence(username, @presences)
                 ]}>
                   <img
@@ -187,40 +190,40 @@ defmodule SoundboardWeb.StatsLive do
                     alt={"#{username}'s avatar"}
                   /> {username}
                 </span>
-                 <span class="text-gray-600 dark:text-gray-400">{count} plays</span>
+                <span class="bb-stat-count">{count} plays</span>
               </div>
             <% end %>
           </div>
-        </div>
+        </section>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Top Sounds</h2>
+        <section class="bb-section-card">
+          <h2 class="bb-section-heading">Top Sounds</h2>
 
-          <div class="space-y-3">
+          <div class="bb-stat-list">
             <%= for {sound_name, count} <- @top_sounds do %>
               <div
-                class="flex items-center justify-between p-2 px-6 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer group"
+                class="bb-click-row"
                 id={"play-top-#{sound_name}"}
                 phx-click="play_sound"
                 phx-value-sound={sound_name}
               >
-                <div class="flex items-center gap-3 min-w-0">
+                <div class="bb-click-main">
                   <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <p class="bb-click-title">
                       {display_name(sound_name)}
                     </p>
 
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{count} plays</p>
+                    <p class="bb-click-subtitle">{count} plays</p>
                   </div>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="bb-click-right">
                   <button
                     phx-click="toggle_favorite"
                     phx-value-sound={sound_name}
                     phx-stop
                     id={"favorite-#{sound_name}"}
-                    class="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-500 mr-2"
+                    class="bb-icon-btn"
                   >
                     <%= if favorite?(@favorites, sound_name, @sound_ids_by_filename) do %>
                       <.icon name="hero-heart-solid" class="h-5 w-5 text-red-500" />
@@ -232,22 +235,22 @@ defmodule SoundboardWeb.StatsLive do
               </div>
             <% end %>
           </div>
-        </div>
+        </section>
       </div>
 
-      <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Recent Plays</h2>
+      <div class="bb-section-grid">
+        <section class="bb-section-card">
+          <h2 class="bb-section-heading">Recent Plays</h2>
 
-          <div class="space-y-3" id="recent_plays" phx-update="stream">
+          <div class="bb-stat-list" id="recent_plays" phx-update="stream">
             <%= for {dom_id, play} <- @streams.recent_plays do %>
               <div
-                class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer group"
+                class="bb-click-row"
                 id={dom_id}
                 phx-click="play_sound"
                 phx-value-sound={play.filename}
               >
-                <div class="flex items-center gap-3 min-w-0">
+                <div class="bb-click-main">
                   <div class="flex-shrink-0">
                     <img
                       src={get_user_avatar(play.username, @presences, @avatars_by_username)}
@@ -257,23 +260,23 @@ defmodule SoundboardWeb.StatsLive do
                   </div>
 
                   <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <p class="bb-click-title">
                       {display_name(play.filename)}
                     </p>
 
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{play.username}</p>
+                    <p class="bb-click-subtitle">{play.username}</p>
                   </div>
                 </div>
 
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                <div class="bb-click-right">
+                  <span class="bb-click-time">
                     {format_timestamp(play.timestamp)}
                   </span>
                   <button
                     phx-click="toggle_favorite"
                     phx-value-sound={play.filename}
                     phx-stop
-                    class="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-500 mr-2"
+                    class="bb-icon-btn"
                   >
                     <%= if favorite?(@favorites, play.filename, @sound_ids_by_filename) do %>
                       <.icon name="hero-heart-solid" class="h-5 w-5 text-red-500" />
@@ -285,22 +288,22 @@ defmodule SoundboardWeb.StatsLive do
               </div>
             <% end %>
           </div>
-        </div>
+        </section>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+        <section class="bb-section-card">
+          <h2 class="bb-section-heading">
             Recently Uploaded
           </h2>
 
-          <div class="space-y-3">
+          <div class="bb-stat-list">
             <%= for {sound_name, username, timestamp} <- @recent_uploads do %>
               <div
-                class="flex items-center justify-between p-2 px-6 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer group"
+                class="bb-click-row"
                 id={"play-upload-#{sound_name}"}
                 phx-click="play_sound"
                 phx-value-sound={sound_name}
               >
-                <div class="flex items-center gap-3 min-w-0">
+                <div class="bb-click-main">
                   <div class="flex-shrink-0">
                     <img
                       src={get_user_avatar(username, @presences, @avatars_by_username)}
@@ -310,23 +313,23 @@ defmodule SoundboardWeb.StatsLive do
                   </div>
 
                   <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <p class="bb-click-title">
                       {display_name(sound_name)}
                     </p>
 
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{username}</p>
+                    <p class="bb-click-subtitle">{username}</p>
                   </div>
                 </div>
 
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                <div class="bb-click-right">
+                  <span class="bb-click-time">
                     {format_timestamp(timestamp)}
                   </span>
                   <button
                     phx-click="toggle_favorite"
                     phx-value-sound={sound_name}
                     phx-stop
-                    class="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-500 mr-2"
+                    class="bb-icon-btn"
                   >
                     <%= if favorite?(@favorites, sound_name, @sound_ids_by_filename) do %>
                       <.icon name="hero-heart-solid" class="h-5 w-5 text-red-500" />
@@ -338,7 +341,7 @@ defmodule SoundboardWeb.StatsLive do
               </div>
             <% end %>
           </div>
-        </div>
+        </section>
       </div>
     </div>
     """

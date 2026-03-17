@@ -21,6 +21,8 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
 
     assert html =~ "Edit Sound"
     assert html =~ "Local File"
+    assert html =~ "Clip Volume"
+    assert html =~ "edit-volume-control"
     assert html =~ "Save Changes"
     assert html =~ "Delete Sound"
   end
@@ -55,6 +57,19 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
     refute html =~ "Delete Sound"
   end
 
+  test "shows delete when owner and current user IDs match across types" do
+    html =
+      render_component(
+        &EditModal.edit_modal/1,
+        edit_assigns(%{
+          current_sound: %{edit_sound() | user_id: 1},
+          current_user: %{id: "1"}
+        })
+      )
+
+    assert html =~ "Delete Sound"
+  end
+
   test "shows internal cooldown input for settings admins only" do
     Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-user-id"])
 
@@ -85,6 +100,21 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
       render_component(
         &EditModal.edit_modal/1,
         edit_assigns(%{
+          current_user: %{id: 2, discord_id: "admin-user-id"}
+        })
+      )
+
+    assert html =~ "Delete Sound"
+  end
+
+  test "shows delete for settings admins when clip owner is missing" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-user-id"])
+
+    html =
+      render_component(
+        &EditModal.edit_modal/1,
+        edit_assigns(%{
+          current_sound: %{edit_sound() | user_id: nil},
           current_user: %{id: 2, discord_id: "admin-user-id"}
         })
       )

@@ -42,7 +42,7 @@ defmodule SoundboardWeb.Components.Soundboard.VolumeControl do
           value={@value}
           data-role="volume-slider"
           data-thumb-size="18"
-          class="volume-slider w-full accent-blue-600"
+          class="volume-slider w-full accent-yellow-500"
         />
       </div>
 

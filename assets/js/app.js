@@ -44,6 +44,9 @@ const BOOST_CAP = 1.5
 const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
 const BUZZ_MODE_CLASS = "buzz-mode"
 const DESKTOP_NAV_COLLAPSED_CLASS = "desktop-nav-collapsed"
+const CLIP_DURATION_CACHE_PREFIX = "soundboard:clip-duration:v1:"
+const CLIP_DURATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30
+const clipDurationMemoryCache = new Map()
 
 const clearBuzzSyncFlag = (toggle) => {
   requestAnimationFrame(() => {
@@ -94,6 +97,13 @@ const applyDesktopNavState = (collapsed) => {
   if (document.body) {
     document.body.classList.toggle(DESKTOP_NAV_COLLAPSED_CLASS, collapsed)
   }
+
+  const desktopOffset = collapsed ? "52px" : "180px"
+  const isDesktop = window.matchMedia("(min-width: 1024px)").matches
+
+  document.querySelectorAll(".desktop-nav-main").forEach((mainEl) => {
+    mainEl.style.paddingLeft = isDesktop ? desktopOffset : ""
+  })
 }
 
 const getAudioContextCtor = () => window.AudioContext || window.webkitAudioContext || null
@@ -158,6 +168,60 @@ const stopActiveLocalPlayer = () => {
   }
 }
 
+const clipDurationCacheKey = (source) => `${CLIP_DURATION_CACHE_PREFIX}${source}`
+
+const readCachedClipDuration = (source) => {
+  if (!source) {
+    return null
+  }
+
+  const memoryCached = clipDurationMemoryCache.get(source)
+  if (Number.isFinite(memoryCached) && memoryCached > 0) {
+    return memoryCached
+  }
+
+  try {
+    const raw = window.localStorage.getItem(clipDurationCacheKey(source))
+    if (!raw) {
+      return null
+    }
+
+    const parsed = JSON.parse(raw)
+    const duration = Number(parsed?.duration)
+    const cachedAt = Number(parsed?.cachedAt)
+
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return null
+    }
+
+    if (Number.isFinite(cachedAt) && Date.now() - cachedAt > CLIP_DURATION_CACHE_TTL_MS) {
+      window.localStorage.removeItem(clipDurationCacheKey(source))
+      return null
+    }
+
+    clipDurationMemoryCache.set(source, duration)
+    return duration
+  } catch (_err) {
+    return null
+  }
+}
+
+const writeCachedClipDuration = (source, duration) => {
+  if (!source || !Number.isFinite(duration) || duration <= 0) {
+    return
+  }
+
+  const normalized = roundTo(duration, 3)
+  clipDurationMemoryCache.set(source, normalized)
+
+  try {
+    window.localStorage.setItem(
+      clipDurationCacheKey(source),
+      JSON.stringify({duration: normalized, cachedAt: Date.now()})
+    )
+  } catch (_err) {}
+}
+
 window.addEventListener("phx:stop-all-sounds", stopActiveLocalPlayer)
 
 let Hooks = {}
@@ -166,21 +230,157 @@ Hooks.LocalPlayer = {
     this.audio = null
     this.audioContext = null
     this.cleanup = null
+    this.previewTimer = null
+    this.previewStartedAt = null
+    this.cardEl = null
+    this.previewTimeEl = null
+    this.previewWaveEl = null
+    this.durationEl = null
+    this.durationSource = null
+    this.durationLoadToken = 0
+    this.previewBars = []
+    this.waveHeights = [6, 10, 14, 18, 14, 18, 10, 14, 18, 14, 10, 6, 14, 10, 18, 14, 6, 14, 10, 18]
+    this.waveBarWidth = 3
+    this.waveGap = 2
     this.handleClick = this.handleClick.bind(this)
+    this.handleWindowResize = this.handleWindowResize.bind(this)
+    this.syncPreviewElements()
     this.el.addEventListener("click", this.handleClick)
+    this.rebuildPreviewBars()
+    this.loadClipDuration()
+    window.addEventListener("resize", this.handleWindowResize)
   },
   updated() {
+    this.syncPreviewElements()
+    this.rebuildPreviewBars()
+    this.loadClipDuration()
     if (this.audio && !this.audio.paused) {
       this.configureGain(this.readGain())
     }
   },
   destroyed() {
+    this.durationLoadToken += 1
     this.el.removeEventListener("click", this.handleClick)
+    window.removeEventListener("resize", this.handleWindowResize)
     this.stopPlayback()
+  },
+  handleWindowResize() {
+    this.rebuildPreviewBars()
+  },
+  syncPreviewElements() {
+    this.cardEl = this.el.closest(".bb-sound-card")
+    this.previewTimeEl = this.cardEl?.querySelector("[data-role='preview-time']") || null
+    this.previewWaveEl = this.cardEl?.querySelector(".bb-preview-wave") || null
+    this.durationEl = this.cardEl?.querySelector("[data-role='clip-duration']") || null
+  },
+  rebuildPreviewBars() {
+    if (!this.previewWaveEl) {
+      return
+    }
+
+    const width = this.previewWaveEl.clientWidth
+    const perBar = this.waveBarWidth + this.waveGap
+    const count =
+      width > 0
+        ? Math.max(12, Math.floor((width + this.waveGap) / perBar))
+        : 24
+    const isPreviewing = this.cardEl?.classList.contains("previewing")
+    const fragment = document.createDocumentFragment()
+
+    for (let idx = 0; idx < count; idx += 1) {
+      const bar = document.createElement("span")
+      const height = this.waveHeights[idx % this.waveHeights.length]
+      bar.className = isPreviewing ? "bar active" : "bar"
+      bar.style.setProperty("--h", `${height}px`)
+      bar.style.setProperty("--d", `${(idx * 0.07).toFixed(2)}s`)
+      fragment.appendChild(bar)
+    }
+
+    this.previewWaveEl.innerHTML = ""
+    this.previewWaveEl.appendChild(fragment)
+    this.previewBars = Array.from(this.previewWaveEl.querySelectorAll(".bar"))
   },
   readGain() {
     const raw = parseFloat(this.el.dataset.volume)
     return Number.isFinite(raw) ? clamp(raw, 0, BOOST_CAP) : 1
+  },
+  resolveSource() {
+    const sourceType = this.el.dataset.sourceType
+    const url = this.el.dataset.url
+    const filename = this.el.dataset.filename
+
+    if (sourceType === "url" && url) {
+      return url
+    }
+    if (filename) {
+      return `/uploads/${filename}`
+    }
+    return null
+  },
+  loadClipDuration() {
+    if (!this.durationEl) {
+      return
+    }
+
+    const source = this.resolveSource()
+    if (!source) {
+      this.durationSource = null
+      this.durationEl.textContent = "--:--"
+      return
+    }
+
+    // Always hydrate duration text from cache first so LiveView re-renders
+    // don't leave a recreated element stuck at the placeholder.
+    const cachedDuration = readCachedClipDuration(source)
+    if (Number.isFinite(cachedDuration) && cachedDuration > 0) {
+      this.durationSource = source
+      this.durationEl.textContent = this.formatClipDuration(cachedDuration)
+      return
+    }
+
+    if (this.durationSource === source) {
+      return
+    }
+
+    this.durationSource = source
+    this.durationEl.textContent = "--:--"
+    this.durationLoadToken += 1
+    const token = this.durationLoadToken
+    const probe = new Audio()
+    probe.preload = "metadata"
+
+    const cleanup = () => {
+      probe.removeEventListener("loadedmetadata", onLoadedMetadata)
+      probe.removeEventListener("error", onError)
+      probe.src = ""
+    }
+
+    const onLoadedMetadata = () => {
+      if (token !== this.durationLoadToken) {
+        cleanup()
+        return
+      }
+
+      const duration = probe.duration
+      if (Number.isFinite(duration) && duration > 0) {
+        writeCachedClipDuration(source, duration)
+        this.durationEl.textContent = this.formatClipDuration(duration)
+      } else {
+        this.durationEl.textContent = "--:--"
+      }
+      cleanup()
+    }
+
+    const onError = () => {
+      if (token === this.durationLoadToken && this.durationEl) {
+        this.durationEl.textContent = "--:--"
+      }
+      cleanup()
+    }
+
+    probe.addEventListener("loadedmetadata", onLoadedMetadata)
+    probe.addEventListener("error", onError)
+    probe.src = source
   },
   async handleClick(event) {
     event.preventDefault()
@@ -199,20 +399,14 @@ Hooks.LocalPlayer = {
   },
   async startPlayback() {
     this.stopPlayback()
-
-    const sourceType = this.el.dataset.sourceType
-    const url = this.el.dataset.url
-    const filename = this.el.dataset.filename
+    const source = this.resolveSource()
 
     const audio = new Audio()
 
-    if (sourceType === "url" && url) {
-      audio.src = url
-    } else if (filename) {
-      audio.src = `/uploads/${filename}`
-    } else {
+    if (!source) {
       return
     }
+    audio.src = source
 
     audio.addEventListener("ended", () => this.stopPlayback())
     audio.addEventListener("error", () => this.stopPlayback())
@@ -304,6 +498,59 @@ Hooks.LocalPlayer = {
       activeLocalPlayer = null
     }
   },
+  formatPreviewTime(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.floor(totalSeconds))
+    const minutes = Math.floor(safeSeconds / 60)
+    const seconds = safeSeconds % 60
+    return `${minutes}:${String(seconds).padStart(2, "0")}`
+  },
+  formatClipDuration(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.floor(totalSeconds))
+    const hours = Math.floor(safeSeconds / 3600)
+    const minutes = Math.floor((safeSeconds % 3600) / 60)
+    const seconds = safeSeconds % 60
+
+    if (hours > 0) {
+      return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+    }
+
+    return `${minutes}:${String(seconds).padStart(2, "0")}`
+  },
+  startPreviewUi() {
+    this.previewStartedAt = Date.now()
+    if (this.cardEl) {
+      this.cardEl.classList.add("previewing")
+    }
+    this.rebuildPreviewBars()
+    this.previewBars.forEach((bar) => bar.classList.add("active"))
+    if (this.previewTimeEl) {
+      this.previewTimeEl.textContent = "0:00"
+    }
+    if (this.previewTimer) {
+      clearInterval(this.previewTimer)
+    }
+    this.previewTimer = setInterval(() => {
+      if (!this.previewStartedAt || !this.previewTimeEl) {
+        return
+      }
+      const elapsed = (Date.now() - this.previewStartedAt) / 1000
+      this.previewTimeEl.textContent = this.formatPreviewTime(elapsed)
+    }, 250)
+  },
+  stopPreviewUi() {
+    if (this.previewTimer) {
+      clearInterval(this.previewTimer)
+      this.previewTimer = null
+    }
+    this.previewStartedAt = null
+    if (this.cardEl) {
+      this.cardEl.classList.remove("previewing")
+    }
+    this.previewBars.forEach((bar) => bar.classList.remove("active"))
+    if (this.previewTimeEl) {
+      this.previewTimeEl.textContent = "0:00"
+    }
+  },
   setPlaying(isPlaying) {
     const playIcon = this.el.querySelector(".play-icon")
     const stopIcon = this.el.querySelector(".stop-icon")
@@ -315,9 +562,11 @@ Hooks.LocalPlayer = {
     if (isPlaying) {
       playIcon.classList.add("hidden")
       stopIcon.classList.remove("hidden")
+      this.startPreviewUi()
     } else {
       playIcon.classList.remove("hidden")
       stopIcon.classList.add("hidden")
+      this.stopPreviewUi()
     }
   }
 }
@@ -371,6 +620,9 @@ Hooks.CooldownTimer = {
       this.frame = null
     }
   },
+  setState(state) {
+    this.el.dataset.state = state
+  },
   tick() {
     if (!this.valueEl) {
       return
@@ -379,6 +631,7 @@ Hooks.CooldownTimer = {
     if (!this.endMs) {
       if (this.baseRemainingMs === null || this.startedAt === null) {
         this.valueEl.textContent = "Ready"
+        this.setState("ready")
         return
       }
     }
@@ -390,10 +643,12 @@ Hooks.CooldownTimer = {
 
     if (remaining <= 0) {
       this.valueEl.textContent = "Ready"
+      this.setState("ready")
       return
     }
 
     this.valueEl.textContent = formatCooldownDuration(remaining)
+    this.setState("cooling")
     this.frame = requestAnimationFrame(this.tick)
   }
 }
