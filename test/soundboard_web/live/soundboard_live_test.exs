@@ -445,7 +445,48 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert_in_delta updated_sound.volume, 0.8, 0.0001
     end
 
-    test "shared sounds can be edited by any signed-in user and deleted by settings admins", %{
+    test "hides edit button for sounds uploaded by others when viewer is not an admin", %{
+      conn: conn,
+      sound: sound
+    } do
+      original_admin_user_ids =
+        Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
+
+      Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["different-admin"])
+
+      on_exit(fn ->
+        Application.put_env(
+          :soundboard,
+          :discord_settings_admin_user_ids,
+          original_admin_user_ids
+        )
+      end)
+
+      {:ok, other_user} =
+        %User{}
+        |> User.changeset(%{
+          username: "other_non_admin_#{System.unique_integer([:positive])}",
+          discord_id: Integer.to_string(System.unique_integer([:positive])),
+          avatar: "other.jpg"
+        })
+        |> Repo.insert()
+
+      {:ok, other_sound} =
+        %Sound{}
+        |> Sound.changeset(%{
+          filename: "other-non-admin-owned.mp3",
+          source_type: "local",
+          user_id: other_user.id
+        })
+        |> Repo.insert()
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "[phx-click='edit'][phx-value-id='#{sound.id}']")
+      refute has_element?(view, "[phx-click='edit'][phx-value-id='#{other_sound.id}']")
+    end
+
+    test "settings admins can edit and delete sounds uploaded by others", %{
       conn: conn,
       user: user
     } do

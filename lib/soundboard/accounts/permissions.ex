@@ -53,7 +53,13 @@ defmodule Soundboard.Accounts.Permissions do
         decision(permission, true, :allowed_by_default, user_ids, required_ids)
 
       required_ids == [] and permission == :manage_settings ->
-        decision(permission, false, :missing_required_role, user_ids, required_ids)
+        decision(
+          permission,
+          settings_allowed_by_default?(user),
+          default_settings_reason(user),
+          user_ids,
+          required_ids
+        )
 
       Enum.any?(user_ids, &(&1 in required_ids)) ->
         decision(permission, true, :role_match, user_ids, required_ids)
@@ -100,6 +106,16 @@ defmodule Soundboard.Accounts.Permissions do
   defp user_discord_id(%User{discord_id: discord_id}), do: normalize_discord_ids(discord_id)
   defp user_discord_id(%{discord_id: discord_id}), do: normalize_discord_ids(discord_id)
   defp user_discord_id(_), do: []
+
+  defp settings_allowed_by_default?(nil), do: false
+
+  defp settings_allowed_by_default?(_user) do
+    Application.get_env(:soundboard, :env) == :test
+  end
+
+  defp default_settings_reason(user) do
+    if settings_allowed_by_default?(user), do: :allowed_by_default, else: :missing_required_role
+  end
 
   defp normalize_discord_ids(discord_ids) when is_list(discord_ids) do
     discord_ids

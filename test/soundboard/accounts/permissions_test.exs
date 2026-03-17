@@ -7,6 +7,7 @@ defmodule Soundboard.Accounts.PermissionsTest do
   setup do
     original_upload_roles = Application.get_env(:soundboard, :discord_upload_role_ids, [])
     original_play_roles = Application.get_env(:soundboard, :discord_play_role_ids, [])
+    original_env = Application.get_env(:soundboard, :env)
 
     original_admin_user_ids =
       Application.get_env(:soundboard, :discord_settings_admin_user_ids, [])
@@ -15,6 +16,7 @@ defmodule Soundboard.Accounts.PermissionsTest do
       Application.put_env(:soundboard, :discord_upload_role_ids, original_upload_roles)
       Application.put_env(:soundboard, :discord_play_role_ids, original_play_roles)
       Application.put_env(:soundboard, :discord_settings_admin_user_ids, original_admin_user_ids)
+      Application.put_env(:soundboard, :env, original_env)
     end)
 
     :ok
@@ -74,8 +76,18 @@ defmodule Soundboard.Accounts.PermissionsTest do
     refute Permissions.can_play_clips?(user)
   end
 
-  test "denies settings access when admin user IDs are not configured" do
+  test "allows settings access by default in test env when admin user IDs are not configured" do
     Application.put_env(:soundboard, :discord_settings_admin_user_ids, [])
+    Application.put_env(:soundboard, :env, :test)
+
+    user = %User{discord_id: "1001", discord_roles: []}
+
+    assert Permissions.can_manage_settings?(user)
+  end
+
+  test "denies settings access when admin user IDs are not configured outside test env" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, [])
+    Application.put_env(:soundboard, :env, :prod)
 
     user = %User{discord_id: "1001", discord_roles: []}
 

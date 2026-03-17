@@ -261,14 +261,16 @@
                         </button>
                       <% end %>
 
-                      <button
-                        phx-click="edit"
-                        phx-value-id={sound.id}
-                        class="bb-icon-btn"
-                        title="Edit"
-                      >
-                        <.icon name="hero-pencil-square" class="h-4 w-4" />
-                      </button>
+                      <%= if can_edit_sound_card?(sound, @current_user, @can_manage_settings) do %>
+                        <button
+                          phx-click="edit"
+                          phx-value-id={sound.id}
+                          class="bb-icon-btn"
+                          title="Edit"
+                        >
+                          <.icon name="hero-pencil-square" class="h-4 w-4" />
+                        </button>
+                      <% end %>
                     </div>
                   </div>
 

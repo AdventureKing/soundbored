@@ -652,6 +652,19 @@ defmodule SoundboardWeb.SoundboardLive do
     Enum.filter(sounds, &MapSet.member?(favorite_sound_ids, &1.id))
   end
 
+  defp can_edit_sound_card?(_sound, _current_user, true), do: true
+
+  defp can_edit_sound_card?(sound, current_user, _can_manage_settings) do
+    owner?(sound, current_user)
+  end
+
+  defp owner?(%{user_id: owner_id}, %{id: user_id}), do: ids_match?(owner_id, user_id)
+  defp owner?(_sound, _current_user), do: false
+
+  defp ids_match?(nil, _), do: false
+  defp ids_match?(_, nil), do: false
+  defp ids_match?(left, right), do: to_string(left) == to_string(right)
+
   defp handle_progress(:audio, _entry, socket) do
     {:noreply, socket}
   end
