@@ -297,7 +297,14 @@
 
                     <span class="bb-clip-duration">
                       <.icon name="hero-clock" class="bb-clip-duration-icon h-5 w-5" />
-                      <span data-role="clip-duration" class="bb-clip-duration-value">--:--</span>
+                      <span
+                        id={"#{sound_player_dom_id(sound)}-duration"}
+                        phx-update="ignore"
+                        data-role="clip-duration"
+                        class="bb-clip-duration-value"
+                      >
+                        --:--
+                      </span>
                     </span>
                   </div>
                 </div>

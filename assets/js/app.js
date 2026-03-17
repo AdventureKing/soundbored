@@ -329,17 +329,20 @@ Hooks.LocalPlayer = {
       return
     }
 
+    // Always hydrate duration text from cache first so LiveView re-renders
+    // don't leave a recreated element stuck at the placeholder.
+    const cachedDuration = readCachedClipDuration(source)
+    if (Number.isFinite(cachedDuration) && cachedDuration > 0) {
+      this.durationSource = source
+      this.durationEl.textContent = this.formatClipDuration(cachedDuration)
+      return
+    }
+
     if (this.durationSource === source) {
       return
     }
 
     this.durationSource = source
-    const cachedDuration = readCachedClipDuration(source)
-    if (Number.isFinite(cachedDuration) && cachedDuration > 0) {
-      this.durationEl.textContent = this.formatClipDuration(cachedDuration)
-      return
-    }
-
     this.durationEl.textContent = "--:--"
     this.durationLoadToken += 1
     const token = this.durationLoadToken
