@@ -183,6 +183,10 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       {:ok, view, _html} = live(conn, "/")
 
       view
+      |> element("[phx-click='set_tag_filter_mode'][phx-value-mode='and']")
+      |> render_click()
+
+      view
       |> element("#tag-filter-panel button[phx-value-tag='alpha']")
       |> render_click()
 

@@ -72,15 +72,15 @@ const clearBuzzSyncFlag = (toggle) => {
 
 const applyBuzzMode = (enabled, {suppressAnimation = false} = {}) => {
   applyRandomHoneyDrips()
-  ensureHoneyParallaxTracking()
 
   document.documentElement.classList.toggle(BUZZ_MODE_CLASS, enabled)
   if (document.body) {
     document.body.classList.toggle(BUZZ_MODE_CLASS, enabled)
   }
 
+  resetAllHoneyParallax()
+
   if (!enabled) {
-    resetAllHoneyParallax()
     stopHoneySheenWaves()
   } else {
     startHoneySheenWaves()

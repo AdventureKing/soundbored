@@ -59,7 +59,7 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
-    |> assign(:tag_filter_mode, "and")
+    |> assign(:tag_filter_mode, "or")
     |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
     |> UploadFlow.assign_defaults()
