@@ -43,6 +43,19 @@ const MAX_VOLUME_PERCENT_DEFAULT = 150
 const BOOST_CAP = 1.5
 const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
 const BUZZ_MODE_CLASS = "buzz-mode"
+const HONEY_DRIP_VAR_A = "--bb-honey-drips-a"
+const HONEY_DRIP_VAR_B = "--bb-honey-drips-b"
+const HONEY_PARALLAX_VAR_X = "--bb-honey-parallax-x"
+const HONEY_PARALLAX_VAR_Y = "--bb-honey-parallax-y"
+const HONEY_PARALLAX_MAX_X = 10
+const HONEY_PARALLAX_MAX_Y = 8
+const HONEY_SHEEN_ACTIVE_CLASS = "bb-honey-sheen-active"
+const HONEY_SHEEN_WAVE_MS = 11000
+const HONEY_SHEEN_MIN_DELAY_MS = 1800
+const HONEY_SHEEN_MAX_DELAY_MS = 4200
+const HONEY_PARALLAX_TARGET_SELECTOR = ".bb-sound-grid .bb-sound-card, #bb-queen-pick"
+const QUEEN_PICK_DEFAULT_ROTATION_MS = 30000
+const QUEEN_PICK_MIN_ROTATION_MS = 10000
 const DESKTOP_NAV_COLLAPSED_CLASS = "desktop-nav-collapsed"
 const CLIP_DURATION_CACHE_PREFIX = "soundboard:clip-duration:v1:"
 const CLIP_DURATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30
@@ -57,9 +70,19 @@ const clearBuzzSyncFlag = (toggle) => {
 }
 
 const applyBuzzMode = (enabled, {suppressAnimation = false} = {}) => {
+  applyRandomHoneyDrips()
+  ensureHoneyParallaxTracking()
+
   document.documentElement.classList.toggle(BUZZ_MODE_CLASS, enabled)
   if (document.body) {
     document.body.classList.toggle(BUZZ_MODE_CLASS, enabled)
+  }
+
+  if (!enabled) {
+    resetAllHoneyParallax()
+    stopHoneySheenWaves()
+  } else {
+    startHoneySheenWaves()
   }
 
   document.querySelectorAll("[data-buzz-toggle]").forEach((toggle) => {
@@ -90,6 +113,268 @@ const saveBuzzModePreference = (enabled) => {
   try {
     window.localStorage.setItem(BUZZ_MODE_STORAGE_KEY, enabled ? "on" : "off")
   } catch (_err) {}
+}
+
+const randomInRange = (min, max) => min + Math.random() * (max - min)
+
+const buildRandomDripShadow = ({
+  count,
+  color,
+  minAlpha,
+  maxAlpha,
+  minY,
+  maxY,
+  minSpread,
+  maxSpread,
+  jitterX
+}) => {
+  const [r, g, b] = color
+  const minX = 4
+  const maxX = 95
+  const step = count > 1 ? (maxX - minX) / (count - 1) : 0
+  const shadows = []
+
+  for (let idx = 0; idx < count; idx += 1) {
+    const baseX = minX + step * idx
+    const x = roundTo(clamp(baseX + randomInRange(-jitterX, jitterX), minX, maxX), 2)
+    const y = Math.round(randomInRange(minY, maxY))
+    const spread = -Math.round(randomInRange(minSpread, maxSpread))
+    const alpha = roundTo(randomInRange(minAlpha, maxAlpha), 2)
+    shadows.push(`${x}vw ${y}px 0 ${spread}px rgba(${r}, ${g}, ${b}, ${alpha})`)
+  }
+
+  return shadows.join(", ")
+}
+
+const applyRandomHoneyDrips = () => {
+  if (window.__bbHoneyDripsInitialized) {
+    return
+  }
+
+  const rootStyle = document.documentElement?.style
+  if (!rootStyle) {
+    return
+  }
+
+  const primaryShadows = buildRandomDripShadow({
+    count: 24,
+    color: [245, 184, 0],
+    minAlpha: 0.27,
+    maxAlpha: 0.4,
+    minY: -820,
+    maxY: -340,
+    minSpread: 2,
+    maxSpread: 6,
+    jitterX: 2.6
+  })
+
+  const primaryThickShadows = buildRandomDripShadow({
+    count: 4,
+    color: [245, 184, 0],
+    minAlpha: 0.34,
+    maxAlpha: 0.45,
+    minY: -820,
+    maxY: -340,
+    minSpread: 0,
+    maxSpread: 1,
+    jitterX: 5.5
+  })
+
+  const secondaryShadows = buildRandomDripShadow({
+    count: 20,
+    color: [255, 211, 76],
+    minAlpha: 0.19,
+    maxAlpha: 0.26,
+    minY: -860,
+    maxY: -380,
+    minSpread: 3,
+    maxSpread: 6,
+    jitterX: 3.2
+  })
+
+  rootStyle.setProperty(HONEY_DRIP_VAR_A, `${primaryShadows}, ${primaryThickShadows}`)
+  rootStyle.setProperty(HONEY_DRIP_VAR_B, secondaryShadows)
+  window.__bbHoneyDripsInitialized = true
+}
+
+const supportsFinePointerHover = () => {
+  if (typeof window.matchMedia !== "function") {
+    return false
+  }
+
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches
+}
+
+const resetHoneyParallax = (card) => {
+  if (!card || !(card instanceof Element)) {
+    return
+  }
+
+  card.style.setProperty(HONEY_PARALLAX_VAR_X, "0px")
+  card.style.setProperty(HONEY_PARALLAX_VAR_Y, "0px")
+}
+
+const resetActiveHoneyParallax = () => {
+  if (window.__bbHoneyParallaxActiveCard) {
+    resetHoneyParallax(window.__bbHoneyParallaxActiveCard)
+    window.__bbHoneyParallaxActiveCard = null
+  }
+}
+
+const resetAllHoneyParallax = () => {
+  resetActiveHoneyParallax()
+  document.querySelectorAll(HONEY_PARALLAX_TARGET_SELECTOR).forEach((card) => resetHoneyParallax(card))
+}
+
+const updateHoneyParallaxFromPointer = (event) => {
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS) || !supportsFinePointerHover()) {
+    resetActiveHoneyParallax()
+    return
+  }
+
+  const eventTarget = event.target
+  const hoveredCard =
+    eventTarget instanceof Element ? eventTarget.closest(HONEY_PARALLAX_TARGET_SELECTOR) : null
+
+  if (window.__bbHoneyParallaxActiveCard && window.__bbHoneyParallaxActiveCard !== hoveredCard) {
+    resetHoneyParallax(window.__bbHoneyParallaxActiveCard)
+  }
+
+  if (!hoveredCard) {
+    window.__bbHoneyParallaxActiveCard = null
+    return
+  }
+
+  const rect = hoveredCard.getBoundingClientRect()
+  if (!rect.width || !rect.height) {
+    resetHoneyParallax(hoveredCard)
+    window.__bbHoneyParallaxActiveCard = hoveredCard
+    return
+  }
+
+  const progressX = clamp((event.clientX - rect.left) / rect.width, 0, 1)
+  const progressY = clamp((event.clientY - rect.top) / rect.height, 0, 1)
+  const offsetX = roundTo((progressX - 0.5) * HONEY_PARALLAX_MAX_X * 2, 2)
+  const offsetY = roundTo((progressY - 0.5) * HONEY_PARALLAX_MAX_Y * 2, 2)
+
+  hoveredCard.style.setProperty(HONEY_PARALLAX_VAR_X, `${offsetX}px`)
+  hoveredCard.style.setProperty(HONEY_PARALLAX_VAR_Y, `${offsetY}px`)
+  window.__bbHoneyParallaxActiveCard = hoveredCard
+}
+
+const ensureHoneyParallaxTracking = () => {
+  if (window.__bbHoneyParallaxTrackingInitialized) {
+    return
+  }
+
+  window.__bbHoneyParallaxTrackingInitialized = true
+  document.addEventListener("pointermove", updateHoneyParallaxFromPointer, {passive: true})
+  document.addEventListener("pointerout", (event) => {
+    if (!event.relatedTarget) {
+      resetActiveHoneyParallax()
+    }
+  })
+  window.addEventListener("blur", resetActiveHoneyParallax)
+}
+
+const randomBetweenInt = (min, max) => Math.floor(randomInRange(min, max + 1))
+
+const clearHoneySheenTimeouts = () => {
+  if (window.__bbHoneySheenNextTimeout) {
+    window.clearTimeout(window.__bbHoneySheenNextTimeout)
+    window.__bbHoneySheenNextTimeout = null
+  }
+
+  if (window.__bbHoneySheenWaveTimeout) {
+    window.clearTimeout(window.__bbHoneySheenWaveTimeout)
+    window.__bbHoneySheenWaveTimeout = null
+  }
+}
+
+const clearActiveHoneySheenCard = () => {
+  if (window.__bbHoneySheenActiveCard && window.__bbHoneySheenActiveCard.classList) {
+    window.__bbHoneySheenActiveCard.classList.remove(HONEY_SHEEN_ACTIVE_CLASS)
+  }
+  window.__bbHoneySheenActiveCard = null
+}
+
+const getBuzzSoundCards = () =>
+  Array.from(document.querySelectorAll(".bb-sound-grid .bb-sound-card"))
+
+const scheduleNextHoneySheenWave = (runId) => {
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS)) {
+    return
+  }
+
+  const delay = randomBetweenInt(HONEY_SHEEN_MIN_DELAY_MS, HONEY_SHEEN_MAX_DELAY_MS)
+  window.__bbHoneySheenNextTimeout = window.setTimeout(() => {
+    if (window.__bbHoneySheenRunId !== runId) {
+      return
+    }
+    triggerHoneySheenWave(runId)
+  }, delay)
+}
+
+const triggerHoneySheenWave = (runId) => {
+  if (window.__bbHoneySheenRunId !== runId) {
+    return
+  }
+
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS)) {
+    return
+  }
+
+  const cards = getBuzzSoundCards()
+  if (!cards.length) {
+    scheduleNextHoneySheenWave(runId)
+    return
+  }
+
+  clearActiveHoneySheenCard()
+
+  let candidates = cards
+  if (window.__bbHoneySheenLastCard && cards.length > 1) {
+    candidates = cards.filter((card) => card !== window.__bbHoneySheenLastCard)
+  }
+
+  const nextCard = candidates[Math.floor(Math.random() * candidates.length)] || cards[0]
+  nextCard.classList.add(HONEY_SHEEN_ACTIVE_CLASS)
+  window.__bbHoneySheenActiveCard = nextCard
+  window.__bbHoneySheenLastCard = nextCard
+
+  window.__bbHoneySheenWaveTimeout = window.setTimeout(() => {
+    if (window.__bbHoneySheenRunId !== runId) {
+      return
+    }
+    if (nextCard.classList) {
+      nextCard.classList.remove(HONEY_SHEEN_ACTIVE_CLASS)
+    }
+    if (window.__bbHoneySheenActiveCard === nextCard) {
+      window.__bbHoneySheenActiveCard = null
+    }
+    scheduleNextHoneySheenWave(runId)
+  }, HONEY_SHEEN_WAVE_MS)
+}
+
+const startHoneySheenWaves = () => {
+  window.__bbHoneySheenRunId = (window.__bbHoneySheenRunId || 0) + 1
+  const runId = window.__bbHoneySheenRunId
+
+  clearHoneySheenTimeouts()
+  clearActiveHoneySheenCard()
+
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS)) {
+    return
+  }
+
+  scheduleNextHoneySheenWave(runId)
+}
+
+const stopHoneySheenWaves = () => {
+  window.__bbHoneySheenRunId = (window.__bbHoneySheenRunId || 0) + 1
+  clearHoneySheenTimeouts()
+  clearActiveHoneySheenCard()
+  window.__bbHoneySheenLastCard = null
 }
 
 const applyDesktopNavState = (collapsed) => {
@@ -1022,6 +1307,287 @@ Hooks.CopyButton = {
   },
   destroyed() {
     this.el.removeEventListener("click", this.handleClick)
+  }
+}
+
+Hooks.QueenPick = {
+  mounted() {
+    this.rotationMs = this.readRotationMs()
+    this.countdownEl = this.el.querySelector("[data-role='queen-pick-countdown']")
+    this.titleEl = this.el.querySelector("[data-role='queen-pick-title']")
+    this.metaEl = this.el.querySelector("[data-role='queen-pick-meta']")
+    this.playButtonEl = this.el.querySelector("[data-role='queen-pick-play']")
+    this.pickTimer = null
+    this.countdownTimer = null
+    this.nextPickDeadlineMs = null
+    this.currentCandidateKey = null
+    this.highlightedCard = null
+    this.candidates = []
+
+    this.handleVisibilityChange = () => {
+      if (document.hidden) {
+        this.clearTimers()
+        this.stopCountdown()
+        return
+      }
+
+      this.syncCandidates()
+      this.syncWithBuzzMode()
+    }
+
+    document.addEventListener("visibilitychange", this.handleVisibilityChange)
+
+    this.buzzClassObserver = new MutationObserver(() => {
+      this.syncWithBuzzMode()
+    })
+
+    this.buzzClassObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"]
+    })
+
+    this.syncCandidates()
+    this.syncWithBuzzMode()
+  },
+  updated() {
+    this.syncCandidates()
+
+    if (!this.candidates.some((candidate) => candidate.key === this.currentCandidateKey)) {
+      this.currentCandidateKey = null
+    }
+
+    this.syncWithBuzzMode()
+  },
+  destroyed() {
+    this.clearTimers()
+    this.stopCountdown()
+    this.clearHighlightedCard()
+
+    if (this.buzzClassObserver) {
+      this.buzzClassObserver.disconnect()
+      this.buzzClassObserver = null
+    }
+
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange)
+  },
+  readRotationMs() {
+    const raw = parseInt(this.el.dataset.rotationMs || `${QUEEN_PICK_DEFAULT_ROTATION_MS}`, 10)
+    if (!Number.isFinite(raw)) {
+      return QUEEN_PICK_DEFAULT_ROTATION_MS
+    }
+
+    return Math.max(QUEEN_PICK_MIN_ROTATION_MS, raw)
+  },
+  isBuzzModeActive() {
+    return document.documentElement.classList.contains(BUZZ_MODE_CLASS)
+  },
+  syncCandidates() {
+    const cards = Array.from(document.querySelectorAll(".bb-sound-grid .bb-sound-card"))
+    this.candidates = cards
+      .map((cardEl) => this.extractCandidate(cardEl))
+      .filter((candidate) => candidate !== null)
+  },
+  extractCandidate(cardEl) {
+    if (!(cardEl instanceof Element)) {
+      return null
+    }
+
+    const playButton = cardEl.querySelector("button[phx-click='play'][phx-value-name]")
+    const filename =
+      (playButton?.getAttribute("phx-value-name") || cardEl.dataset.queenFilename || "").trim()
+
+    if (!filename) {
+      return null
+    }
+
+    const title = (cardEl.dataset.queenTitle || cardEl.querySelector(".bb-card-title")?.textContent || filename).trim()
+    const uploader = (cardEl.dataset.queenUploader || cardEl.querySelector(".bb-card-uploader-name")?.textContent || "").trim()
+    const tags = Array.from(cardEl.querySelectorAll(".bb-card-tag-label"))
+      .map((tagEl) => tagEl.textContent.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+
+    return {
+      key: cardEl.id || filename,
+      filename,
+      title,
+      uploader,
+      tags,
+      cardEl
+    }
+  },
+  formatCountdown(remainingMs) {
+    const seconds = Math.max(0, Math.ceil(remainingMs / 1000))
+    const minutesPart = Math.floor(seconds / 60)
+    const secondsPart = seconds % 60
+    return `${padNumber(minutesPart)}:${padNumber(secondsPart)}`
+  },
+  updateCountdown() {
+    if (!this.countdownEl || !Number.isFinite(this.nextPickDeadlineMs)) {
+      return
+    }
+
+    const remaining = Math.max(0, this.nextPickDeadlineMs - Date.now())
+    this.countdownEl.textContent = this.formatCountdown(remaining)
+  },
+  beginCountdown(delayMs) {
+    this.stopCountdown()
+    this.nextPickDeadlineMs = Date.now() + delayMs
+    this.updateCountdown()
+    this.countdownTimer = window.setInterval(() => this.updateCountdown(), 500)
+  },
+  stopCountdown() {
+    if (this.countdownTimer) {
+      window.clearInterval(this.countdownTimer)
+      this.countdownTimer = null
+    }
+  },
+  clearTimers() {
+    if (this.pickTimer) {
+      window.clearTimeout(this.pickTimer)
+      this.pickTimer = null
+    }
+  },
+  clearHighlightedCard() {
+    if (this.highlightedCard && this.highlightedCard.classList) {
+      this.highlightedCard.classList.remove("bb-queen-card-active")
+    }
+    this.highlightedCard = null
+  },
+  setHighlightedCard(cardEl) {
+    if (this.highlightedCard && this.highlightedCard !== cardEl && this.highlightedCard.classList) {
+      this.highlightedCard.classList.remove("bb-queen-card-active")
+    }
+
+    this.highlightedCard = cardEl
+    if (cardEl && cardEl.classList) {
+      cardEl.classList.add("bb-queen-card-active")
+    }
+  },
+  renderCandidate(candidate) {
+    if (!candidate) {
+      this.renderEmptyState()
+      return
+    }
+
+    if (this.titleEl) {
+      this.titleEl.textContent = candidate.title || candidate.filename
+    }
+
+    if (this.metaEl) {
+      const metaParts = []
+      if (candidate.uploader) {
+        metaParts.push(`uploaded by ${candidate.uploader}`)
+      }
+      if (candidate.tags.length > 0) {
+        metaParts.push(candidate.tags.join(" | "))
+      }
+      this.metaEl.textContent = metaParts.join("  ") || "Randomly selected from current results."
+    }
+
+    if (this.playButtonEl) {
+      this.playButtonEl.removeAttribute("disabled")
+      this.playButtonEl.setAttribute("phx-value-name", candidate.filename)
+    }
+
+    this.setHighlightedCard(candidate.cardEl)
+  },
+  renderEmptyState() {
+    if (this.titleEl) {
+      this.titleEl.textContent = "No sounds match current filters."
+    }
+    if (this.metaEl) {
+      this.metaEl.textContent = "Adjust search or tags to repopulate Queen's Pick."
+    }
+    if (this.playButtonEl) {
+      this.playButtonEl.setAttribute("disabled", "disabled")
+      this.playButtonEl.setAttribute("phx-value-name", "")
+    }
+    if (this.countdownEl) {
+      this.countdownEl.textContent = "--:--"
+    }
+    this.clearHighlightedCard()
+  },
+  pickRandomCandidate() {
+    if (!this.candidates || this.candidates.length === 0) {
+      return null
+    }
+
+    let pool = this.candidates
+    if (this.currentCandidateKey && this.candidates.length > 1) {
+      pool = this.candidates.filter((candidate) => candidate.key !== this.currentCandidateKey)
+    }
+
+    return pool[Math.floor(Math.random() * pool.length)] || this.candidates[0]
+  },
+  scheduleNextPick(delayMs = this.rotationMs) {
+    if (!this.isBuzzModeActive()) {
+      return
+    }
+
+    if (this.pickTimer) {
+      window.clearTimeout(this.pickTimer)
+      this.pickTimer = null
+    }
+
+    const safeDelay = Math.max(1000, delayMs)
+    this.beginCountdown(safeDelay)
+
+    this.pickTimer = window.setTimeout(() => {
+      this.pickTimer = null
+      this.runPick()
+    }, safeDelay)
+  },
+  runPick() {
+    if (!this.isBuzzModeActive() || document.hidden) {
+      return
+    }
+
+    this.syncCandidates()
+    const candidate = this.pickRandomCandidate()
+    if (!candidate) {
+      this.renderEmptyState()
+      this.clearTimers()
+      this.stopCountdown()
+      return
+    }
+
+    this.currentCandidateKey = candidate.key
+    this.renderCandidate(candidate)
+    this.scheduleNextPick(this.rotationMs)
+  },
+  syncWithBuzzMode() {
+    if (!this.isBuzzModeActive()) {
+      this.clearTimers()
+      this.stopCountdown()
+      this.clearHighlightedCard()
+      return
+    }
+
+    if (document.hidden) {
+      return
+    }
+
+    if (!this.candidates || this.candidates.length === 0) {
+      this.renderEmptyState()
+      this.clearTimers()
+      this.stopCountdown()
+      return
+    }
+
+    const currentCandidate =
+      this.candidates.find((candidate) => candidate.key === this.currentCandidateKey) || null
+
+    if (!currentCandidate) {
+      this.runPick()
+      return
+    }
+
+    this.renderCandidate(currentCandidate)
+
+    if (!this.pickTimer) {
+      this.scheduleNextPick(this.rotationMs)
+    }
   }
 }
 

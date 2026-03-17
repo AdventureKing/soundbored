@@ -100,6 +100,30 @@
         </button>
       </form>
 
+      <div id="bb-queen-pick" class="bb-queen-pick" phx-hook="QueenPick" data-rotation-ms="30000">
+        <button
+          type="button"
+          class="bb-queen-pick-hitarea"
+          data-role="queen-pick-play"
+          phx-click="play"
+          phx-value-name=""
+          aria-label="Play Queen's Pick"
+          disabled
+        >
+        </button>
+
+        <div class="bb-queen-pick-head">
+          <span class="bb-queen-pick-label">Queen's Pick</span>
+          <span class="bb-queen-pick-countdown" data-role="queen-pick-countdown">00:30</span>
+        </div>
+        <div class="bb-queen-pick-body">
+          <span class="bb-queen-pick-title" data-role="queen-pick-title">Waiting for sounds...</span>
+          <span class="bb-queen-pick-meta" data-role="queen-pick-meta">
+            Buzz Mode rotates a random sound every 30 seconds.
+          </span>
+        </div>
+      </div>
+
       <div class="bb-featured-block">
         <div class="bb-tags-header-row">
           <span class="bb-tags-label">Featured Tags</span>
@@ -208,7 +232,13 @@
         <% else %>
           <div class="bb-sound-grid">
             <%= for sound <- filtered_sounds do %>
-              <div id={sound_card_dom_id(sound)} class="bb-sound-card">
+              <div
+                id={sound_card_dom_id(sound)}
+                class="bb-sound-card"
+                data-queen-filename={sound.filename}
+                data-queen-title={display_name(sound.filename)}
+                data-queen-uploader={if(sound.user && sound.user.username, do: sound.user.username, else: "")}
+              >
                 <button
                   phx-click="play"
                   phx-value-name={sound.filename}
