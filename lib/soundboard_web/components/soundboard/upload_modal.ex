@@ -3,7 +3,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
   The upload modal component.
   """
   use Phoenix.Component
-  alias SoundboardWeb.Components.Soundboard.TagComponents
+  alias SoundboardWeb.Components.Soundboard.{TagComponents, VolumeControl}
 
   def upload_modal(assigns) do
     ~H"""
@@ -73,6 +73,19 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                     />
                   </div>
                 <% end %>
+
+                <VolumeControl.volume_control
+                  id="upload-volume-control"
+                  value={@upload_volume}
+                  target="upload"
+                  label="Clip Volume"
+                  preview_label="Preview Clip"
+                  preview_disabled={!source_ready}
+                  data-preview-kind={if(@source_type == "local", do: "local-upload", else: "url")}
+                  data-file-input-id="upload-audio-input"
+                  data-url-input-id="upload-url-input"
+                  data-preview-src={if(@source_type == "url", do: @url || "", else: "")}
+                />
 
                 <div class="bb-field">
                   <label class="bb-label">Name</label>

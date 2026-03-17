@@ -288,12 +288,15 @@
                             if(tag_selected?(tag, @selected_tags), do: "active", else: "")
                           ]}
                         >
-                          {tag.name}
+                          <span class="bb-card-tag-label">{tag.name}</span>
                         </button>
                       <% end %>
                     </div>
 
-                    <span data-role="clip-duration" class="bb-clip-duration">--:--</span>
+                    <span class="bb-clip-duration">
+                      <.icon name="hero-clock" class="bb-clip-duration-icon h-5 w-5" />
+                      <span data-role="clip-duration" class="bb-clip-duration-value">--:--</span>
+                    </span>
                   </div>
                 </div>
               </div>

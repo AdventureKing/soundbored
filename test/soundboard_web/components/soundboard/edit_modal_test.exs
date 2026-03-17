@@ -21,6 +21,8 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
 
     assert html =~ "Edit Sound"
     assert html =~ "Local File"
+    assert html =~ "Clip Volume"
+    assert html =~ "edit-volume-control"
     assert html =~ "Save Changes"
     assert html =~ "Delete Sound"
   end

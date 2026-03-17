@@ -5,7 +5,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
   use Phoenix.Component
   alias Soundboard.Accounts.Permissions
   alias Soundboard.Volume
-  alias SoundboardWeb.Components.Soundboard.TagComponents
+  alias SoundboardWeb.Components.Soundboard.{TagComponents, VolumeControl}
 
   attr :flash, :map, default: %{}
   attr :edit_name_error, :string, default: nil
@@ -30,6 +30,16 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
 
     ~H"""
     <% volume_percent = Volume.decimal_to_percent(@current_sound.volume) %>
+    <% edit_preview_src =
+      if @current_sound.source_type == "url" do
+        @current_sound.url || ""
+      else
+        case @current_sound.filename do
+          filename when is_binary(filename) and filename != "" -> "/uploads/#{filename}"
+          _ -> ""
+        end
+      end %>
+    <% edit_preview_disabled = edit_preview_src == "" %>
     <div class="bb-modal-overlay" phx-window-keydown="close_modal_key" phx-key="Escape">
       <div class="bb-modal-scroll">
         <div class="bb-modal-wrap">
@@ -61,7 +71,6 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                 <input type="hidden" name="sound_id" value={@current_sound.id} />
                 <input type="hidden" name="source_type" value={@current_sound.source_type} />
                 <input type="hidden" name="url" value={@current_sound.url} />
-                <input type="hidden" name="volume" value={volume_percent} />
 
                 <div class="bb-field">
                   <label class="bb-label">Source</label>
@@ -112,6 +121,17 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     </p>
                   </div>
                 <% end %>
+
+                <VolumeControl.volume_control
+                  id="edit-volume-control"
+                  value={volume_percent}
+                  target="edit"
+                  label="Clip Volume"
+                  preview_label="Preview Clip"
+                  preview_disabled={edit_preview_disabled}
+                  data-preview-kind="existing"
+                  data-preview-src={edit_preview_src}
+                />
 
                 <div class="bb-field">
                   <label class="bb-label">Tags</label>

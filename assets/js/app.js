@@ -44,6 +44,9 @@ const BOOST_CAP = 1.5
 const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
 const BUZZ_MODE_CLASS = "buzz-mode"
 const DESKTOP_NAV_COLLAPSED_CLASS = "desktop-nav-collapsed"
+const CLIP_DURATION_CACHE_PREFIX = "soundboard:clip-duration:v1:"
+const CLIP_DURATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30
+const clipDurationMemoryCache = new Map()
 
 const clearBuzzSyncFlag = (toggle) => {
   requestAnimationFrame(() => {
@@ -165,6 +168,60 @@ const stopActiveLocalPlayer = () => {
   }
 }
 
+const clipDurationCacheKey = (source) => `${CLIP_DURATION_CACHE_PREFIX}${source}`
+
+const readCachedClipDuration = (source) => {
+  if (!source) {
+    return null
+  }
+
+  const memoryCached = clipDurationMemoryCache.get(source)
+  if (Number.isFinite(memoryCached) && memoryCached > 0) {
+    return memoryCached
+  }
+
+  try {
+    const raw = window.localStorage.getItem(clipDurationCacheKey(source))
+    if (!raw) {
+      return null
+    }
+
+    const parsed = JSON.parse(raw)
+    const duration = Number(parsed?.duration)
+    const cachedAt = Number(parsed?.cachedAt)
+
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return null
+    }
+
+    if (Number.isFinite(cachedAt) && Date.now() - cachedAt > CLIP_DURATION_CACHE_TTL_MS) {
+      window.localStorage.removeItem(clipDurationCacheKey(source))
+      return null
+    }
+
+    clipDurationMemoryCache.set(source, duration)
+    return duration
+  } catch (_err) {
+    return null
+  }
+}
+
+const writeCachedClipDuration = (source, duration) => {
+  if (!source || !Number.isFinite(duration) || duration <= 0) {
+    return
+  }
+
+  const normalized = roundTo(duration, 3)
+  clipDurationMemoryCache.set(source, normalized)
+
+  try {
+    window.localStorage.setItem(
+      clipDurationCacheKey(source),
+      JSON.stringify({duration: normalized, cachedAt: Date.now()})
+    )
+  } catch (_err) {}
+}
+
 window.addEventListener("phx:stop-all-sounds", stopActiveLocalPlayer)
 
 let Hooks = {}
@@ -277,6 +334,12 @@ Hooks.LocalPlayer = {
     }
 
     this.durationSource = source
+    const cachedDuration = readCachedClipDuration(source)
+    if (Number.isFinite(cachedDuration) && cachedDuration > 0) {
+      this.durationEl.textContent = this.formatClipDuration(cachedDuration)
+      return
+    }
+
     this.durationEl.textContent = "--:--"
     this.durationLoadToken += 1
     const token = this.durationLoadToken
@@ -296,8 +359,12 @@ Hooks.LocalPlayer = {
       }
 
       const duration = probe.duration
-      this.durationEl.textContent =
-        Number.isFinite(duration) && duration > 0 ? this.formatClipDuration(duration) : "--:--"
+      if (Number.isFinite(duration) && duration > 0) {
+        writeCachedClipDuration(source, duration)
+        this.durationEl.textContent = this.formatClipDuration(duration)
+      } else {
+        this.durationEl.textContent = "--:--"
+      }
       cleanup()
     }
 
