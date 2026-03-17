@@ -88,6 +88,16 @@
           class="bb-search-input"
           autocomplete="off"
         />
+        <button
+          :if={@search_query != ""}
+          type="button"
+          phx-click="clear_search"
+          class="bb-search-clear"
+          aria-label="Clear search"
+          title="Clear search"
+        >
+          <.icon name="hero-x-mark" class="h-4 w-4" />
+        </button>
       </form>
 
       <div class="bb-featured-block">

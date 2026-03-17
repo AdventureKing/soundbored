@@ -106,6 +106,11 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
+  def handle_event("clear_search", _params, socket) do
+    {:noreply, assign(socket, :search_query, "")}
+  end
+
+  @impl true
   def handle_event("toggle_tag_filter", %{"tag" => tag_name}, socket) do
     case Enum.find(all_tags(socket.assigns.uploaded_files), &(&1.name == tag_name)) do
       nil ->

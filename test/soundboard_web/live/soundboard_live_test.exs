@@ -55,6 +55,26 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert rendered =~ "test.mp3"
     end
 
+    test "can clear search query from find sounds", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      refute has_element?(view, "button[phx-click='clear_search']")
+
+      view
+      |> element("form")
+      |> render_change(%{"query" => "test"})
+
+      assert has_element?(view, "input[name='query'][value='test']")
+      assert has_element?(view, "button[phx-click='clear_search']")
+
+      view
+      |> element("button[phx-click='clear_search']")
+      |> render_click()
+
+      assert has_element?(view, "input[name='query'][value='']")
+      refute has_element?(view, "button[phx-click='clear_search']")
+    end
+
     test "can play sound", %{conn: conn, sound: sound} do
       {:ok, view, _html} = live(conn, "/")
 
