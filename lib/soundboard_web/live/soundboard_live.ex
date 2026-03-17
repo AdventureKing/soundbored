@@ -101,6 +101,11 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
+  def handle_event("play_from_title", %{"name" => filename}, socket) do
+    SoundPlayback.play(socket, filename)
+  end
+
+  @impl true
   def handle_event("search", %{"query" => query}, socket) do
     {:noreply, assign(socket, :search_query, query)}
   end

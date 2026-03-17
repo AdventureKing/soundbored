@@ -212,6 +212,7 @@
                 <button
                   phx-click="play"
                   phx-value-name={sound.filename}
+                  aria-label={"Play #{display_name(sound.filename)}"}
                   class="absolute inset-0 z-0 h-full w-full cursor-pointer"
                 >
                 </button>
@@ -219,7 +220,12 @@
                 <div class="bb-card-body">
                   <div class="bb-card-top">
                     <div class="bb-card-meta">
-                      <div class="bb-card-title" title={display_name(sound.filename)}>
+                      <div
+                        class="bb-card-title"
+                        data-full-title={display_name(sound.filename)}
+                        phx-click="play_from_title"
+                        phx-value-name={sound.filename}
+                      >
                         {display_name(sound.filename)}
                       </div>
                       <%= if sound.user && sound.user.username do %>

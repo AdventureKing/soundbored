@@ -975,6 +975,7 @@ body {
 }
 
 .bb-card-title {
+  position: relative;
   color: var(--bb-text-primary);
   font-size: 1.1117rem;
   font-weight: 600;
@@ -982,6 +983,40 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.bb-card-title::after {
+  content: attr(data-full-title);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  display: block;
+  min-width: max-content;
+  max-width: min(34rem, 75vw);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 0.5px solid var(--bb-border-secondary);
+  background: var(--bb-bg-tertiary);
+  color: var(--bb-text-primary);
+  font-size: 0.8236rem;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s ease;
+  pointer-events: none;
+}
+
+.bb-card-title:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
 .bb-card-uploader {
