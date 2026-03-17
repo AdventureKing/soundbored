@@ -6,6 +6,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
   alias Soundboard.Accounts.Permissions
   alias Soundboard.Volume
   alias SoundboardWeb.Components.Soundboard.{TagComponents, VolumeControl}
+  import SoundboardWeb.SoundHelpers, only: [upload_path: 1]
 
   attr :flash, :map, default: %{}
   attr :edit_name_error, :string, default: nil
@@ -35,7 +36,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
         @current_sound.url || ""
       else
         case @current_sound.filename do
-          filename when is_binary(filename) and filename != "" -> "/uploads/#{filename}"
+          filename when is_binary(filename) and filename != "" -> upload_path(filename)
           _ -> ""
         end
       end %>

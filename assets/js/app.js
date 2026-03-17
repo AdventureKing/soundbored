@@ -60,6 +60,7 @@ const DESKTOP_NAV_COLLAPSED_CLASS = "desktop-nav-collapsed"
 const CLIP_DURATION_CACHE_PREFIX = "soundboard:clip-duration:v1:"
 const CLIP_DURATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30
 const clipDurationMemoryCache = new Map()
+const buildUploadUrl = (filename) => `/uploads/${encodeURIComponent(filename)}`
 
 const clearBuzzSyncFlag = (toggle) => {
   requestAnimationFrame(() => {
@@ -598,7 +599,7 @@ Hooks.LocalPlayer = {
       return url
     }
     if (filename) {
-      return `/uploads/${filename}`
+      return buildUploadUrl(filename)
     }
     return null
   },
