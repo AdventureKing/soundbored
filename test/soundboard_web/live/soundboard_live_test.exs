@@ -906,6 +906,32 @@ defmodule SoundboardWeb.SoundboardLiveTest do
       assert rendered =~ "Played by testuser"
       refute rendered =~ "testuser played #{sound.filename}"
     end
+
+    test "clears now playing card on matching finish event", %{conn: conn, sound: sound} do
+      {:ok, view, _html} = live(conn, "/")
+
+      send(view.pid, {:sound_played, %{filename: sound.filename, played_by: "testuser"}})
+      rendered = render(view)
+      assert rendered =~ SoundHelpers.display_name(sound.filename)
+      assert rendered =~ ~s(data-now-playing-event-id="1")
+
+      render_hook(view, "now_playing_finished", %{"event_id" => "1"})
+      cleared = render(view)
+
+      assert cleared =~ "Waiting for playback..."
+      assert cleared =~ ~s(data-now-playing-event-id="0")
+    end
+
+    test "ignores stale finish event for now playing card", %{conn: conn, sound: sound} do
+      {:ok, view, _html} = live(conn, "/")
+
+      send(view.pid, {:sound_played, %{filename: sound.filename, played_by: "testuser"}})
+      render_hook(view, "now_playing_finished", %{"event_id" => "999"})
+
+      rendered = render(view)
+      assert rendered =~ SoundHelpers.display_name(sound.filename)
+      assert rendered =~ ~s(data-now-playing-event-id="1")
+    end
   end
 
   defp uploads_dir do

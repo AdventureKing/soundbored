@@ -580,6 +580,7 @@ Hooks.NowPlayingCard = {
     this.startedAtMs = null
     this.durationSeconds = null
     this.durationRequestToken = 0
+    this.finishedEventNotifiedId = null
     this.animationFrame = null
     this.bylineTimer = null
     this.tick = this.tick.bind(this)
@@ -620,11 +621,13 @@ Hooks.NowPlayingCard = {
     this.startedAtMs = startedAtMs
     this.durationSeconds = null
     this.durationRequestToken += 1
+    this.finishedEventNotifiedId = null
 
     this.stopTicking()
     this.setProgress(0)
 
     if (eventId <= 0) {
+      this.finishedEventNotifiedId = null
       this.hideByline()
       return
     }
@@ -673,6 +676,8 @@ Hooks.NowPlayingCard = {
 
       if (ratio < 1) {
         this.animationFrame = window.requestAnimationFrame(this.tick)
+      } else {
+        this.notifyFinished()
       }
       return
     }
@@ -684,6 +689,18 @@ Hooks.NowPlayingCard = {
     if (fallbackRatio < 1) {
       this.animationFrame = window.requestAnimationFrame(this.tick)
     }
+  },
+  notifyFinished() {
+    if (this.eventId <= 0) {
+      return
+    }
+
+    if (this.finishedEventNotifiedId === this.eventId) {
+      return
+    }
+
+    this.finishedEventNotifiedId = this.eventId
+    this.pushEvent("now_playing_finished", {event_id: this.eventId})
   },
   setProgress(percent) {
     if (!this.progressFillEl) {

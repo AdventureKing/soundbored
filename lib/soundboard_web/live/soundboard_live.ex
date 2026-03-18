@@ -111,6 +111,22 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
+  def handle_event("now_playing_finished", %{"event_id" => event_id}, socket) do
+    parsed_event_id = parse_now_playing_event_id(event_id)
+
+    if parsed_event_id > 0 and parsed_event_id == (socket.assigns[:now_playing_event_id] || 0) do
+      {:noreply, clear_now_playing(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("now_playing_finished", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("search", %{"query" => query}, socket) do
     {:noreply, assign(socket, :search_query, query)}
   end
@@ -724,6 +740,26 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   defp assign_now_playing(socket, _event), do: socket
+
+  defp clear_now_playing(socket) do
+    socket
+    |> assign(:now_playing_event_id, 0)
+    |> assign(:now_playing_title, nil)
+    |> assign(:now_playing_played_by, nil)
+    |> assign(:now_playing_source, nil)
+    |> assign(:now_playing_started_at_ms, nil)
+  end
+
+  defp parse_now_playing_event_id(event_id) when is_integer(event_id), do: event_id
+
+  defp parse_now_playing_event_id(event_id) when is_binary(event_id) do
+    case Integer.parse(event_id) do
+      {value, ""} -> value
+      _ -> 0
+    end
+  end
+
+  defp parse_now_playing_event_id(_event_id), do: 0
 
   defp resolve_now_playing_source(uploaded_files, filename) do
     matched_sound =
