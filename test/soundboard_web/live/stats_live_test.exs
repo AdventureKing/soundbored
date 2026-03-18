@@ -52,6 +52,13 @@ defmodule SoundboardWeb.StatsLiveTest do
     assert html =~ SoundHelpers.display_name(sound.filename)
   end
 
+  test "shows cooldown state in sidebar on stats page", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/stats")
+
+    assert html =~ "sidebar-cooldown-desktop"
+    refute html =~ ~s(data-cooldown-end-ms="")
+  end
+
   test "handles sound_played message", %{conn: conn, sound: sound} do
     {:ok, view, _html} = live(conn, "/stats")
 

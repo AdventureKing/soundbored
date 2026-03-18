@@ -4,7 +4,7 @@ defmodule SoundboardWeb.StatsLive do
   alias SoundboardWeb.PresenceHandler
   import Phoenix.Component
   import SoundboardWeb.SoundHelpers
-  alias Soundboard.{Accounts, Favorites, PubSubTopics, Sounds, Stats}
+  alias Soundboard.{Accounts, Favorites, PlaybackCooldown, PubSubTopics, Sounds, Stats}
   alias SoundboardWeb.Live.Support.{FlashHelpers, SoundPlayback}
   import FlashHelpers, only: [clear_flash_after_timeout: 1]
   require Logger
@@ -29,12 +29,15 @@ defmodule SoundboardWeb.StatsLive do
      |> assign(:current_path, if(preview_mode, do: "/preview/stats", else: "/stats"))
      |> assign(:preview_mode, preview_mode)
      |> assign(:current_user, get_user_from_session(session))
+     |> assign(:cooldown_end_ms, nil)
+     |> assign(:cooldown_remaining_ms, nil)
      |> assign(:force_update, 0)
      |> assign(:selected_week, current_week)
      |> assign(:current_week, current_week)
      |> stream_configure(:recent_plays, dom_id: &recent_play_dom_id/1)
      |> stream(:recent_plays, [])
-     |> assign_stats()}
+     |> assign_stats()
+     |> refresh_cooldown_timer()}
   end
 
   @impl true
@@ -44,6 +47,7 @@ defmodule SoundboardWeb.StatsLive do
     {:noreply,
      socket
      |> stream(:recent_plays, recent_plays, reset: true)
+     |> maybe_refresh_cooldown_timer(username)
      |> put_flash(:info, "#{username} played #{display_name(filename)}")
      |> clear_flash_after_timeout()}
   end
@@ -434,6 +438,29 @@ defmodule SoundboardWeb.StatsLive do
   defp recent_play_dom_id(play) do
     base = slugify(play.filename)
     "recent-play-#{base}-#{play.id}"
+  end
+
+  defp refresh_cooldown_timer(socket) do
+    cooldown_end_ms = PlaybackCooldown.active_cooldown_end_unix_ms(socket.assigns[:current_user])
+
+    socket
+    |> assign(:cooldown_end_ms, cooldown_end_ms)
+    |> assign(:cooldown_remaining_ms, remaining_ms_from_end(cooldown_end_ms))
+  end
+
+  defp maybe_refresh_cooldown_timer(socket, played_by) when is_binary(played_by) do
+    case socket.assigns[:current_user] do
+      %{username: ^played_by} -> refresh_cooldown_timer(socket)
+      _ -> socket
+    end
+  end
+
+  defp maybe_refresh_cooldown_timer(socket, _played_by), do: socket
+
+  defp remaining_ms_from_end(nil), do: nil
+
+  defp remaining_ms_from_end(end_ms) when is_integer(end_ms) do
+    max(end_ms - System.system_time(:millisecond), 0)
   end
 
   @impl true
