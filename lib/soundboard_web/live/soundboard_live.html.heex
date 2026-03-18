@@ -23,6 +23,40 @@
 
   <div class="bb-content-grid">
     <aside class="bb-filter-panel">
+      <section
+        id="bb-now-playing-card"
+        class="bb-now-playing-card"
+        phx-hook="NowPlayingCard"
+        data-now-playing-event-id={@now_playing_event_id}
+        data-now-playing-source={@now_playing_source || ""}
+        data-now-playing-started-at-ms={@now_playing_started_at_ms || ""}
+      >
+        <div class="bb-now-playing-head">
+          <span class="bb-now-playing-label">Now Playing</span>
+        </div>
+
+        <div class="bb-now-playing-title">
+          {if @now_playing_title, do: @now_playing_title, else: "Waiting for playback..."}
+        </div>
+
+        <div class="bb-now-playing-progress">
+          <span data-role="now-playing-progress-fill" class="bb-now-playing-progress-fill"></span>
+        </div>
+
+        <div
+          data-role="now-playing-byline"
+          class={[
+            "bb-now-playing-byline",
+            if(@now_playing_event_id > 0 && @now_playing_played_by,
+              do: "",
+              else: "bb-now-playing-byline-hidden"
+            )
+          ]}
+        >
+          {if @now_playing_played_by, do: "Played by #{@now_playing_played_by}", else: ""}
+        </div>
+      </section>
+
       <div class="bb-panel-header">
         <div>
           <h2 class="bb-panel-title">Find Sounds</h2>
@@ -117,7 +151,9 @@
           <span class="bb-queen-pick-countdown" data-role="queen-pick-countdown">00:30</span>
         </div>
         <div class="bb-queen-pick-body">
-          <span class="bb-queen-pick-title" data-role="queen-pick-title">Waiting for sounds...</span>
+          <span class="bb-queen-pick-title" data-role="queen-pick-title">
+            Waiting for sounds...
+          </span>
           <span class="bb-queen-pick-meta" data-role="queen-pick-meta">
             Buzz Mode rotates a random sound every 30 seconds.
           </span>
@@ -237,7 +273,9 @@
                 class="bb-sound-card"
                 data-queen-filename={sound.filename}
                 data-queen-title={display_name(sound.filename)}
-                data-queen-uploader={if(sound.user && sound.user.username, do: sound.user.username, else: "")}
+                data-queen-uploader={
+                  if(sound.user && sound.user.username, do: sound.user.username, else: "")
+                }
               >
                 <button
                   phx-click="play"
@@ -258,12 +296,20 @@
                       >
                         {display_name(sound.filename)}
                       </div>
-                      <%= if sound.user && sound.user.username do %>
-                        <div class="bb-card-uploader">
-                          <.icon name="hero-arrow-up-tray" class="bb-card-uploader-icon h-4 w-4" />
-                          <span class="bb-card-uploader-name">{sound.user.username}</span>
-                        </div>
-                      <% end %>
+                      <div class="bb-card-tags">
+                        <%= for tag <- sound.tags do %>
+                          <button
+                            phx-click="toggle_tag_filter"
+                            phx-value-tag={tag.name}
+                            class={[
+                              "bb-card-tag",
+                              if(tag_selected?(tag, @selected_tags), do: "active", else: "")
+                            ]}
+                          >
+                            <span class="bb-card-tag-label">{tag.name}</span>
+                          </button>
+                        <% end %>
+                      </div>
                     </div>
 
                     <div class="bb-card-actions">
@@ -325,22 +371,13 @@
                     <div data-role="preview-time" class="bb-preview-time">0:00</div>
                   </div>
 
-                  <div class="bb-card-tags-row">
-                    <div class="bb-card-tags">
-                      <%= for tag <- sound.tags do %>
-                        <button
-                          phx-click="toggle_tag_filter"
-                          phx-value-tag={tag.name}
-                          class={[
-                            "bb-card-tag",
-                            if(tag_selected?(tag, @selected_tags), do: "active", else: "")
-                          ]}
-                        >
-                          <span class="bb-card-tag-label">{tag.name}</span>
-                        </button>
-                      <% end %>
-                    </div>
-
+                  <div class="bb-card-footer-row">
+                    <%= if sound.user && sound.user.username do %>
+                      <div class="bb-card-uploader">
+                        <.icon name="hero-arrow-up-tray" class="bb-card-uploader-icon h-4 w-4" />
+                        <span class="bb-card-uploader-name">{sound.user.username}</span>
+                      </div>
+                    <% end %>
                     <span class="bb-clip-duration">
                       <.icon name="hero-clock" class="bb-clip-duration-icon h-5 w-5" />
                       <span

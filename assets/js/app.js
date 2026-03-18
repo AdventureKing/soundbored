@@ -508,9 +508,237 @@ const writeCachedClipDuration = (source, duration) => {
   } catch (_err) {}
 }
 
+const clipDurationProbePromises = new Map()
+
+const loadClipDuration = (source) => {
+  if (!source) {
+    return Promise.resolve(null)
+  }
+
+  const cached = readCachedClipDuration(source)
+  if (Number.isFinite(cached) && cached > 0) {
+    return Promise.resolve(cached)
+  }
+
+  const inFlight = clipDurationProbePromises.get(source)
+  if (inFlight) {
+    return inFlight
+  }
+
+  const probePromise = new Promise((resolve) => {
+    const probe = new Audio()
+    probe.preload = "metadata"
+
+    const cleanup = () => {
+      probe.removeEventListener("loadedmetadata", onLoadedMetadata)
+      probe.removeEventListener("error", onError)
+      probe.src = ""
+    }
+
+    const onLoadedMetadata = () => {
+      const duration = probe.duration
+      if (Number.isFinite(duration) && duration > 0) {
+        writeCachedClipDuration(source, duration)
+        cleanup()
+        resolve(duration)
+        return
+      }
+
+      cleanup()
+      resolve(null)
+    }
+
+    const onError = () => {
+      cleanup()
+      resolve(null)
+    }
+
+    probe.addEventListener("loadedmetadata", onLoadedMetadata)
+    probe.addEventListener("error", onError)
+    probe.src = source
+  })
+
+  clipDurationProbePromises.set(source, probePromise)
+
+  probePromise.finally(() => {
+    clipDurationProbePromises.delete(source)
+  })
+
+  return probePromise
+}
+
 window.addEventListener("phx:stop-all-sounds", stopActiveLocalPlayer)
 
 let Hooks = {}
+Hooks.NowPlayingCard = {
+  mounted() {
+    this.progressFillEl = this.el.querySelector("[data-role='now-playing-progress-fill']")
+    this.bylineEl = this.el.querySelector("[data-role='now-playing-byline']")
+    this.signature = null
+    this.eventId = 0
+    this.source = ""
+    this.startedAtMs = null
+    this.durationSeconds = null
+    this.durationRequestToken = 0
+    this.animationFrame = null
+    this.bylineTimer = null
+    this.tick = this.tick.bind(this)
+    this.syncFromDataset(true)
+  },
+  updated() {
+    this.syncFromDataset()
+  },
+  destroyed() {
+    this.stopTicking()
+    this.clearBylineTimer()
+    this.durationRequestToken += 1
+  },
+  parseEventId() {
+    const parsed = Number(this.el.dataset.nowPlayingEventId)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  },
+  parseStartedAtMs() {
+    const parsed = Number(this.el.dataset.nowPlayingStartedAtMs)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  },
+  syncFromDataset(force = false) {
+    const eventId = this.parseEventId()
+    const source = (this.el.dataset.nowPlayingSource || "").trim()
+    const startedAtMs = this.parseStartedAtMs()
+    const signature = `${eventId}|${source}|${startedAtMs ?? ""}`
+
+    if (!force && signature === this.signature) {
+      this.eventId = eventId
+      this.startedAtMs = startedAtMs
+      this.syncBylineVisibility()
+      return
+    }
+
+    this.signature = signature
+    this.eventId = eventId
+    this.source = source
+    this.startedAtMs = startedAtMs
+    this.durationSeconds = null
+    this.durationRequestToken += 1
+
+    this.stopTicking()
+    this.setProgress(0)
+
+    if (eventId <= 0) {
+      this.hideByline()
+      return
+    }
+
+    this.syncBylineVisibility()
+    this.resolveDuration(this.durationRequestToken)
+    this.startTicking()
+  },
+  resolveDuration(requestToken) {
+    if (!this.source) {
+      return
+    }
+
+    loadClipDuration(this.source).then((duration) => {
+      if (requestToken !== this.durationRequestToken) {
+        return
+      }
+
+      if (Number.isFinite(duration) && duration > 0) {
+        this.durationSeconds = duration
+      }
+    })
+  },
+  startTicking() {
+    this.stopTicking()
+    this.animationFrame = window.requestAnimationFrame(this.tick)
+  },
+  stopTicking() {
+    if (this.animationFrame) {
+      window.cancelAnimationFrame(this.animationFrame)
+      this.animationFrame = null
+    }
+  },
+  tick() {
+    if (this.eventId <= 0) {
+      this.setProgress(0)
+      return
+    }
+
+    const startedAtMs = this.startedAtMs || Date.now()
+    const elapsedSeconds = Math.max(0, (Date.now() - startedAtMs) / 1000)
+
+    if (Number.isFinite(this.durationSeconds) && this.durationSeconds > 0) {
+      const ratio = clamp(elapsedSeconds / this.durationSeconds, 0, 1)
+      this.setProgress(ratio * 100)
+
+      if (ratio < 1) {
+        this.animationFrame = window.requestAnimationFrame(this.tick)
+      }
+      return
+    }
+
+    const fallbackDurationSeconds = 15
+    const fallbackRatio = clamp(elapsedSeconds / fallbackDurationSeconds, 0, 1)
+    this.setProgress(fallbackRatio * 100)
+
+    if (fallbackRatio < 1) {
+      this.animationFrame = window.requestAnimationFrame(this.tick)
+    }
+  },
+  setProgress(percent) {
+    if (!this.progressFillEl) {
+      return
+    }
+
+    const bounded = clamp(percent, 0, 100)
+    this.progressFillEl.style.width = `${bounded}%`
+  },
+  clearBylineTimer() {
+    if (this.bylineTimer) {
+      window.clearTimeout(this.bylineTimer)
+      this.bylineTimer = null
+    }
+  },
+  syncBylineVisibility() {
+    if (!this.bylineEl) {
+      return
+    }
+
+    this.clearBylineTimer()
+
+    if ((this.bylineEl.textContent || "").trim() === "") {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+      return
+    }
+
+    if (this.eventId <= 0 || !Number.isFinite(this.startedAtMs)) {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+      return
+    }
+
+    const elapsedMs = Date.now() - this.startedAtMs
+    const remainingMs = 1000 - elapsedMs
+
+    if (remainingMs <= 0) {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+      return
+    }
+
+    this.bylineEl.classList.remove("bb-now-playing-byline-hidden")
+    this.bylineTimer = window.setTimeout(() => {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+    }, remainingMs)
+  },
+  hideByline() {
+    if (!this.bylineEl) {
+      return
+    }
+
+    this.clearBylineTimer()
+    this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+  }
+}
+
 Hooks.LocalPlayer = {
   mounted() {
     this.audio = null
@@ -529,9 +757,11 @@ Hooks.LocalPlayer = {
     this.waveBarWidth = 3
     this.waveGap = 2
     this.handleClick = this.handleClick.bind(this)
+    this.handleRemotePlay = this.handleRemotePlay.bind(this)
     this.handleWindowResize = this.handleWindowResize.bind(this)
     this.syncPreviewElements()
     this.el.addEventListener("click", this.handleClick)
+    window.addEventListener("phx:play-local-sound", this.handleRemotePlay)
     this.rebuildPreviewBars()
     this.loadClipDuration()
     window.addEventListener("resize", this.handleWindowResize)
@@ -547,8 +777,24 @@ Hooks.LocalPlayer = {
   destroyed() {
     this.durationLoadToken += 1
     this.el.removeEventListener("click", this.handleClick)
+    window.removeEventListener("phx:play-local-sound", this.handleRemotePlay)
     window.removeEventListener("resize", this.handleWindowResize)
     this.stopPlayback()
+  },
+  async handleRemotePlay(event) {
+    const requestedFilename =
+      typeof event?.detail?.filename === "string" ? event.detail.filename.trim() : ""
+    const currentFilename = (this.el.dataset.filename || "").trim()
+
+    if (!requestedFilename || requestedFilename !== currentFilename) {
+      return
+    }
+
+    if (activeLocalPlayer && activeLocalPlayer !== this) {
+      activeLocalPlayer.stopPlayback()
+    }
+
+    await this.startPlayback()
   },
   handleWindowResize() {
     this.rebuildPreviewBars()

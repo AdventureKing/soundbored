@@ -8,7 +8,7 @@ defmodule SoundboardWeb.SoundboardLive do
   alias Soundboard.{Favorites, PlaybackCooldown, PubSubTopics, Sounds}
   alias Soundboard.Accounts.Permissions
   alias SoundboardWeb.Live.SoundboardLive.{EditFlow, UploadFlow}
-  alias SoundboardWeb.Live.Support.{FlashHelpers, SoundPlayback}
+  alias SoundboardWeb.Live.Support.SoundPlayback
   alias SoundboardWeb.Soundboard.SoundFilter
 
   import SoundboardWeb.Live.Support.LiveTags,
@@ -62,6 +62,11 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:tag_filter_mode, "or")
     |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
+    |> assign(:now_playing_event_id, 0)
+    |> assign(:now_playing_title, nil)
+    |> assign(:now_playing_played_by, nil)
+    |> assign(:now_playing_source, nil)
+    |> assign(:now_playing_started_at_ms, nil)
     |> UploadFlow.assign_defaults()
     |> EditFlow.assign_defaults()
     |> allow_upload(:audio,
@@ -419,7 +424,7 @@ defmodule SoundboardWeb.SoundboardLive do
   def handle_info({:sound_played, %{filename: _, played_by: _} = event}, socket) do
     {:noreply,
      socket
-     |> FlashHelpers.flash_sound_played(event)
+     |> assign_now_playing(event)
      |> maybe_refresh_cooldown_timer(event.played_by)}
   end
 
@@ -704,6 +709,38 @@ defmodule SoundboardWeb.SoundboardLive do
 
   defp remaining_ms_from_end(end_ms) when is_integer(end_ms) do
     max(end_ms - System.system_time(:millisecond), 0)
+  end
+
+  defp assign_now_playing(socket, %{filename: filename, played_by: played_by})
+       when is_binary(filename) do
+    source = resolve_now_playing_source(socket.assigns[:uploaded_files] || [], filename)
+
+    socket
+    |> assign(:now_playing_event_id, (socket.assigns[:now_playing_event_id] || 0) + 1)
+    |> assign(:now_playing_title, SoundboardWeb.SoundHelpers.display_name(filename))
+    |> assign(:now_playing_played_by, played_by)
+    |> assign(:now_playing_source, source)
+    |> assign(:now_playing_started_at_ms, System.system_time(:millisecond))
+  end
+
+  defp assign_now_playing(socket, _event), do: socket
+
+  defp resolve_now_playing_source(uploaded_files, filename) do
+    matched_sound =
+      Enum.find(uploaded_files, fn sound ->
+        to_string(Map.get(sound, :filename) || Map.get(sound, "filename") || "") == filename
+      end)
+
+    source_type =
+      Map.get(matched_sound || %{}, :source_type) || Map.get(matched_sound || %{}, "source_type")
+
+    url = Map.get(matched_sound || %{}, :url) || Map.get(matched_sound || %{}, "url")
+
+    if source_type == "url" and is_binary(url) and String.trim(url) != "" do
+      url
+    else
+      SoundboardWeb.SoundHelpers.upload_path(filename)
+    end
   end
 
   defp upload_forbidden_flash(socket) do

@@ -3,6 +3,7 @@ defmodule SoundboardWeb.SoundboardLiveTest do
   use SoundboardWeb.ConnCase
   import Phoenix.LiveViewTest
   alias Soundboard.{Accounts.User, Favorites, Repo, Sound, Tag}
+  alias SoundboardWeb.SoundHelpers
   import Mock
 
   setup %{conn: conn} do
@@ -85,6 +86,51 @@ defmodule SoundboardWeb.SoundboardLiveTest do
           |> render_click()
 
         assert rendered =~ sound.filename
+      end
+    end
+
+    test "can fake play locally in dev mode", %{conn: conn, sound: sound} do
+      original = Application.get_env(:soundboard, :enable_local_fake_playback, false)
+      Application.put_env(:soundboard, :enable_local_fake_playback, true)
+      on_exit(fn -> Application.put_env(:soundboard, :enable_local_fake_playback, original) end)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      with_mock Soundboard.AudioPlayer,
+        play_sound: fn _, _ ->
+          send(self(), :audio_player_called)
+          :ok
+        end do
+        view
+        |> element("[phx-click='play'][phx-value-name='#{sound.filename}']")
+        |> render_click()
+
+        filename = sound.filename
+        assert_push_event(view, "play-local-sound", %{filename: ^filename})
+        refute_receive :audio_player_called
+      end
+    end
+
+    test "can fake play locally in dev mode without login", %{conn: conn, sound: sound} do
+      original = Application.get_env(:soundboard, :enable_local_fake_playback, false)
+      Application.put_env(:soundboard, :enable_local_fake_playback, true)
+      on_exit(fn -> Application.put_env(:soundboard, :enable_local_fake_playback, original) end)
+
+      conn = init_test_session(conn, %{})
+      {:ok, view, _html} = live(conn, "/")
+
+      with_mock Soundboard.AudioPlayer,
+        play_sound: fn _, _ ->
+          send(self(), :audio_player_called)
+          :ok
+        end do
+        view
+        |> element("[phx-click='play'][phx-value-name='#{sound.filename}']")
+        |> render_click()
+
+        filename = sound.filename
+        assert_push_event(view, "play-local-sound", %{filename: ^filename})
+        refute_receive :audio_player_called
       end
     end
 
@@ -845,6 +891,20 @@ defmodule SoundboardWeb.SoundboardLiveTest do
 
       # Just verify the view is still alive
       assert render(view) =~ "BeeBot"
+    end
+
+    test "renders now playing card on sound_played events", %{conn: conn, sound: sound} do
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "#bb-now-playing-card")
+
+      send(view.pid, {:sound_played, %{filename: sound.filename, played_by: "testuser"}})
+      rendered = render(view)
+
+      assert rendered =~ "bb-now-playing-title"
+      assert rendered =~ SoundHelpers.display_name(sound.filename)
+      assert rendered =~ "Played by testuser"
+      refute rendered =~ "testuser played #{sound.filename}"
     end
   end
 
