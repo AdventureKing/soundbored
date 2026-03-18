@@ -75,6 +75,14 @@ defmodule SoundboardWeb.StatsLive do
     top_users = Stats.get_top_users(start_date, end_date, limit: @recent_limit)
     top_sounds = Stats.get_top_sounds(start_date, end_date, limit: @recent_limit)
 
+    viewer_stats =
+      load_viewer_stats(
+        socket.assigns.current_user,
+        start_date,
+        end_date,
+        socket.assigns.preview_mode
+      )
+
     recent_plays = recent_plays()
 
     recent_uploads = Sounds.get_recent_uploads(limit: @recent_limit)
@@ -90,6 +98,7 @@ defmodule SoundboardWeb.StatsLive do
     |> assign(:favorites, favorites)
     |> assign(:sound_ids_by_filename, sound_ids_by_filename)
     |> assign(:avatars_by_username, avatars_by_username)
+    |> assign(:viewer_stats, viewer_stats)
   end
 
   defp get_favorites(nil), do: []
@@ -347,6 +356,29 @@ defmodule SoundboardWeb.StatsLive do
           </div>
         </section>
       </div>
+
+      <div class="bb-section-grid">
+        <section :if={@viewer_stats} class="bb-section-card bb-section-card-full">
+          <h2 class="bb-section-heading">Your Stats</h2>
+
+          <div class="bb-stat-list">
+            <div id="viewer-total-plays" class="bb-stat-item">
+              <span class="bb-stat-pill rounded-full px-2 py-1">Total Plays</span>
+              <span class="bb-stat-count">{@viewer_stats.total_plays}</span>
+            </div>
+
+            <div id="viewer-unique-sounds" class="bb-stat-item">
+              <span class="bb-stat-pill rounded-full px-2 py-1">Unique Sounds</span>
+              <span class="bb-stat-count">{@viewer_stats.unique_sounds}</span>
+            </div>
+
+            <div id="viewer-top-sound" class="bb-stat-item">
+              <span class="bb-stat-pill rounded-full px-2 py-1">Your Top Sound</span>
+              <span class="bb-stat-count">{viewer_top_sound_label(@viewer_stats.top_sound)}</span>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
     """
   end
@@ -399,6 +431,28 @@ defmodule SoundboardWeb.StatsLive do
       username: username,
       timestamp: timestamp
     }
+  end
+
+  defp load_viewer_stats(%{id: user_id}, start_date, end_date, _preview_mode)
+       when is_integer(user_id) do
+    Stats.get_user_week_summary(user_id, start_date, end_date, recent_limit: 3)
+  end
+
+  defp load_viewer_stats(nil, _start_date, _end_date, true) do
+    %{
+      total_plays: 0,
+      unique_sounds: 0,
+      top_sound: nil,
+      recent_plays: []
+    }
+  end
+
+  defp load_viewer_stats(_, _, _, _), do: nil
+
+  defp viewer_top_sound_label(nil), do: "No plays this week"
+
+  defp viewer_top_sound_label({filename, count}) do
+    "#{display_name(filename)} · #{count} plays"
   end
 
   defp load_sound_ids_by_filename(top_sounds, recent_plays, recent_uploads) do

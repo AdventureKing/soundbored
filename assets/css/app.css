@@ -1685,6 +1685,10 @@ body {
   gap: 10px;
 }
 
+.bb-section-card-full {
+  grid-column: 1 / -1;
+}
+
 .bb-section-heading {
   color: var(--bb-text-primary);
   font-size: 1.1594rem;
