@@ -744,8 +744,10 @@ Hooks.LocalPlayer = {
     this.audio = null
     this.audioContext = null
     this.cleanup = null
+    this.boundAudio = null
     this.previewTimer = null
     this.previewStartedAt = null
+    this.remountGuardTimer = null
     this.cardEl = null
     this.previewTimeEl = null
     this.previewWaveEl = null
@@ -758,12 +760,14 @@ Hooks.LocalPlayer = {
     this.waveGap = 2
     this.handleClick = this.handleClick.bind(this)
     this.handleRemotePlay = this.handleRemotePlay.bind(this)
+    this.handleAudioEnded = this.handleAudioEnded.bind(this)
     this.handleWindowResize = this.handleWindowResize.bind(this)
     this.syncPreviewElements()
     this.el.addEventListener("click", this.handleClick)
     window.addEventListener("phx:play-local-sound", this.handleRemotePlay)
     this.rebuildPreviewBars()
     this.loadClipDuration()
+    this.adoptActivePlaybackIfNeeded()
     window.addEventListener("resize", this.handleWindowResize)
   },
   updated() {
@@ -775,11 +779,95 @@ Hooks.LocalPlayer = {
     }
   },
   destroyed() {
+    const keepAliveForPotentialRemount =
+      activeLocalPlayer === this && this.audio && !this.audio.paused
+
     this.durationLoadToken += 1
     this.el.removeEventListener("click", this.handleClick)
     window.removeEventListener("phx:play-local-sound", this.handleRemotePlay)
     window.removeEventListener("resize", this.handleWindowResize)
+
+    if (keepAliveForPotentialRemount) {
+      this.clearPreviewTimer()
+
+      this.remountGuardTimer = window.setTimeout(() => {
+        if (activeLocalPlayer === this) {
+          this.stopPlayback()
+        }
+      }, 350)
+
+      return
+    }
+
     this.stopPlayback()
+  },
+  clearRemountGuardTimer() {
+    if (this.remountGuardTimer) {
+      window.clearTimeout(this.remountGuardTimer)
+      this.remountGuardTimer = null
+    }
+  },
+  clearPreviewTimer() {
+    if (this.previewTimer) {
+      clearInterval(this.previewTimer)
+      this.previewTimer = null
+    }
+  },
+  handleAudioEnded() {
+    this.stopPlayback()
+  },
+  bindAudioEvents(audio) {
+    if (!audio) {
+      return
+    }
+
+    this.unbindAudioEvents()
+    audio.addEventListener("ended", this.handleAudioEnded)
+    audio.addEventListener("error", this.handleAudioEnded)
+    this.boundAudio = audio
+  },
+  unbindAudioEvents() {
+    if (!this.boundAudio) {
+      return
+    }
+
+    this.boundAudio.removeEventListener("ended", this.handleAudioEnded)
+    this.boundAudio.removeEventListener("error", this.handleAudioEnded)
+    this.boundAudio = null
+  },
+  adoptActivePlaybackIfNeeded() {
+    const previousPlayer = activeLocalPlayer
+
+    if (!previousPlayer || previousPlayer === this) {
+      return
+    }
+
+    if (!previousPlayer.audio || previousPlayer.audio.paused) {
+      return
+    }
+
+    if ((previousPlayer.el?.id || "") !== (this.el?.id || "")) {
+      return
+    }
+
+    previousPlayer.clearRemountGuardTimer?.()
+    previousPlayer.unbindAudioEvents?.()
+    previousPlayer.clearPreviewTimer?.()
+
+    this.audio = previousPlayer.audio
+    this.audioContext = previousPlayer.audioContext
+    this.cleanup = previousPlayer.cleanup
+    this.previewStartedAt = previousPlayer.previewStartedAt || Date.now()
+
+    previousPlayer.audio = null
+    previousPlayer.audioContext = null
+    previousPlayer.cleanup = null
+    previousPlayer.previewStartedAt = null
+
+    this.bindAudioEvents(this.audio)
+    activeLocalPlayer = this
+    this.setPlaying(true, this.previewStartedAt)
+    this.configureGain(this.readGain())
   },
   async handleRemotePlay(event) {
     const requestedFilename =
@@ -940,9 +1028,7 @@ Hooks.LocalPlayer = {
     }
     audio.src = source
 
-    audio.addEventListener("ended", () => this.stopPlayback())
-    audio.addEventListener("error", () => this.stopPlayback())
-
+    this.bindAudioEvents(audio)
     this.audio = audio
 
     await this.configureGain(this.readGain())
@@ -1017,6 +1103,8 @@ Hooks.LocalPlayer = {
     }
   },
   stopPlayback() {
+    this.clearRemountGuardTimer()
+    this.unbindAudioEvents()
     this.releaseBoost()
     if (this.audio) {
       try {
@@ -1048,19 +1136,18 @@ Hooks.LocalPlayer = {
 
     return `${minutes}:${String(seconds).padStart(2, "0")}`
   },
-  startPreviewUi() {
-    this.previewStartedAt = Date.now()
+  startPreviewUi(startedAtMs = Date.now()) {
+    this.previewStartedAt = Number.isFinite(startedAtMs) ? startedAtMs : Date.now()
     if (this.cardEl) {
       this.cardEl.classList.add("previewing")
     }
     this.rebuildPreviewBars()
     this.previewBars.forEach((bar) => bar.classList.add("active"))
     if (this.previewTimeEl) {
-      this.previewTimeEl.textContent = "0:00"
+      const elapsed = Math.max(0, (Date.now() - this.previewStartedAt) / 1000)
+      this.previewTimeEl.textContent = this.formatPreviewTime(elapsed)
     }
-    if (this.previewTimer) {
-      clearInterval(this.previewTimer)
-    }
+    this.clearPreviewTimer()
     this.previewTimer = setInterval(() => {
       if (!this.previewStartedAt || !this.previewTimeEl) {
         return
@@ -1070,10 +1157,7 @@ Hooks.LocalPlayer = {
     }, 250)
   },
   stopPreviewUi() {
-    if (this.previewTimer) {
-      clearInterval(this.previewTimer)
-      this.previewTimer = null
-    }
+    this.clearPreviewTimer()
     this.previewStartedAt = null
     if (this.cardEl) {
       this.cardEl.classList.remove("previewing")
@@ -1083,7 +1167,7 @@ Hooks.LocalPlayer = {
       this.previewTimeEl.textContent = "0:00"
     }
   },
-  setPlaying(isPlaying) {
+  setPlaying(isPlaying, startedAtMs = Date.now()) {
     const playIcon = this.el.querySelector(".play-icon")
     const stopIcon = this.el.querySelector(".stop-icon")
 
@@ -1094,7 +1178,7 @@ Hooks.LocalPlayer = {
     if (isPlaying) {
       playIcon.classList.add("hidden")
       stopIcon.classList.remove("hidden")
-      this.startPreviewUi()
+      this.startPreviewUi(startedAtMs)
     } else {
       playIcon.classList.remove("hidden")
       stopIcon.classList.add("hidden")
