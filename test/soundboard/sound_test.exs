@@ -102,6 +102,23 @@ defmodule Soundboard.SoundTest do
                &String.contains?(&1, "greater than or equal")
              )
     end
+
+    test "validates duration is not negative" do
+      user = insert_user()
+
+      changeset =
+        Sound.changeset(%Sound{}, %{
+          filename: "duration.mp3",
+          source_type: "local",
+          user_id: user.id,
+          duration_ms: -1
+        })
+
+      assert Enum.any?(
+               errors_on(changeset).duration_ms,
+               &String.contains?(&1, "greater than or equal")
+             )
+    end
   end
 
   setup do

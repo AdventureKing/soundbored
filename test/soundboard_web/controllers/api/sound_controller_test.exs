@@ -35,6 +35,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
         assert is_integer(sound_data["id"])
         assert is_binary(sound_data["filename"])
         assert is_list(sound_data["tags"])
+        assert Map.has_key?(sound_data, "duration_ms")
         assert is_integer(sound_data["internal_cooldown_seconds"])
         assert sound_data["inserted_at"]
         assert sound_data["updated_at"]
@@ -93,6 +94,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       assert data["source_type"] == "url"
       assert data["url"] == "https://example.com/wow.mp3"
       assert data["is_join_sound"] == true
+      assert Map.has_key?(data, "duration_ms")
 
       sound = Repo.get_by!(Sound, filename: "#{name}.mp3") |> Repo.preload(:tags)
       assert Enum.sort(Enum.map(sound.tags, & &1.name)) == ["meme", "reaction"]
@@ -141,6 +143,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       assert data["filename"] == "#{name}.mp3"
       assert data["source_type"] == "local"
       assert data["is_leave_sound"] == true
+      assert Map.has_key?(data, "duration_ms")
 
       sound = Repo.get_by!(Sound, filename: "#{name}.mp3")
       assert_in_delta sound.volume, 1.2, 0.0001

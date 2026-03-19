@@ -323,6 +323,7 @@
                         data-source-type={sound.source_type}
                         data-url={sound.url}
                         data-volume={sound.volume || 1.0}
+                        data-duration-ms={Map.get(sound, :duration_ms) || Map.get(sound, "duration_ms") || ""}
                         class="bb-icon-btn"
                         title="Preview"
                       >

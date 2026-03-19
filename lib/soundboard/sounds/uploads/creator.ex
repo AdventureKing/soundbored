@@ -35,6 +35,7 @@ defmodule Soundboard.Sounds.Uploads.Creator do
       url: source.url,
       user_id: params.user.id,
       volume: params.volume,
+      duration_ms: source.duration_ms,
       tags: tags
     }
 

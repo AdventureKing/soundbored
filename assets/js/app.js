@@ -958,6 +958,20 @@ Hooks.LocalPlayer = {
     }
     return null
   },
+  readDurationMsFromDataset() {
+    const raw = this.el?.dataset?.durationMs
+    if (typeof raw !== "string" || raw.trim() === "") {
+      return null
+    }
+
+    const parsed = Number(raw)
+
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed
+    }
+
+    return null
+  },
   disconnectDurationObserver() {
     if (this.durationObserver) {
       try {
@@ -1019,6 +1033,16 @@ Hooks.LocalPlayer = {
     if (!source) {
       this.durationSource = null
       this.durationEl.textContent = "--:--"
+      this.disconnectDurationObserver()
+      return
+    }
+
+    const datasetDurationMs = this.readDurationMsFromDataset()
+    if (datasetDurationMs !== null) {
+      const datasetDurationSeconds = datasetDurationMs / 1000
+      this.durationSource = source
+      this.durationEl.textContent = this.formatClipDuration(datasetDurationSeconds)
+      writeCachedClipDuration(source, datasetDurationSeconds)
       this.disconnectDurationObserver()
       return
     }

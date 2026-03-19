@@ -153,6 +153,7 @@ defmodule SoundboardWeb.API.SoundController do
       source_type: sound.source_type,
       url: sound.url,
       volume: sound.volume,
+      duration_ms: sound.duration_ms,
       internal_cooldown_seconds: sound.internal_cooldown_seconds,
       description: sound.description,
       tags: Enum.map(sound.tags || [], & &1.name),
