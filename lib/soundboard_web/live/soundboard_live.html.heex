@@ -1,17 +1,18 @@
 <div class="bb-page-wrap">
+  <% tag_sound_counts = @tag_sound_counts || %{} %>
   <% tags = all_tags(@uploaded_files) %>
   <% featured_tags = featured_tags(@uploaded_files) %>
   <% sorted_tags =
     Enum.sort_by(tags, fn tag ->
       {
-        -SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag),
+        -Map.get(tag_sound_counts, tag.id, 0),
         String.downcase(to_string(Map.get(tag, :name, "")))
       }
     end) %>
   <% sorted_featured_tags =
     Enum.sort_by(featured_tags, fn tag ->
       {
-        -SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag),
+        -Map.get(tag_sound_counts, tag.id, 0),
         String.downcase(to_string(Map.get(tag, :name, "")))
       }
     end) %>
@@ -20,6 +21,8 @@
     @uploaded_files
     |> filter_sounds(@search_query, @selected_tags, @tag_filter_mode)
     |> filter_to_favorites(@favorites_only, @favorites) %>
+  <% display_limit = @display_limit || 120 %>
+  <% visible_sounds = Enum.take(filtered_sounds, display_limit) %>
 
   <div class="bb-content-grid">
     <aside class="bb-filter-panel">
@@ -198,7 +201,7 @@
               >
                 {tag.name}
                 <span class="bb-tag-count">
-                  {SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag)}
+                  {Map.get(tag_sound_counts, tag.id, 0)}
                 </span>
               </button>
             <% end %>
@@ -235,7 +238,7 @@
               >
                 {tag.name}
                 <span class="bb-tag-count">
-                  {SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag)}
+                  {Map.get(tag_sound_counts, tag.id, 0)}
                 </span>
               </button>
             <% end %>
@@ -252,7 +255,7 @@
       <div class="bb-main-header">
         <h1 class="bb-main-title">Sounds</h1>
         <p class="bb-main-subtitle bb-main-subtitle-right">
-          Showing {length(filtered_sounds)} of {length(@uploaded_files)}
+          Showing {length(visible_sounds)} of {length(filtered_sounds)} filtered ({length(@uploaded_files)} total)
         </p>
       </div>
 
@@ -267,7 +270,7 @@
           </div>
         <% else %>
           <div class="bb-sound-grid">
-            <%= for sound <- filtered_sounds do %>
+            <%= for sound <- visible_sounds do %>
               <div
                 id={sound_card_dom_id(sound)}
                 class="bb-sound-card"
@@ -393,6 +396,11 @@
                 </div>
               </div>
             <% end %>
+          </div>
+          <div :if={length(filtered_sounds) > display_limit} class="mt-4 flex justify-center">
+            <button phx-click="load_more_sounds" class="bb-btn-secondary">
+              Load {min(@display_limit_step || 120, length(filtered_sounds) - display_limit)} More
+            </button>
           </div>
         <% end %>
       <% end %>

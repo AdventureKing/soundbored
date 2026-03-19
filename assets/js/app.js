@@ -56,6 +56,7 @@ const HONEY_SHEEN_MAX_DELAY_MS = 4200
 const HONEY_PARALLAX_TARGET_SELECTOR = ".bb-sound-grid .bb-sound-card, #bb-queen-pick"
 const QUEEN_PICK_DEFAULT_ROTATION_MS = 30000
 const QUEEN_PICK_MIN_ROTATION_MS = 10000
+const DURATION_OBSERVER_ROOT_MARGIN = "450px 0px"
 const DESKTOP_NAV_COLLAPSED_CLASS = "desktop-nav-collapsed"
 const CLIP_DURATION_CACHE_PREFIX = "soundboard:clip-duration:v1:"
 const CLIP_DURATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30
@@ -770,6 +771,8 @@ Hooks.LocalPlayer = {
     this.previewWaveEl = null
     this.durationEl = null
     this.durationSource = null
+    this.durationObserver = null
+    this.durationObserverSource = null
     this.durationLoadToken = 0
     this.previewBars = []
     this.waveHeights = [6, 10, 14, 18, 14, 18, 10, 14, 18, 14, 10, 6, 14, 10, 18, 14, 6, 14, 10, 18]
@@ -783,14 +786,14 @@ Hooks.LocalPlayer = {
     this.el.addEventListener("click", this.handleClick)
     window.addEventListener("phx:play-local-sound", this.handleRemotePlay)
     this.rebuildPreviewBars()
-    this.loadClipDuration()
+    this.hydrateClipDuration()
     this.adoptActivePlaybackIfNeeded()
     window.addEventListener("resize", this.handleWindowResize)
   },
   updated() {
     this.syncPreviewElements()
     this.rebuildPreviewBars()
-    this.loadClipDuration()
+    this.hydrateClipDuration()
     if (this.audio && !this.audio.paused) {
       this.configureGain(this.readGain())
     }
@@ -800,6 +803,7 @@ Hooks.LocalPlayer = {
       activeLocalPlayer === this && this.audio && !this.audio.paused
 
     this.durationLoadToken += 1
+    this.disconnectDurationObserver()
     this.el.removeEventListener("click", this.handleClick)
     window.removeEventListener("phx:play-local-sound", this.handleRemotePlay)
     window.removeEventListener("resize", this.handleWindowResize)
@@ -954,7 +958,59 @@ Hooks.LocalPlayer = {
     }
     return null
   },
-  loadClipDuration() {
+  disconnectDurationObserver() {
+    if (this.durationObserver) {
+      try {
+        this.durationObserver.disconnect()
+      } catch (_err) {}
+    }
+
+    this.durationObserver = null
+    this.durationObserverSource = null
+  },
+  isDurationTargetNearViewport(target) {
+    if (!(target instanceof Element)) {
+      return true
+    }
+
+    const rect = target.getBoundingClientRect()
+    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0
+    const margin = 450
+
+    return rect.bottom >= -margin && rect.top <= viewportHeight + margin
+  },
+  observeDurationUntilVisible(source, target) {
+    if (!(target instanceof Element) || typeof window.IntersectionObserver !== "function") {
+      return false
+    }
+
+    if (this.durationObserver && this.durationObserverSource === source) {
+      return true
+    }
+
+    this.disconnectDurationObserver()
+    this.durationObserverSource = source
+    this.durationObserver = new window.IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting || entry.intersectionRatio > 0)
+        if (!visible) {
+          return
+        }
+
+        this.disconnectDurationObserver()
+        this.hydrateClipDuration(true)
+      },
+      {
+        root: null,
+        rootMargin: DURATION_OBSERVER_ROOT_MARGIN,
+        threshold: 0.01
+      }
+    )
+
+    this.durationObserver.observe(target)
+    return true
+  },
+  hydrateClipDuration(force = false) {
     if (!this.durationEl) {
       return
     }
@@ -963,6 +1019,7 @@ Hooks.LocalPlayer = {
     if (!source) {
       this.durationSource = null
       this.durationEl.textContent = "--:--"
+      this.disconnectDurationObserver()
       return
     }
 
@@ -972,52 +1029,36 @@ Hooks.LocalPlayer = {
     if (Number.isFinite(cachedDuration) && cachedDuration > 0) {
       this.durationSource = source
       this.durationEl.textContent = this.formatClipDuration(cachedDuration)
+      this.disconnectDurationObserver()
       return
     }
 
-    if (this.durationSource === source) {
+    if (!force && this.durationSource === source) {
       return
     }
 
+    const target = this.cardEl || this.el
+    if (!force && !this.isDurationTargetNearViewport(target)) {
+      this.observeDurationUntilVisible(source, target)
+      return
+    }
+
+    this.disconnectDurationObserver()
     this.durationSource = source
     this.durationEl.textContent = "--:--"
     this.durationLoadToken += 1
     const token = this.durationLoadToken
-    const probe = new Audio()
-    probe.preload = "metadata"
-
-    const cleanup = () => {
-      probe.removeEventListener("loadedmetadata", onLoadedMetadata)
-      probe.removeEventListener("error", onError)
-      probe.src = ""
-    }
-
-    const onLoadedMetadata = () => {
-      if (token !== this.durationLoadToken) {
-        cleanup()
+    loadClipDuration(source).then((duration) => {
+      if (token !== this.durationLoadToken || !this.durationEl) {
         return
       }
 
-      const duration = probe.duration
       if (Number.isFinite(duration) && duration > 0) {
-        writeCachedClipDuration(source, duration)
         this.durationEl.textContent = this.formatClipDuration(duration)
       } else {
         this.durationEl.textContent = "--:--"
       }
-      cleanup()
-    }
-
-    const onError = () => {
-      if (token === this.durationLoadToken && this.durationEl) {
-        this.durationEl.textContent = "--:--"
-      }
-      cleanup()
-    }
-
-    probe.addEventListener("loadedmetadata", onLoadedMetadata)
-    probe.addEventListener("error", onError)
-    probe.src = source
+    })
   },
   async handleClick(event) {
     event.preventDefault()

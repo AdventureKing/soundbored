@@ -1,17 +1,21 @@
 defmodule SoundboardWeb.API.SoundController do
   use SoundboardWeb, :controller
+  import Ecto.Query
 
   alias Soundboard.Accounts.Permissions
   alias Soundboard.ClipCooldown
   alias Soundboard.PlaybackCooldown
-  alias Soundboard.{Repo, Sound, Sounds}
+  alias Soundboard.{Repo, Sound, Sounds, UserSoundSetting}
 
   def index(conn, _params) do
+    current_user = conn.assigns[:current_user]
+
     sounds =
       Sound
       |> Sound.with_tags()
+      |> maybe_preload_user_sound_settings(current_user)
       |> Repo.all()
-      |> Enum.map(&format_sound(&1, conn.assigns[:current_user]))
+      |> Enum.map(&format_sound(&1, current_user))
 
     json(conn, %{data: sounds})
   end
@@ -172,6 +176,15 @@ defmodule SoundboardWeb.API.SoundController do
       end
 
     Enum.find(settings, &(&1.user_id == user.id))
+  end
+
+  defp maybe_preload_user_sound_settings(query, nil), do: query
+
+  defp maybe_preload_user_sound_settings(query, %{id: user_id}) do
+    from s in query,
+      preload: [
+        user_sound_settings: ^from(uss in UserSoundSetting, where: uss.user_id == ^user_id)
+      ]
   end
 
   defp changeset_errors(changeset) do

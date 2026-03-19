@@ -15,6 +15,7 @@ defmodule Soundboard.Sounds do
     :user,
     user_sound_settings: [user: []]
   ]
+  @list_preloads [:tags, :user]
 
   @spec list_files() :: [Sound.t()]
   def list_files do
@@ -26,10 +27,11 @@ defmodule Soundboard.Sounds do
 
   @spec list_detailed() :: [Sound.t()]
   def list_detailed do
-    Sound
+    from(s in Sound,
+      order_by: [asc: fragment("lower(?)", s.filename), asc: s.filename]
+    )
     |> Repo.all()
-    |> Repo.preload(@detailed_preloads)
-    |> Enum.sort_by(&String.downcase(&1.filename))
+    |> Repo.preload(@list_preloads)
   end
 
   @spec fetch_sound_id(String.t()) :: {:ok, integer()} | :error

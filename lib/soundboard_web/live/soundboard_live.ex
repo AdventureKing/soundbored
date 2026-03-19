@@ -16,6 +16,9 @@ defmodule SoundboardWeb.SoundboardLive do
 
   import SoundFilter, only: [filter_sounds: 4]
 
+  @default_display_limit 120
+  @display_limit_step 120
+
   @impl true
   def mount(_params, session, socket) do
     preview_mode = Map.get(socket.assigns, :live_action) == :preview
@@ -53,6 +56,9 @@ defmodule SoundboardWeb.SoundboardLive do
   defp assign_initial_state(socket) do
     socket
     |> assign(:uploaded_files, [])
+    |> assign(:tag_sound_counts, %{})
+    |> assign(:display_limit, @default_display_limit)
+    |> assign(:display_limit_step, @display_limit_step)
     |> assign(:loading_sounds, true)
     |> assign(:cooldown_end_ms, nil)
     |> assign(:cooldown_remaining_ms, nil)
@@ -128,12 +134,18 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    {:noreply, assign(socket, :search_query, query)}
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> reset_display_limit()}
   end
 
   @impl true
   def handle_event("clear_search", _params, socket) do
-    {:noreply, assign(socket, :search_query, "")}
+    {:noreply,
+     socket
+     |> assign(:search_query, "")
+     |> reset_display_limit()}
   end
 
   @impl true
@@ -153,14 +165,18 @@ defmodule SoundboardWeb.SoundboardLive do
         {:noreply,
          socket
          |> assign(:selected_tags, selected_tags)
-         |> assign(:search_query, "")}
+         |> assign(:search_query, "")
+         |> reset_display_limit()}
     end
   end
 
   @impl true
   def handle_event("set_tag_filter_mode", %{"mode" => mode}, socket)
       when mode in ["and", "or"] do
-    {:noreply, assign(socket, :tag_filter_mode, mode)}
+    {:noreply,
+     socket
+     |> assign(:tag_filter_mode, mode)
+     |> reset_display_limit()}
   end
 
   @impl true
@@ -170,12 +186,24 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("toggle_favorites_filter", _params, socket) do
-    {:noreply, assign(socket, :favorites_only, !socket.assigns.favorites_only)}
+    {:noreply,
+     socket
+     |> assign(:favorites_only, !socket.assigns.favorites_only)
+     |> reset_display_limit()}
   end
 
   @impl true
   def handle_event("clear_tag_filters", _, socket) do
-    {:noreply, assign(socket, :selected_tags, [])}
+    {:noreply,
+     socket
+     |> assign(:selected_tags, [])
+     |> reset_display_limit()}
+  end
+
+  @impl true
+  def handle_event("load_more_sounds", _params, socket) do
+    next_limit = (socket.assigns[:display_limit] || @default_display_limit) + @display_limit_step
+    {:noreply, assign(socket, :display_limit, next_limit)}
   end
 
   @impl true
@@ -479,7 +507,9 @@ defmodule SoundboardWeb.SoundboardLive do
         sounds
       end
 
-    assign(socket, :uploaded_files, sounds)
+    socket
+    |> assign(:uploaded_files, sounds)
+    |> assign(:tag_sound_counts, build_tag_sound_counts(sounds))
   end
 
   defp preview_sounds do
@@ -681,6 +711,18 @@ defmodule SoundboardWeb.SoundboardLive do
   defp filter_to_favorites(sounds, true, favorite_sound_ids) do
     favorite_sound_ids = MapSet.new(favorite_sound_ids)
     Enum.filter(sounds, &MapSet.member?(favorite_sound_ids, &1.id))
+  end
+
+  defp reset_display_limit(socket) do
+    assign(socket, :display_limit, @default_display_limit)
+  end
+
+  defp build_tag_sound_counts(sounds) when is_list(sounds) do
+    Enum.reduce(sounds, %{}, fn sound, acc ->
+      Enum.reduce(sound.tags || [], acc, fn tag, count_map ->
+        Map.update(count_map, tag.id, 1, &(&1 + 1))
+      end)
+    end)
   end
 
   defp can_edit_sound_card?(_sound, _current_user, true), do: true
