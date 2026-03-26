@@ -7,11 +7,13 @@ defmodule SoundboardWeb.API.SoundController do
   alias Soundboard.{Repo, Sound, Sounds}
 
   def index(conn, _params) do
+    current_user = conn.assigns[:current_user]
+
     sounds =
       Sound
       |> Sound.with_tags()
       |> Repo.all()
-      |> Enum.map(&format_sound(&1, conn.assigns[:current_user]))
+      |> Enum.map(&format_sound(&1, current_user))
 
     json(conn, %{data: sounds})
   end
@@ -140,38 +142,20 @@ defmodule SoundboardWeb.API.SoundController do
     if Permissions.can_play_clips?(user), do: :ok, else: {:error, :insufficient_role}
   end
 
-  defp format_sound(sound, current_user) do
-    user_setting = find_user_setting(sound, current_user)
-
+  defp format_sound(sound, _current_user) do
     %{
       id: sound.id,
       filename: sound.filename,
       source_type: sound.source_type,
       url: sound.url,
       volume: sound.volume,
+      duration_ms: sound.duration_ms,
       internal_cooldown_seconds: sound.internal_cooldown_seconds,
       description: sound.description,
       tags: Enum.map(sound.tags || [], & &1.name),
-      is_join_sound: user_setting && user_setting.is_join_sound,
-      is_leave_sound: user_setting && user_setting.is_leave_sound,
       inserted_at: sound.inserted_at,
       updated_at: sound.updated_at
     }
-  end
-
-  defp find_user_setting(_sound, nil), do: nil
-
-  defp find_user_setting(sound, user) do
-    settings =
-      if Ecto.assoc_loaded?(sound.user_sound_settings) do
-        sound.user_sound_settings
-      else
-        sound
-        |> Repo.preload(:user_sound_settings)
-        |> Map.get(:user_sound_settings)
-      end
-
-    Enum.find(settings, &(&1.user_id == user.id))
   end
 
   defp changeset_errors(changeset) do

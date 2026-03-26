@@ -145,33 +145,6 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                   </div>
                 </div>
 
-                <div class="bb-field bb-check-group">
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_join_sound"
-                      value="true"
-                      checked={@is_join_sound}
-                      phx-click="toggle_join_sound"
-                      disabled={!source_ready}
-                      class="bb-check"
-                    />
-                    <span>Play when I join voice</span>
-                  </label>
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_leave_sound"
-                      value="true"
-                      checked={@is_leave_sound}
-                      phx-click="toggle_leave_sound"
-                      disabled={!source_ready}
-                      class="bb-check"
-                    />
-                    <span>Play when I leave voice</span>
-                  </label>
-                </div>
-
                 <div class="bb-modal-actions">
                   <button
                     type="submit"

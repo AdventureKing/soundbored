@@ -92,6 +92,30 @@ defmodule Soundboard.StatsTest do
       assert username == user.username
     end
 
+    test "get_user_week_summary returns viewer totals and top sound", %{user: user, sound: sound} do
+      today = Date.utc_today()
+      second_sound = insert_sound(user)
+
+      Enum.each(1..2, fn _ -> Stats.track_play(sound.filename, user.id) end)
+      Stats.track_play(second_sound.filename, user.id)
+
+      summary = Stats.get_user_week_summary(user.id, today, today, recent_limit: 2)
+
+      assert summary.total_plays >= 3
+      assert summary.unique_sounds >= 2
+      assert {top_filename, top_count} = summary.top_sound
+      assert top_filename == sound.filename
+      assert top_count >= 2
+      assert length(summary.recent_plays) == 2
+    end
+
+    test "get_user_week_summary returns nil without a valid user id", %{sound: sound} do
+      today = Date.utc_today()
+      assert Stats.get_user_week_summary(nil, today, today) == nil
+      assert Stats.get_user_week_summary("invalid", today, today) == nil
+      assert Stats.get_user_week_summary(sound.user_id, "invalid", today) == nil
+    end
+
     test "reset_weekly_stats deletes old plays", %{user: user, sound: sound} do
       old_date =
         NaiveDateTime.utc_now()

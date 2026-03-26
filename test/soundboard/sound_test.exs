@@ -4,7 +4,7 @@ defmodule Soundboard.SoundTest do
   """
   use Soundboard.DataCase
   alias Soundboard.Accounts.User
-  alias Soundboard.{Repo, Sound, Sounds, Tag, UserSoundSetting}
+  alias Soundboard.{Repo, Sound, Sounds, Tag}
 
   describe "changeset validation" do
     test "validates required fields" do
@@ -102,6 +102,23 @@ defmodule Soundboard.SoundTest do
                &String.contains?(&1, "greater than or equal")
              )
     end
+
+    test "validates duration is not negative" do
+      user = insert_user()
+
+      changeset =
+        Sound.changeset(%Sound{}, %{
+          filename: "duration.mp3",
+          source_type: "local",
+          user_id: user.id,
+          duration_ms: -1
+        })
+
+      assert Enum.any?(
+               errors_on(changeset).duration_ms,
+               &String.contains?(&1, "greater than or equal")
+             )
+    end
   end
 
   setup do
@@ -194,128 +211,6 @@ defmodule Soundboard.SoundTest do
     end
   end
 
-  describe "user sound settings" do
-    test "can set join sound without affecting leave sound", %{user: user} do
-      # Create two sounds
-      {:ok, sound1} = insert_sound(user)
-      {:ok, sound2} = insert_sound(user)
-
-      # Set sound1 as both join and leave sound
-      {:ok, setting1} =
-        UserSoundSetting.changeset(
-          %UserSoundSetting{},
-          %{
-            user_id: user.id,
-            sound_id: sound1.id,
-            is_join_sound: true,
-            is_leave_sound: true
-          }
-        )
-        |> Repo.insert()
-
-      # Set sound2 as join sound (should only unset sound1's join sound)
-      :ok = UserSoundSetting.clear_conflicting_settings(user.id, sound2.id, true, false)
-
-      {:ok, setting2} =
-        UserSoundSetting.changeset(
-          %UserSoundSetting{},
-          %{
-            user_id: user.id,
-            sound_id: sound2.id,
-            is_join_sound: true,
-            is_leave_sound: false
-          }
-        )
-        |> Repo.insert()
-
-      # Reload settings to verify state
-      setting1 = Repo.get(UserSoundSetting, setting1.id)
-      setting2 = Repo.get(UserSoundSetting, setting2.id)
-
-      # Original sound should keep leave sound but lose join sound
-      assert setting1.is_join_sound == false
-      assert setting1.is_leave_sound == true
-
-      # New sound should be join sound only
-      assert setting2.is_join_sound == true
-      assert setting2.is_leave_sound == false
-    end
-
-    test "can set leave sound without affecting join sound", %{user: user} do
-      # Create two sounds
-      {:ok, sound1} = insert_sound(user)
-      {:ok, sound2} = insert_sound(user)
-
-      # Set sound1 as both join and leave sound
-      {:ok, setting1} =
-        UserSoundSetting.changeset(
-          %UserSoundSetting{},
-          %{
-            user_id: user.id,
-            sound_id: sound1.id,
-            is_join_sound: true,
-            is_leave_sound: true
-          }
-        )
-        |> Repo.insert()
-
-      # Set sound2 as leave sound (should only unset sound1's leave sound)
-      :ok = UserSoundSetting.clear_conflicting_settings(user.id, sound2.id, false, true)
-
-      {:ok, setting2} =
-        UserSoundSetting.changeset(
-          %UserSoundSetting{},
-          %{
-            user_id: user.id,
-            sound_id: sound2.id,
-            is_join_sound: false,
-            is_leave_sound: true
-          }
-        )
-        |> Repo.insert()
-
-      # Reload settings to verify state
-      setting1 = Repo.get(UserSoundSetting, setting1.id)
-      setting2 = Repo.get(UserSoundSetting, setting2.id)
-
-      # Original sound should keep join sound but lose leave sound
-      assert setting1.is_join_sound == true
-      assert setting1.is_leave_sound == false
-
-      # New sound should be leave sound only
-      assert setting2.is_join_sound == false
-      assert setting2.is_leave_sound == true
-    end
-
-    test "can unset join/leave sounds independently", %{user: user} do
-      {:ok, sound} = insert_sound(user)
-
-      {:ok, setting} =
-        UserSoundSetting.changeset(
-          %UserSoundSetting{},
-          %{
-            user_id: user.id,
-            sound_id: sound.id,
-            is_join_sound: true,
-            is_leave_sound: true
-          }
-        )
-        |> Repo.insert()
-
-      # Unset join sound only
-      {:ok, updated_setting} =
-        UserSoundSetting.changeset(
-          setting,
-          %{is_join_sound: false}
-        )
-        |> Repo.update()
-
-      # Verify leave sound remains set
-      assert updated_setting.is_join_sound == false
-      assert updated_setting.is_leave_sound == true
-    end
-  end
-
   describe "fetch_sound_id/1" do
     test "returns sound id when sound exists", %{sound: sound} do
       assert Sounds.fetch_sound_id(sound.filename) == {:ok, sound.id}
@@ -397,109 +292,6 @@ defmodule Soundboard.SoundTest do
 
       {:error, changeset} = Sounds.update_sound(sound, attrs)
       assert "must be either 'local' or 'url'" in errors_on(changeset).source_type
-    end
-  end
-
-  describe "user join/leave sounds" do
-    test "get_user_join_sound/1 returns join sound filename", %{user: user, sound: sound} do
-      # Create join sound setting
-      {:ok, _} =
-        UserSoundSetting.changeset(
-          %UserSoundSetting{},
-          %{
-            user_id: user.id,
-            sound_id: sound.id,
-            is_join_sound: true,
-            is_leave_sound: false
-          }
-        )
-        |> Repo.insert()
-
-      assert Sounds.get_user_join_sound(user.id) == sound.filename
-    end
-
-    test "get_user_join_sound/1 returns nil when no join sound", %{user: user} do
-      assert Sounds.get_user_join_sound(user.id) == nil
-    end
-
-    test "get_user_leave_sound/1 returns leave sound filename", %{user: user, sound: sound} do
-      # Create leave sound setting
-      {:ok, _} =
-        UserSoundSetting.changeset(
-          %UserSoundSetting{},
-          %{
-            user_id: user.id,
-            sound_id: sound.id,
-            is_join_sound: false,
-            is_leave_sound: true
-          }
-        )
-        |> Repo.insert()
-
-      assert Sounds.get_user_leave_sound(user.id) == sound.filename
-    end
-
-    test "get_user_leave_sound/1 returns nil when no leave sound", %{user: user} do
-      assert Sounds.get_user_leave_sound(user.id) == nil
-    end
-  end
-
-  describe "get_user_sound_preferences_by_discord_id/1" do
-    test "returns both join and leave sounds without assuming they share one row", %{user: user} do
-      {:ok, join_sound} =
-        %Sound{}
-        |> Sound.changeset(%{
-          filename: "join_#{System.unique_integer([:positive])}.mp3",
-          source_type: "local",
-          user_id: user.id
-        })
-        |> Repo.insert()
-
-      {:ok, leave_sound} =
-        %Sound{}
-        |> Sound.changeset(%{
-          filename: "leave_#{System.unique_integer([:positive])}.mp3",
-          source_type: "local",
-          user_id: user.id
-        })
-        |> Repo.insert()
-
-      %UserSoundSetting{}
-      |> UserSoundSetting.changeset(%{
-        user_id: user.id,
-        sound_id: join_sound.id,
-        is_join_sound: true,
-        is_leave_sound: false
-      })
-      |> Repo.insert!()
-
-      %UserSoundSetting{}
-      |> UserSoundSetting.changeset(%{
-        user_id: user.id,
-        sound_id: leave_sound.id,
-        is_join_sound: false,
-        is_leave_sound: true
-      })
-      |> Repo.insert!()
-
-      user_id = user.id
-
-      assert %{user_id: ^user_id, join_sound: join_filename, leave_sound: leave_filename} =
-               Sounds.get_user_sound_preferences_by_discord_id(user.discord_id)
-
-      assert join_filename == join_sound.filename
-      assert leave_filename == leave_sound.filename
-    end
-
-    test "returns user preferences with nil sounds when no join/leave sounds", %{user: user} do
-      user_id = user.id
-
-      assert %{user_id: ^user_id, join_sound: nil, leave_sound: nil} =
-               Sounds.get_user_sound_preferences_by_discord_id(user.discord_id)
-    end
-
-    test "returns nil when user doesn't exist" do
-      assert Sounds.get_user_sound_preferences_by_discord_id("nonexistent_discord_id") == nil
     end
   end
 

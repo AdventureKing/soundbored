@@ -56,6 +56,7 @@ config :phoenix_live_view,
   enable_expensive_runtime_checks: true
 
 config :soundboard, :sql_sandbox, true
+config :soundboard, :probe_remote_durations, false
 
 config :soundboard, env: :test
 
