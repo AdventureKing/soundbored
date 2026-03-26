@@ -4,7 +4,7 @@ defmodule Soundboard.Sounds.ManagementTest do
   import Mock
 
   alias Soundboard.Accounts.User
-  alias Soundboard.{Repo, Sound, UserSoundSetting}
+  alias Soundboard.{Repo, Sound}
   alias Soundboard.Sounds.Management
 
   setup do
@@ -45,7 +45,7 @@ defmodule Soundboard.Sounds.ManagementTest do
     assert Repo.get(Sound, sound.id) == nil
   end
 
-  test "update_sound/3 renames local file and upserts user settings", %{user: user} do
+  test "update_sound/3 renames local file", %{user: user} do
     filename = "old_#{System.unique_integer([:positive])}.mp3"
     sound = insert_local_sound(user, filename)
 
@@ -57,9 +57,7 @@ defmodule Soundboard.Sounds.ManagementTest do
       "filename" => "renamed_#{System.unique_integer([:positive])}",
       "source_type" => "local",
       "url" => nil,
-      "volume" => "80",
-      "is_join_sound" => "true",
-      "is_leave_sound" => "false"
+      "volume" => "80"
     }
 
     new_filename = params["filename"] <> ".mp3"
@@ -77,10 +75,6 @@ defmodule Soundboard.Sounds.ManagementTest do
       assert updated_sound.filename == new_filename
       assert File.exists?(new_path)
       refute File.exists?(old_path)
-
-      setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: updated_sound.id)
-      assert setting.is_join_sound
-      refute setting.is_leave_sound
     end
   end
 
@@ -107,9 +101,7 @@ defmodule Soundboard.Sounds.ManagementTest do
       "filename" => "edited_by_other_#{System.unique_integer([:positive])}",
       "source_type" => "local",
       "url" => nil,
-      "volume" => "65",
-      "is_join_sound" => "true",
-      "is_leave_sound" => "false"
+      "volume" => "65"
     }
 
     assert {:ok, updated_sound} = Management.update_sound(sound, editor.id, params)
@@ -122,10 +114,6 @@ defmodule Soundboard.Sounds.ManagementTest do
     assert updated_sound.user_id == user.id
     assert File.exists?(new_path)
     refute File.exists?(old_path)
-
-    setting = Repo.get_by!(UserSoundSetting, user_id: editor.id, sound_id: updated_sound.id)
-    assert setting.is_join_sound
-    refute setting.is_leave_sound
   end
 
   test "update_sound/3 ignores internal cooldown changes from non-admin editors", %{user: user} do

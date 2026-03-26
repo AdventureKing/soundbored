@@ -10,13 +10,12 @@ defmodule Soundboard.Sounds.Management do
 
   alias Soundboard.Accounts.{Permissions, User}
   alias Soundboard.{AudioPlayer, Repo, Sound, UploadsPath, Volume}
+
   require Logger
 
   def update_sound(%Sound{} = sound, user_id, params) do
     Repo.transaction(fn ->
-      db_sound =
-        Repo.get!(Sound, sound.id)
-        |> Repo.preload(:user_sound_settings)
+      db_sound = Repo.get!(Sound, sound.id)
 
       old_path = UploadsPath.file_path(db_sound.filename)
       new_filename = params["filename"] <> Path.extname(db_sound.filename)
@@ -42,7 +41,6 @@ defmodule Soundboard.Sounds.Management do
       updated_sound =
         case Sound.changeset(db_sound, sound_params) |> Repo.update() do
           {:ok, updated_sound} ->
-            updated_sound = update_user_settings(db_sound, user_id, updated_sound, params)
             AudioPlayer.invalidate_cache(db_sound.filename)
             AudioPlayer.invalidate_cache(updated_sound.filename)
             updated_sound
@@ -120,37 +118,6 @@ defmodule Soundboard.Sounds.Management do
   end
 
   defp maybe_rename_local_file(_, _, _), do: :ok
-
-  defp update_user_settings(sound, user_id, updated_sound, params) do
-    user_setting =
-      Enum.find(sound.user_sound_settings, &(&1.user_id == user_id)) ||
-        %Soundboard.UserSoundSetting{sound_id: sound.id, user_id: user_id}
-
-    setting_params = %{
-      user_id: user_id,
-      sound_id: sound.id,
-      is_join_sound: params["is_join_sound"] == "true",
-      is_leave_sound: params["is_leave_sound"] == "true"
-    }
-
-    Soundboard.UserSoundSetting.clear_conflicting_settings(
-      user_id,
-      sound.id,
-      setting_params.is_join_sound,
-      setting_params.is_leave_sound
-    )
-
-    case user_setting
-         |> Soundboard.UserSoundSetting.changeset(setting_params)
-         |> Repo.insert_or_update() do
-      {:ok, _setting} ->
-        updated_sound
-
-      {:error, changeset} ->
-        Logger.error("Failed to update user settings: #{inspect(changeset)}")
-        Repo.rollback(changeset)
-    end
-  end
 
   defp can_manage_internal_cooldown?(user_id) when is_integer(user_id) do
     Repo.get(User, user_id)

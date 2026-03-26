@@ -1,7 +1,7 @@
 defmodule Soundboard.Sounds.Uploads.Creator do
   @moduledoc false
 
-  alias Soundboard.{PubSubTopics, Repo, Sound, Stats, UserSoundSetting}
+  alias Soundboard.{PubSubTopics, Repo, Sound, Stats}
   alias Soundboard.Sounds.Tags
   alias Soundboard.Sounds.Uploads.Source
 
@@ -10,8 +10,7 @@ defmodule Soundboard.Sounds.Uploads.Creator do
     Repo.transaction(fn ->
       with {:ok, tags} <- Tags.resolve_many(params.tags),
            {:ok, sound} <- insert_sound(params, source, tags),
-           {:ok, _setting} <- insert_user_setting(sound, params),
-           sound <- Repo.preload(sound, [:tags, :user, :user_sound_settings]) do
+           sound <- Repo.preload(sound, [:tags, :user]) do
         sound
       else
         {:error, reason} -> Repo.rollback(reason)
@@ -41,26 +40,6 @@ defmodule Soundboard.Sounds.Uploads.Creator do
 
     %Sound{}
     |> Sound.changeset(sound_attrs)
-    |> Repo.insert()
-  end
-
-  defp insert_user_setting(sound, params) do
-    attrs = %{
-      user_id: params.user.id,
-      sound_id: sound.id,
-      is_join_sound: params.is_join_sound,
-      is_leave_sound: params.is_leave_sound
-    }
-
-    UserSoundSetting.clear_conflicting_settings(
-      params.user.id,
-      sound.id,
-      params.is_join_sound,
-      params.is_leave_sound
-    )
-
-    %UserSoundSetting{}
-    |> UserSoundSetting.changeset(attrs)
     |> Repo.insert()
   end
 

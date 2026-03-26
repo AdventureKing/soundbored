@@ -830,7 +830,7 @@ defmodule SoundboardWeb.SettingsLive do
                   or <code class="bb-mono">url</code>
                   (<code class="bb-mono">source_type=url</code>). Optional:
                   <code class="bb-mono">volume</code>
-                  (0-150), <code class="bb-mono">is_join_sound</code>, <code class="bb-mono">is_leave_sound</code>.
+                  (0-150).
                 </div>
 
                 <div>
@@ -841,7 +841,7 @@ defmodule SoundboardWeb.SettingsLive do
                       id="copy-upload-local"
                       type="button"
                       phx-hook="CopyButton"
-                      data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" -F \"source_type=local\" -F \"name=<NAME>\" -F \"file=@/path/to/sound.mp3\" -F \"tags[]=meme\" -F \"tags[]=alert\" -F \"volume=90\" -F \"is_join_sound=true\" #{@base_url}/api/sounds"}
+                      data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" -F \"source_type=local\" -F \"name=<NAME>\" -F \"file=@/path/to/sound.mp3\" -F \"tags[]=meme\" -F \"tags[]=alert\" -F \"volume=90\" #{@base_url}/api/sounds"}
                       class="bb-copy-btn bb-copy-top"
                     >
                       Copy
@@ -853,7 +853,6 @@ defmodule SoundboardWeb.SettingsLive do
     -F "tags[]=meme" \
     -F "tags[]=alert" \
     -F "volume=90" \
-    -F "is_join_sound=true" \
     {@base_url}/api/sounds</code></pre>
                   </div>
                 </div>
@@ -866,14 +865,14 @@ defmodule SoundboardWeb.SettingsLive do
                       id="copy-upload-url"
                       type="button"
                       phx-hook="CopyButton"
-                      data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" -H \"Content-Type: application/json\" -d '{\"source_type\":\"url\",\"name\":\"wow\",\"url\":\"https://example.com/wow.mp3\",\"tags\":[\"meme\",\"reaction\"],\"volume\":90,\"is_leave_sound\":true}' #{@base_url}/api/sounds"}
+                      data-copy-text={"curl -X POST -H \"Authorization: Bearer #{(@example_token || "<TOKEN>")}\" -H \"Content-Type: application/json\" -d '{\"source_type\":\"url\",\"name\":\"wow\",\"url\":\"https://example.com/wow.mp3\",\"tags\":[\"meme\",\"reaction\"],\"volume\":90}' #{@base_url}/api/sounds"}
                       class="bb-copy-btn bb-copy-top"
                     >
                       Copy
                     </button> <pre class="bb-code-block mt-1 pr-16 min-h-[110px]"><code class="bb-mono">curl -X POST \
     -H "Authorization: Bearer {(@example_token || "<TOKEN>")}" \
     -H "Content-Type: application/json" \
-    -d '&#123;"source_type":"url","name":"wow","url":"https://example.com/wow.mp3","tags":["meme","reaction"],"volume":90,"is_leave_sound":true&#125;' \
+    -d '&#123;"source_type":"url","name":"wow","url":"https://example.com/wow.mp3","tags":["meme","reaction"],"volume":90&#125;' \
     {@base_url}/api/sounds</code></pre>
                   </div>
                 </div>

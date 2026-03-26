@@ -170,34 +170,6 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                   />
                 </div>
 
-                <div class="bb-field bb-check-group">
-                  <% user_setting =
-                    Enum.find(
-                      @current_sound.user_sound_settings || [],
-                      &(&1.user_id == @current_user.id)
-                    ) %>
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_join_sound"
-                      value="true"
-                      checked={user_setting && user_setting.is_join_sound}
-                      class="bb-check"
-                    />
-                    <span>Play when I join voice</span>
-                  </label>
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_leave_sound"
-                      value="true"
-                      checked={user_setting && user_setting.is_leave_sound}
-                      class="bb-check"
-                    />
-                    <span>Play when I leave voice</span>
-                  </label>
-                </div>
-
                 <div class="bb-modal-actions">
                   <button type="submit" disabled={@edit_name_error} class="bb-modal-btn-primary">
                     Save Changes

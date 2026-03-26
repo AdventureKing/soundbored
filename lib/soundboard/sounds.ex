@@ -10,18 +10,13 @@ defmodule Soundboard.Sounds do
   alias Soundboard.Sounds.{Management, Uploads}
   alias Soundboard.Sounds.Uploads.CreateRequest
 
-  @detailed_preloads [
-    :tags,
-    :user,
-    user_sound_settings: [user: []]
-  ]
+  @detailed_preloads [:tags, :user]
   @list_preloads [:tags, :user]
 
   @spec list_files() :: [Sound.t()]
   def list_files do
     Sound
     |> Sound.with_tags()
-    |> preload(:user_sound_settings)
     |> Repo.all()
   end
 
@@ -90,71 +85,6 @@ defmodule Soundboard.Sounds do
       limit: ^limit
     )
     |> Repo.all()
-  end
-
-  @spec get_user_join_sound(integer()) :: String.t() | nil
-  def get_user_join_sound(user_id) do
-    Repo.one(
-      from uss in Soundboard.UserSoundSetting,
-        join: s in Sound,
-        on: uss.sound_id == s.id,
-        where: uss.user_id == ^user_id and uss.is_join_sound == true,
-        select: s.filename
-    )
-  end
-
-  @spec get_user_leave_sound(integer()) :: String.t() | nil
-  def get_user_leave_sound(user_id) do
-    Repo.one(
-      from uss in Soundboard.UserSoundSetting,
-        join: s in Sound,
-        on: uss.sound_id == s.id,
-        where: uss.user_id == ^user_id and uss.is_leave_sound == true,
-        select: s.filename
-    )
-  end
-
-  @spec get_user_join_sound_by_discord_id(term()) :: String.t() | nil
-  def get_user_join_sound_by_discord_id(discord_id) do
-    Repo.one(
-      from u in User,
-        where: u.discord_id == ^to_string(discord_id),
-        left_join: uss in Soundboard.UserSoundSetting,
-        on: uss.user_id == u.id and uss.is_join_sound == true,
-        left_join: s in Sound,
-        on: s.id == uss.sound_id,
-        select: s.filename,
-        limit: 1
-    )
-  end
-
-  @spec get_user_leave_sound_by_discord_id(term()) :: String.t() | nil
-  def get_user_leave_sound_by_discord_id(discord_id) do
-    Repo.one(
-      from u in User,
-        where: u.discord_id == ^to_string(discord_id),
-        left_join: uss in Soundboard.UserSoundSetting,
-        on: uss.user_id == u.id and uss.is_leave_sound == true,
-        left_join: s in Sound,
-        on: s.id == uss.sound_id,
-        select: s.filename,
-        limit: 1
-    )
-  end
-
-  @spec get_user_sound_preferences_by_discord_id(term()) :: map() | nil
-  def get_user_sound_preferences_by_discord_id(discord_id) do
-    case Repo.get_by(User, discord_id: to_string(discord_id)) do
-      nil ->
-        nil
-
-      user ->
-        %{
-          user_id: user.id,
-          join_sound: get_user_join_sound(user.id),
-          leave_sound: get_user_leave_sound(user.id)
-        }
-    end
   end
 
   @spec get_sound!(term()) :: Sound.t()

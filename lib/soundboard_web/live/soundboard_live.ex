@@ -389,16 +389,6 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("toggle_join_sound", _params, socket) do
-    UploadFlow.toggle_join_sound(socket)
-  end
-
-  @impl true
-  def handle_event("toggle_leave_sound", _params, socket) do
-    UploadFlow.toggle_leave_sound(socket)
-  end
-
-  @impl true
   def handle_event("update_volume", %{"volume" => volume, "target" => "edit"}, socket) do
     EditFlow.update_volume(socket, volume)
   end
@@ -648,7 +638,6 @@ defmodule SoundboardWeb.SoundboardLive do
     preview_sound =
       sound
       |> Map.put_new(:tags, [])
-      |> Map.put_new(:user_sound_settings, [])
       |> Map.put_new(:internal_cooldown_seconds, 0)
       |> Map.put_new(:source_type, "url")
       |> Map.put_new(:url, "")

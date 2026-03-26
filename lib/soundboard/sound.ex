@@ -22,7 +22,6 @@ defmodule Soundboard.Sound do
     field :duration_ms, :integer
     field :internal_cooldown_seconds, :integer, default: 0
     belongs_to :user, Soundboard.Accounts.User
-    has_many :user_sound_settings, Soundboard.UserSoundSetting
 
     many_to_many :tags, Soundboard.Tag,
       join_through: Soundboard.SoundTag,

@@ -144,8 +144,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
       volume: 1.0,
       internal_cooldown_seconds: 0,
       tags: [%{name: "funny"}],
-      user_id: 1,
-      user_sound_settings: [%{user_id: 1, is_join_sound: true, is_leave_sound: false}]
+      user_id: 1
     }
   end
 end

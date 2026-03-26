@@ -57,9 +57,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModalTest do
       upload_tags: [],
       upload_tag_input: "",
       upload_tag_suggestions: [],
-      upload_volume: 100,
-      is_join_sound: false,
-      is_leave_sound: false
+      upload_volume: 100
     }
 
     Map.merge(base, overrides)

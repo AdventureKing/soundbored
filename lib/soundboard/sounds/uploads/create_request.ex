@@ -12,8 +12,6 @@ defmodule Soundboard.Sounds.Uploads.CreateRequest do
     :upload,
     :tags,
     :volume,
-    :is_join_sound,
-    :is_leave_sound,
     :default_volume_percent
   ]
 
@@ -34,8 +32,6 @@ defmodule Soundboard.Sounds.Uploads.CreateRequest do
           upload: upload() | nil,
           tags: [map() | String.t()] | nil,
           volume: String.t() | number() | nil,
-          is_join_sound: boolean() | String.t() | nil,
-          is_leave_sound: boolean() | String.t() | nil,
           default_volume_percent: String.t() | number() | nil
         }
 
@@ -49,8 +45,6 @@ defmodule Soundboard.Sounds.Uploads.CreateRequest do
       upload: normalize_upload(get_param(attrs, :upload) || get_param(attrs, :file)),
       tags: get_param(attrs, :tags) || get_param(attrs, "tags[]") || [],
       volume: get_param(attrs, :volume),
-      is_join_sound: get_param(attrs, :is_join_sound),
-      is_leave_sound: get_param(attrs, :is_leave_sound),
       default_volume_percent: get_param(attrs, :default_volume_percent)
     }
   end
