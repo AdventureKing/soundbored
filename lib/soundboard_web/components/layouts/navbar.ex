@@ -23,7 +23,10 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, :users, visible_users(assigns[:presences]))
+    assigns =
+      assigns
+      |> assign_new(:preview_mode, fn -> false end)
+      |> assign(:users, visible_users(assigns[:presences]))
 
     ~H"""
     <div

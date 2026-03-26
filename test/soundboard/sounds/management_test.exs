@@ -128,6 +128,8 @@ defmodule Soundboard.Sounds.ManagementTest do
       })
       |> Repo.insert()
 
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-only"])
+
     params = %{
       "filename" => Path.basename(sound.filename, Path.extname(sound.filename)),
       "source_type" => "local",
@@ -177,6 +179,8 @@ defmodule Soundboard.Sounds.ManagementTest do
         avatar: "avatar.png"
       })
       |> Repo.insert()
+
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-only"])
 
     assert {:error, :forbidden} = Management.delete_sound(sound, intruder.id)
     assert Repo.get!(Sound, sound.id)
