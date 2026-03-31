@@ -2,9 +2,10 @@ defmodule SoundboardWeb.SettingsLive do
   use SoundboardWeb, :live_view
   use SoundboardWeb.Live.Support.PresenceLive
   alias Soundboard.Accounts.{ApiTokens, Permissions, RoleCooldowns}
+  alias Soundboard.AudioPlayer.CommercialScheduler
+  alias Soundboard.{Commercials, PublicURL}
   alias Soundboard.Discord.GuildCache
   alias Soundboard.Sounds.Tags
-  alias Soundboard.PublicURL
   @role_cooldown_sort_fields [:guild_name, :role_name, :role_id, :cooldown_seconds]
 
   @impl true
@@ -31,8 +32,22 @@ defmodule SoundboardWeb.SettingsLive do
         |> assign(:featured_tag_ids, [])
         |> assign(:collapsed_sections, default_collapsed_sections())
         |> assign(:base_url, PublicURL.current())
+        |> assign(:commercial_settings, %Commercials.Settings{})
+        |> assign(:commercial_clips, [])
+        |> assign(:commercial_upload_name, "")
+        |> assign(:commercial_upload_error, nil)
+        |> allow_upload(:commercial_audio,
+          accept: ~w(audio/mpeg audio/wav audio/ogg audio/x-m4a),
+          max_entries: 1,
+          max_file_size: 25_000_000
+        )
 
-      {:ok, socket |> load_role_cooldown_rows() |> load_tokens() |> load_featured_tags()}
+      {:ok,
+       socket
+       |> load_role_cooldown_rows()
+       |> load_tokens()
+       |> load_featured_tags()
+       |> load_commercial_data()}
     else
       {:ok,
        socket
@@ -167,6 +182,106 @@ defmodule SoundboardWeb.SettingsLive do
         {:noreply, put_flash(socket, :error, "Failed to save featured tags")}
     end
   end
+
+  @impl true
+  def handle_event("save_commercial_settings", _params, %{assigns: %{preview_mode: true}} = socket) do
+    {:noreply, put_flash(socket, :info, "Preview mode: commercial changes are disabled")}
+  end
+
+  @impl true
+  def handle_event("save_commercial_settings", params, socket) do
+    attrs = %{
+      enabled: Map.get(params, "enabled") == "true",
+      inactivity_seconds: parse_positive_integer(Map.get(params, "inactivity_seconds"), 360),
+      interval_seconds: parse_positive_integer(Map.get(params, "interval_seconds"), 360)
+    }
+
+    case Commercials.save_settings(attrs) do
+      {:ok, _settings} ->
+        CommercialScheduler.reload()
+        {:noreply, socket |> load_commercial_data() |> put_flash(:info, "Commercial settings saved")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to save commercial settings")}
+    end
+  end
+
+  @impl true
+  def handle_event("validate_commercial", params, socket) do
+    name = Map.get(params, "commercial_name", "")
+    {:noreply, assign(socket, :commercial_upload_name, name)}
+  end
+
+  @impl true
+  def handle_event("upload_commercial", _params, %{assigns: %{preview_mode: true}} = socket) do
+    {:noreply, put_flash(socket, :info, "Preview mode: commercial uploads are disabled")}
+  end
+
+  @impl true
+  def handle_event("upload_commercial", params, socket) do
+    name = String.trim(Map.get(params, "commercial_name", ""))
+
+    if name == "" do
+      {:noreply, assign(socket, :commercial_upload_error, "Name is required")}
+    else
+      result =
+        consume_uploaded_entries(socket, :commercial_audio, fn %{path: src_path}, entry ->
+          case Commercials.create_clip(name, src_path, entry.client_name) do
+            {:ok, clip} -> {:ok, clip}
+            {:error, reason} -> {:postpone, reason}
+          end
+        end)
+
+      case result do
+        [_ | _] ->
+          CommercialScheduler.reload()
+
+          {:noreply,
+           socket
+           |> assign(:commercial_upload_name, "")
+           |> assign(:commercial_upload_error, nil)
+           |> load_commercial_data()
+           |> put_flash(:info, "Commercial clip uploaded")}
+
+        [] ->
+          {:noreply, assign(socket, :commercial_upload_error, "Please select a file")}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("delete_commercial_clip", %{"id" => id}, %{assigns: %{preview_mode: true}} = socket) do
+    _ = id
+    {:noreply, put_flash(socket, :info, "Preview mode: commercial changes are disabled")}
+  end
+
+  @impl true
+  def handle_event("delete_commercial_clip", %{"id" => id}, socket) do
+    clip = Enum.find(socket.assigns.commercial_clips, &(to_string(&1.id) == id))
+
+    if clip do
+      Commercials.delete_clip(clip)
+      CommercialScheduler.reload()
+      {:noreply, socket |> load_commercial_data() |> put_flash(:info, "Clip deleted")}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp load_commercial_data(socket) do
+    socket
+    |> assign(:commercial_settings, Commercials.get_settings())
+    |> assign(:commercial_clips, Commercials.list_clips())
+  end
+
+  defp parse_positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {n, ""} when n > 0 -> n
+      _ -> default
+    end
+  end
+
+  defp parse_positive_integer(_, default), do: default
 
   defp load_tokens(%{assigns: %{current_user: nil}} = socket) do
     socket
@@ -401,6 +516,7 @@ defmodule SoundboardWeb.SettingsLive do
     %{
       featured_tags: false,
       role_cooldowns: false,
+      commercials: false,
       api_tokens: false
     }
   end
@@ -410,6 +526,7 @@ defmodule SoundboardWeb.SettingsLive do
       case section do
         "featured_tags" -> :featured_tags
         "role_cooldowns" -> :role_cooldowns
+        "commercials" -> :commercials
         "api_tokens" -> :api_tokens
         _ -> nil
       end
@@ -686,6 +803,135 @@ defmodule SoundboardWeb.SettingsLive do
         <% end %>
       </section>
       
+      <section aria-labelledby="commercials-heading" class="bb-section-card">
+        <header class="bb-section-header">
+          <div>
+            <h2 id="commercials-heading" class="bb-section-heading">Commercials</h2>
+            <p class="bb-section-copy">
+              Play a random commercial clip after a period of voice channel inactivity.
+              Only plays when users are in the channel.
+            </p>
+          </div>
+          <button
+            phx-click="toggle_section"
+            phx-value-section="commercials"
+            class="bb-section-toggle"
+            aria-controls="commercials-content"
+            aria-expanded={to_string(!section_collapsed?(@collapsed_sections, :commercials))}
+            title={if section_collapsed?(@collapsed_sections, :commercials), do: "Expand section", else: "Collapse section"}
+          >
+            <.icon
+              name={if section_collapsed?(@collapsed_sections, :commercials), do: "hero-chevron-down", else: "hero-chevron-up"}
+              class="bb-section-toggle-icon"
+            />
+          </button>
+        </header>
+
+        <%= unless section_collapsed?(@collapsed_sections, :commercials) do %>
+          <div id="commercials-content">
+            <form phx-submit="save_commercial_settings" phx-change="save_commercial_settings" class="bb-section-form">
+              <div class="bb-field">
+                <label class="bb-label">
+                  <input
+                    type="checkbox"
+                    name="enabled"
+                    value="true"
+                    checked={@commercial_settings.enabled}
+                    class="mr-2"
+                  />
+                  Enable commercials
+                </label>
+              </div>
+
+              <div class="bb-field">
+                <label class="bb-label" for="inactivity_seconds">Inactivity timer (seconds)</label>
+                <p class="bb-field-help">How long of silence before the first commercial plays.</p>
+                <input
+                  id="inactivity_seconds"
+                  type="number"
+                  name="inactivity_seconds"
+                  min="1"
+                  step="1"
+                  value={@commercial_settings.inactivity_seconds}
+                  class="bb-input"
+                />
+              </div>
+
+              <div class="bb-field">
+                <label class="bb-label" for="interval_seconds">Repeat interval (seconds)</label>
+                <p class="bb-field-help">How often to play another commercial while the channel stays idle.</p>
+                <input
+                  id="interval_seconds"
+                  type="number"
+                  name="interval_seconds"
+                  min="1"
+                  step="1"
+                  value={@commercial_settings.interval_seconds}
+                  class="bb-input"
+                />
+              </div>
+
+              <button type="submit" class="bb-btn bb-btn-primary">Save Settings</button>
+            </form>
+
+            <hr class="my-6 border-gray-200 dark:border-gray-700" />
+
+            <h3 class="bb-section-heading mb-4">Commercial Clips</h3>
+
+            <%= if @commercial_clips == [] do %>
+              <p class="bb-section-copy mb-4">No commercial clips uploaded yet.</p>
+            <% else %>
+              <ul class="space-y-2 mb-6">
+                <%= for clip <- @commercial_clips do %>
+                  <li class="flex items-center justify-between gap-4 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2">
+                    <span class="text-sm font-medium text-gray-800 dark:text-gray-200"><%= clip.name %></span>
+                    <span class="bb-section-copy text-xs"><%= clip.filename %></span>
+                    <button
+                      type="button"
+                      phx-click="delete_commercial_clip"
+                      phx-value-id={clip.id}
+                      data-confirm={"Delete \"#{clip.name}\"?"}
+                      class="bb-btn bb-btn-danger text-sm"
+                    >
+                      Delete
+                    </button>
+                  </li>
+                <% end %>
+              </ul>
+            <% end %>
+
+            <form
+              phx-submit="upload_commercial"
+              phx-change="validate_commercial"
+              class="bb-section-form"
+            >
+              <div class="bb-field">
+                <label class="bb-label" for="commercial_name">Clip name</label>
+                <input
+                  id="commercial_name"
+                  type="text"
+                  name="commercial_name"
+                  value={@commercial_upload_name}
+                  placeholder="e.g. BeeBot Ad 1"
+                  class="bb-input"
+                />
+              </div>
+
+              <div class="bb-field">
+                <label class="bb-label">Audio file</label>
+                <.live_file_input upload={@uploads.commercial_audio} class="bb-input" />
+              </div>
+
+              <%= if @commercial_upload_error do %>
+                <p class="text-red-500 text-sm mb-2"><%= @commercial_upload_error %></p>
+              <% end %>
+
+              <button type="submit" class="bb-btn bb-btn-primary">Upload Clip</button>
+            </form>
+          </div>
+        <% end %>
+      </section>
+
       <section aria-labelledby="api-tokens-heading" class="bb-section-card">
         <header class="bb-section-header">
           <div>

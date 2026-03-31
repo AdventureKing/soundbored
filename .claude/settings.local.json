@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(mix test:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:longestboi.github.io)",
+      "WebFetch(domain:jeaurond.dev)",
+      "WebFetch(domain:itch.io)",
+      "WebFetch(domain:1j01.github.io)",
+      "WebFetch(domain:spizzmate.itch.io)",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.myabandonware.com/game/peggle-world-of-warcraft-edition-lke\")",
+      "Bash(mix compile:*)",
+      "Bash(mix ecto.migrate)"
     ]
   }
 }
