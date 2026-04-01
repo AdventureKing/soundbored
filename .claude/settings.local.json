@@ -12,7 +12,8 @@
       "WebFetch(domain:spizzmate.itch.io)",
       "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.myabandonware.com/game/peggle-world-of-warcraft-edition-lke\")",
       "Bash(mix compile:*)",
-      "Bash(mix ecto.migrate)"
+      "Bash(mix ecto.migrate)",
+      "Bash(grep -n \"preview\\\\|Preview\\\\|local-upload\\\\|preview_kind\\\\|previewKind\\\\|preview-kind\\\\|previewSrc\\\\|preview-src\" assets/js/hooks/*.js assets/js/hooks.js)"
     ]
   }
 }

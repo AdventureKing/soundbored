@@ -50,7 +50,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModalTest do
   defp upload_assigns(overrides \\ %{}) do
     base = %{
       source_type: "url",
-      uploads: %{audio: %{entries: []}},
+      uploads: %{audio: %{entries: [], ref: "phx-upload-ref"}},
       url: "",
       upload_name: "",
       upload_error: nil,

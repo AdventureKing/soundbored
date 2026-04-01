@@ -53,7 +53,6 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                     <label class="bb-label">File</label>
                     <.live_file_input
                       upload={@uploads.audio}
-                      id="upload-audio-input"
                       class="bb-file-input"
                     />
                   </div>
@@ -82,7 +81,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                   preview_label="Preview Clip"
                   preview_disabled={!source_ready}
                   data-preview-kind={if(@source_type == "local", do: "local-upload", else: "url")}
-                  data-file-input-id="upload-audio-input"
+                  data-file-input-id={@uploads.audio.ref}
                   data-url-input-id="upload-url-input"
                   data-preview-src={if(@source_type == "url", do: @url || "", else: "")}
                 />
