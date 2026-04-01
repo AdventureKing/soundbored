@@ -6,6 +6,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
   alias Soundboard.Accounts.Permissions
   alias Soundboard.Volume
   alias SoundboardWeb.Components.Soundboard.{TagComponents, VolumeControl}
+  import SoundboardWeb.SoundHelpers, only: [upload_path: 1]
 
   attr :flash, :map, default: %{}
   attr :edit_name_error, :string, default: nil
@@ -35,7 +36,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
         @current_sound.url || ""
       else
         case @current_sound.filename do
-          filename when is_binary(filename) and filename != "" -> "/uploads/#{filename}"
+          filename when is_binary(filename) and filename != "" -> upload_path(filename)
           _ -> ""
         end
       end %>
@@ -167,34 +168,6 @@ defmodule SoundboardWeb.Components.Soundboard.EditModal do
                     wrapper_class="absolute z-10 mt-1 w-full rounded-md border border-[rgba(255,255,255,0.18)] bg-[#1e2027] shadow-lg max-h-60 py-1 overflow-auto"
                     suggestion_class="w-full text-left px-4 py-2 text-sm text-[#e2e0d8] hover:bg-[#16181e]"
                   />
-                </div>
-
-                <div class="bb-field bb-check-group">
-                  <% user_setting =
-                    Enum.find(
-                      @current_sound.user_sound_settings || [],
-                      &(&1.user_id == @current_user.id)
-                    ) %>
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_join_sound"
-                      value="true"
-                      checked={user_setting && user_setting.is_join_sound}
-                      class="bb-check"
-                    />
-                    <span>Play when I join voice</span>
-                  </label>
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_leave_sound"
-                      value="true"
-                      checked={user_setting && user_setting.is_leave_sound}
-                      class="bb-check"
-                    />
-                    <span>Play when I leave voice</span>
-                  </label>
                 </div>
 
                 <div class="bb-modal-actions">

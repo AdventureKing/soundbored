@@ -8,13 +8,16 @@ defmodule SoundboardWeb.SoundboardLive do
   alias Soundboard.{Favorites, PlaybackCooldown, PubSubTopics, Sounds}
   alias Soundboard.Accounts.Permissions
   alias SoundboardWeb.Live.SoundboardLive.{EditFlow, UploadFlow}
-  alias SoundboardWeb.Live.Support.{FlashHelpers, SoundPlayback}
+  alias SoundboardWeb.Live.Support.SoundPlayback
   alias SoundboardWeb.Soundboard.SoundFilter
 
   import SoundboardWeb.Live.Support.LiveTags,
     only: [all_tags: 1, featured_tags: 1, tag_selected?: 2]
 
   import SoundFilter, only: [filter_sounds: 4]
+
+  @default_display_limit 120
+  @display_limit_step 120
 
   @impl true
   def mount(_params, session, socket) do
@@ -53,15 +56,23 @@ defmodule SoundboardWeb.SoundboardLive do
   defp assign_initial_state(socket) do
     socket
     |> assign(:uploaded_files, [])
+    |> assign(:tag_sound_counts, %{})
+    |> assign(:display_limit, @default_display_limit)
+    |> assign(:display_limit_step, @display_limit_step)
     |> assign(:loading_sounds, true)
     |> assign(:cooldown_end_ms, nil)
     |> assign(:cooldown_remaining_ms, nil)
     |> assign(:search_query, "")
     |> assign(:editing, nil)
     |> assign(:selected_tags, [])
-    |> assign(:tag_filter_mode, "and")
+    |> assign(:tag_filter_mode, "or")
     |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
+    |> assign(:now_playing_event_id, 0)
+    |> assign(:now_playing_title, nil)
+    |> assign(:now_playing_played_by, nil)
+    |> assign(:now_playing_source, nil)
+    |> assign(:now_playing_started_at_ms, nil)
     |> UploadFlow.assign_defaults()
     |> EditFlow.assign_defaults()
     |> allow_upload(:audio,
@@ -101,13 +112,40 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
+  def handle_event("play_from_title", %{"name" => filename}, socket) do
+    SoundPlayback.play(socket, filename)
+  end
+
+  @impl true
+  def handle_event("now_playing_finished", %{"event_id" => event_id}, socket) do
+    parsed_event_id = parse_now_playing_event_id(event_id)
+
+    if parsed_event_id > 0 and parsed_event_id == (socket.assigns[:now_playing_event_id] || 0) do
+      {:noreply, clear_now_playing(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("now_playing_finished", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    {:noreply, assign(socket, :search_query, query)}
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> reset_display_limit()}
   end
 
   @impl true
   def handle_event("clear_search", _params, socket) do
-    {:noreply, assign(socket, :search_query, "")}
+    {:noreply,
+     socket
+     |> assign(:search_query, "")
+     |> reset_display_limit()}
   end
 
   @impl true
@@ -127,14 +165,18 @@ defmodule SoundboardWeb.SoundboardLive do
         {:noreply,
          socket
          |> assign(:selected_tags, selected_tags)
-         |> assign(:search_query, "")}
+         |> assign(:search_query, "")
+         |> reset_display_limit()}
     end
   end
 
   @impl true
   def handle_event("set_tag_filter_mode", %{"mode" => mode}, socket)
       when mode in ["and", "or"] do
-    {:noreply, assign(socket, :tag_filter_mode, mode)}
+    {:noreply,
+     socket
+     |> assign(:tag_filter_mode, mode)
+     |> reset_display_limit()}
   end
 
   @impl true
@@ -144,12 +186,24 @@ defmodule SoundboardWeb.SoundboardLive do
 
   @impl true
   def handle_event("toggle_favorites_filter", _params, socket) do
-    {:noreply, assign(socket, :favorites_only, !socket.assigns.favorites_only)}
+    {:noreply,
+     socket
+     |> assign(:favorites_only, !socket.assigns.favorites_only)
+     |> reset_display_limit()}
   end
 
   @impl true
   def handle_event("clear_tag_filters", _, socket) do
-    {:noreply, assign(socket, :selected_tags, [])}
+    {:noreply,
+     socket
+     |> assign(:selected_tags, [])
+     |> reset_display_limit()}
+  end
+
+  @impl true
+  def handle_event("load_more_sounds", _params, socket) do
+    next_limit = (socket.assigns[:display_limit] || @default_display_limit) + @display_limit_step
+    {:noreply, assign(socket, :display_limit, next_limit)}
   end
 
   @impl true
@@ -335,16 +389,6 @@ defmodule SoundboardWeb.SoundboardLive do
   end
 
   @impl true
-  def handle_event("toggle_join_sound", _params, socket) do
-    UploadFlow.toggle_join_sound(socket)
-  end
-
-  @impl true
-  def handle_event("toggle_leave_sound", _params, socket) do
-    UploadFlow.toggle_leave_sound(socket)
-  end
-
-  @impl true
   def handle_event("update_volume", %{"volume" => volume, "target" => "edit"}, socket) do
     EditFlow.update_volume(socket, volume)
   end
@@ -414,7 +458,7 @@ defmodule SoundboardWeb.SoundboardLive do
   def handle_info({:sound_played, %{filename: _, played_by: _} = event}, socket) do
     {:noreply,
      socket
-     |> FlashHelpers.flash_sound_played(event)
+     |> assign_now_playing(event)
      |> maybe_refresh_cooldown_timer(event.played_by)}
   end
 
@@ -453,7 +497,9 @@ defmodule SoundboardWeb.SoundboardLive do
         sounds
       end
 
-    assign(socket, :uploaded_files, sounds)
+    socket
+    |> assign(:uploaded_files, sounds)
+    |> assign(:tag_sound_counts, build_tag_sound_counts(sounds))
   end
 
   defp preview_sounds do
@@ -592,7 +638,6 @@ defmodule SoundboardWeb.SoundboardLive do
     preview_sound =
       sound
       |> Map.put_new(:tags, [])
-      |> Map.put_new(:user_sound_settings, [])
       |> Map.put_new(:internal_cooldown_seconds, 0)
       |> Map.put_new(:source_type, "url")
       |> Map.put_new(:url, "")
@@ -657,6 +702,18 @@ defmodule SoundboardWeb.SoundboardLive do
     Enum.filter(sounds, &MapSet.member?(favorite_sound_ids, &1.id))
   end
 
+  defp reset_display_limit(socket) do
+    assign(socket, :display_limit, @default_display_limit)
+  end
+
+  defp build_tag_sound_counts(sounds) when is_list(sounds) do
+    Enum.reduce(sounds, %{}, fn sound, acc ->
+      Enum.reduce(sound.tags || [], acc, fn tag, count_map ->
+        Map.update(count_map, tag.id, 1, &(&1 + 1))
+      end)
+    end)
+  end
+
   defp can_edit_sound_card?(_sound, _current_user, true), do: true
 
   defp can_edit_sound_card?(sound, current_user, _can_manage_settings) do
@@ -699,6 +756,58 @@ defmodule SoundboardWeb.SoundboardLive do
 
   defp remaining_ms_from_end(end_ms) when is_integer(end_ms) do
     max(end_ms - System.system_time(:millisecond), 0)
+  end
+
+  defp assign_now_playing(socket, %{filename: filename, played_by: played_by})
+       when is_binary(filename) do
+    source = resolve_now_playing_source(socket.assigns[:uploaded_files] || [], filename)
+
+    socket
+    |> assign(:now_playing_event_id, (socket.assigns[:now_playing_event_id] || 0) + 1)
+    |> assign(:now_playing_title, SoundboardWeb.SoundHelpers.display_name(filename))
+    |> assign(:now_playing_played_by, played_by)
+    |> assign(:now_playing_source, source)
+    |> assign(:now_playing_started_at_ms, System.system_time(:millisecond))
+  end
+
+  defp assign_now_playing(socket, _event), do: socket
+
+  defp clear_now_playing(socket) do
+    socket
+    |> assign(:now_playing_event_id, 0)
+    |> assign(:now_playing_title, nil)
+    |> assign(:now_playing_played_by, nil)
+    |> assign(:now_playing_source, nil)
+    |> assign(:now_playing_started_at_ms, nil)
+  end
+
+  defp parse_now_playing_event_id(event_id) when is_integer(event_id), do: event_id
+
+  defp parse_now_playing_event_id(event_id) when is_binary(event_id) do
+    case Integer.parse(event_id) do
+      {value, ""} -> value
+      _ -> 0
+    end
+  end
+
+  defp parse_now_playing_event_id(_event_id), do: 0
+
+  defp resolve_now_playing_source(uploaded_files, filename) do
+    matched_sound =
+      Enum.find(uploaded_files, fn sound ->
+        to_string(Map.get(sound, :filename) || Map.get(sound, "filename") || "") == filename
+      end)
+
+    source_type =
+      Map.get(matched_sound || %{}, :source_type) || Map.get(matched_sound || %{}, "source_type")
+
+    url = Map.get(matched_sound || %{}, :url) || Map.get(matched_sound || %{}, "url")
+
+    if source_type == "url" and is_binary(url) and String.trim(url) != "" do
+      url
+    else
+      SoundboardWeb.SoundHelpers.upload_path(filename)
+    end
   end
 
   defp upload_forbidden_flash(socket) do
