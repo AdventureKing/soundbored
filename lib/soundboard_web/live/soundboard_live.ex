@@ -5,7 +5,7 @@ defmodule SoundboardWeb.SoundboardLive do
   import EditModal
   import DeleteModal
   import UploadModal
-  alias Soundboard.{Favorites, PlaybackCooldown, PubSubTopics, Sounds}
+  alias Soundboard.{Favorites, PlaybackCooldown, PubSubTopics, Sounds, Stats}
   alias Soundboard.Accounts.Permissions
   alias SoundboardWeb.Live.SoundboardLive.{EditFlow, UploadFlow}
   alias SoundboardWeb.Live.Support.SoundPlayback
@@ -14,7 +14,7 @@ defmodule SoundboardWeb.SoundboardLive do
   import SoundboardWeb.Live.Support.LiveTags,
     only: [all_tags: 1, featured_tags: 1, tag_selected?: 2]
 
-  import SoundFilter, only: [filter_sounds: 4]
+  import SoundFilter, only: [filter_sounds: 4, sort_sounds: 2, sort_table: 5]
 
   @default_display_limit 120
   @display_limit_step 120
@@ -68,6 +68,11 @@ defmodule SoundboardWeb.SoundboardLive do
     |> assign(:tag_filter_mode, "or")
     |> assign(:favorites_only, false)
     |> assign(:show_all_tags, false)
+    |> assign(:sort_order, "alpha")
+    |> assign(:sort_col, "name")
+    |> assign(:sort_dir, :asc)
+    |> assign(:view_mode, "grid")
+    |> assign(:play_counts, %{})
     |> assign(:now_playing_event_id, 0)
     |> assign(:now_playing_title, nil)
     |> assign(:now_playing_played_by, nil)
@@ -199,6 +204,59 @@ defmodule SoundboardWeb.SoundboardLive do
      |> assign(:selected_tags, [])
      |> reset_display_limit()}
   end
+
+  @impl true
+  def handle_event("restore_prefs", prefs, socket) do
+    socket =
+      socket
+      |> maybe_assign_pref(:view_mode, prefs["view_mode"], ~w(grid list))
+      |> maybe_assign_pref(:sort_order, prefs["sort_order"], ~w(alpha recent))
+      |> maybe_assign_pref(:sort_col, prefs["sort_col"], ~w(name uploader duration plays added))
+      |> maybe_assign_dir(prefs["sort_dir"])
+
+    {:noreply, socket}
+  end
+
+  def handle_event("set_sort_order", %{"order" => order}, socket)
+      when order in ["alpha", "recent"] do
+    {:noreply,
+     socket
+     |> assign(:sort_order, order)
+     |> push_event("save_pref", %{key: "sort_order", value: order})}
+  end
+
+  def handle_event("set_sort_order", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("sort_col", %{"col" => col}, socket)
+      when col in ["name", "uploader", "duration", "plays", "added", "favorite"] do
+    {new_col, new_dir} =
+      if socket.assigns.sort_col == col do
+        {col, if(socket.assigns.sort_dir == :asc, do: :desc, else: :asc)}
+      else
+        {col, :asc}
+      end
+
+    {:noreply,
+     socket
+     |> assign(:sort_col, new_col)
+     |> assign(:sort_dir, new_dir)
+     |> push_event("save_pref", %{key: "sort_col", value: new_col})
+     |> push_event("save_pref", %{key: "sort_dir", value: to_string(new_dir)})}
+  end
+
+  def handle_event("sort_col", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("set_view_mode", %{"mode" => mode}, socket)
+      when mode in ["grid", "list"] do
+    {:noreply,
+     socket
+     |> assign(:view_mode, mode)
+     |> push_event("save_pref", %{key: "view_mode", value: mode})}
+  end
+
+  def handle_event("set_view_mode", _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("load_more_sounds", _params, socket) do
@@ -497,9 +555,17 @@ defmodule SoundboardWeb.SoundboardLive do
         sounds
       end
 
+    play_counts =
+      if socket.assigns[:preview_mode] do
+        %{}
+      else
+        Stats.get_play_counts()
+      end
+
     socket
     |> assign(:uploaded_files, sounds)
     |> assign(:tag_sound_counts, build_tag_sound_counts(sounds))
+    |> assign(:play_counts, play_counts)
   end
 
   defp preview_sounds do
@@ -705,6 +771,15 @@ defmodule SoundboardWeb.SoundboardLive do
   defp reset_display_limit(socket) do
     assign(socket, :display_limit, @default_display_limit)
   end
+
+  defp maybe_assign_pref(socket, _key, nil, _valid), do: socket
+  defp maybe_assign_pref(socket, key, value, valid) when is_list(valid) do
+    if value in valid, do: assign(socket, key, value), else: socket
+  end
+
+  defp maybe_assign_dir(socket, dir) when dir in ["asc", "desc"],
+    do: assign(socket, :sort_dir, String.to_existing_atom(dir))
+  defp maybe_assign_dir(socket, _), do: socket
 
   defp build_tag_sound_counts(sounds) when is_list(sounds) do
     Enum.reduce(sounds, %{}, fn sound, acc ->

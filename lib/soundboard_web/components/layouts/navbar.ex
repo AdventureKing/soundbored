@@ -219,19 +219,22 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
 
       <div class="bb-footer">
         <div :if={!@collapsed} class="bb-buzz-row">
-          <span class="bb-buzz-label">Buzz Mode</span>
-          <label class="bee-switch" aria-label="Toggle Buzz Mode">
-            <input
-              id={if @mobile, do: "buzz-mode-toggle-mobile", else: "buzz-mode-toggle-desktop"}
-              type="checkbox"
-              phx-hook="BuzzModeToggle"
-              data-buzz-toggle
-              role="switch"
-              aria-label="Buzz Mode"
-            />
-            <span class="slider">
-              <span class="bee">&#x1F41D;</span>
-            </span>
+          <input
+            id={if @mobile, do: "buzz-mode-toggle-mobile", else: "buzz-mode-toggle-desktop"}
+            type="checkbox"
+            phx-hook="BuzzModeToggle"
+            data-buzz-toggle
+            role="switch"
+            aria-label="Buzz Mode"
+            class="sr-only"
+          />
+          <label
+            for={if @mobile, do: "buzz-mode-toggle-mobile", else: "buzz-mode-toggle-desktop"}
+            class="bb-buzz-icon-btn"
+            title="Toggle Buzz Mode"
+          >
+            <span class="bb-buzz-icon-emoji">&#x1F41D;</span>
+            <span class="bb-buzz-icon-label">Buzz Mode</span>
           </label>
         </div>
 

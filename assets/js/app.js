@@ -1795,7 +1795,9 @@ Hooks.QueenPick = {
     return document.documentElement.classList.contains(BUZZ_MODE_CLASS)
   },
   syncCandidates() {
-    const cards = Array.from(document.querySelectorAll(".bb-sound-grid .bb-sound-card"))
+    const cards = Array.from(
+      document.querySelectorAll(".bb-sound-grid .bb-sound-card, .bb-sounds-table .bb-tr[data-queen-filename]")
+    )
     this.candidates = cards
       .map((cardEl) => this.extractCandidate(cardEl))
       .filter((candidate) => candidate !== null)
@@ -2032,18 +2034,64 @@ Hooks.BuzzModeToggle = {
   }
 }
 
+const NAV_COLLAPSED_STORAGE_KEY = "bb_nav_collapsed"
+
 Hooks.DesktopNavState = {
   mounted() {
-    applyDesktopNavState(this.readCollapsed())
+    const saved = this.loadCollapsed()
+    if (saved !== null && saved !== this.readCollapsed()) {
+      this.pushEvent("toggle-desktop-nav", {})
+    }
+    applyDesktopNavState(saved !== null ? saved : this.readCollapsed())
   },
   updated() {
-    applyDesktopNavState(this.readCollapsed())
+    const collapsed = this.readCollapsed()
+    this.saveCollapsed(collapsed)
+    applyDesktopNavState(collapsed)
   },
   destroyed() {
     applyDesktopNavState(false)
   },
   readCollapsed() {
     return this.el.dataset.collapsed === "true"
+  },
+  loadCollapsed() {
+    try {
+      const val = localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY)
+      return val === null ? null : val === "true"
+    } catch (_) {
+      return null
+    }
+  },
+  saveCollapsed(collapsed) {
+    try {
+      localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, String(collapsed))
+    } catch (_) {}
+  }
+}
+
+const USER_PREFS_KEY = "bb_user_prefs"
+
+Hooks.UserPrefs = {
+  mounted() {
+    const prefs = this.loadPrefs()
+    if (prefs) {
+      this.pushEvent("restore_prefs", prefs)
+    }
+
+    this.handleEvent("save_pref", ({ key, value }) => {
+      const prefs = this.loadPrefs() || {}
+      prefs[key] = value
+      localStorage.setItem(USER_PREFS_KEY, JSON.stringify(prefs))
+    })
+  },
+  loadPrefs() {
+    try {
+      const raw = localStorage.getItem(USER_PREFS_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch (_) {
+      return null
+    }
   }
 }
 

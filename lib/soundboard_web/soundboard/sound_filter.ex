@@ -13,6 +13,48 @@ defmodule SoundboardWeb.Soundboard.SoundFilter do
     |> filter_by_search(query)
   end
 
+  def sort_sounds(sounds, "recent") do
+    Enum.sort_by(sounds, &Map.get(&1, :inserted_at, ~N[2000-01-01 00:00:00]), {:desc, NaiveDateTime})
+  end
+
+  def sort_sounds(sounds, "alpha") do
+    Enum.sort_by(sounds, &String.downcase(&1.filename))
+  end
+
+  def sort_sounds(sounds, _), do: sounds
+
+  def sort_table(sounds, play_counts, col, dir, favorites \\ []) do
+    favorite_ids = MapSet.new(favorites)
+
+    sorted =
+      case col do
+        "name" ->
+          Enum.sort_by(sounds, &String.downcase(&1.filename))
+
+        "uploader" ->
+          Enum.sort_by(sounds, fn s ->
+            String.downcase(get_in(s, [:user, :username]) || "")
+          end)
+
+        "duration" ->
+          Enum.sort_by(sounds, &Map.get(&1, :duration_ms, 0))
+
+        "plays" ->
+          Enum.sort_by(sounds, &Map.get(play_counts, &1.filename, 0))
+
+        "added" ->
+          Enum.sort_by(sounds, &Map.get(&1, :inserted_at, ~N[2000-01-01 00:00:00]), NaiveDateTime)
+
+        "favorite" ->
+          Enum.sort_by(sounds, &(if MapSet.member?(favorite_ids, &1.id), do: 0, else: 1))
+
+        _ ->
+          sounds
+      end
+
+    if dir == :desc, do: Enum.reverse(sorted), else: sorted
+  end
+
   defp filter_by_tags(sounds, [], _tag_filter_mode), do: sounds
 
   defp filter_by_tags(sounds, selected_tags, tag_filter_mode) do

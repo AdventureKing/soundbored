@@ -132,6 +132,16 @@ defmodule Soundboard.Stats do
 
   def get_user_week_summary(_, _, _, _), do: nil
 
+  @spec get_play_counts() :: %{optional(String.t()) => non_neg_integer()}
+  def get_play_counts do
+    from(p in Play,
+      group_by: p.played_filename,
+      select: {p.played_filename, count(p.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
   @spec reset_weekly_stats() :: :ok | {:error, term()}
   def reset_weekly_stats do
     {week_start, _week_end} = get_week_range()
