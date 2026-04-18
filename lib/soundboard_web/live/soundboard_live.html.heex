@@ -389,12 +389,13 @@
                         {Map.get(@play_counts, sound.filename, 0)}
                       </td>
                       <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
-                        <span
-                          id={"#{sound_player_dom_id(sound)}-duration"}
-                          phx-update="ignore"
-                          data-role="clip-duration"
-                          class="bb-mono"
-                        >--:--</span>
+                        <span class="bb-mono">
+                          <%= if ms = Map.get(sound, :duration_ms) do %>
+                            {Integer.to_string(div(ms, 60000))}:{String.pad_leading(Integer.to_string(rem(div(ms, 1000), 60)), 2, "0")}
+                          <% else %>
+                            —
+                          <% end %>
+                        </span>
                       </td>
                       <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
                         <%= if date = Map.get(sound, :inserted_at) do %>
@@ -431,15 +432,6 @@
                             <path fill-rule="evenodd" d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z" clip-rule="evenodd" />
                           </svg>
                         </button>
-                        <%= if @current_user do %>
-                          <button phx-click="toggle_favorite" phx-value-sound-id={sound.id} class="bb-icon-btn" title="Favorite">
-                            <%= if sound.id in @favorites do %>
-                              <.icon name="hero-heart-solid" class="h-4 w-4 text-red-500" />
-                            <% else %>
-                              <.icon name="hero-heart" class="h-4 w-4" />
-                            <% end %>
-                          </button>
-                        <% end %>
                         <%= if can_edit_sound_card?(sound, @current_user, @can_manage_settings) do %>
                           <button phx-click="edit" phx-value-id={sound.id} class="bb-icon-btn" title="Edit">
                             <.icon name="hero-pencil-square" class="h-4 w-4" />

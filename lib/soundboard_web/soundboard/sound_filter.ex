@@ -33,7 +33,7 @@ defmodule SoundboardWeb.Soundboard.SoundFilter do
 
         "uploader" ->
           Enum.sort_by(sounds, fn s ->
-            String.downcase(get_in(s, [:user, :username]) || "")
+            String.downcase((s.user && s.user.username) || "")
           end)
 
         "duration" ->
