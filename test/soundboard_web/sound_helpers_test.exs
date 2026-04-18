@@ -29,4 +29,14 @@ defmodule SoundboardWeb.SoundHelpersTest do
       assert SoundHelpers.slugify(nil) == "sound"
     end
   end
+
+  describe "upload_path/1" do
+    test "builds an uploads path with escaped filename characters" do
+      assert SoundHelpers.upload_path("what?.mp3") == "/uploads/what%3F.mp3"
+    end
+
+    test "returns an empty string for nil" do
+      assert SoundHelpers.upload_path(nil) == ""
+    end
+  end
 end

@@ -53,7 +53,6 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                     <label class="bb-label">File</label>
                     <.live_file_input
                       upload={@uploads.audio}
-                      id="upload-audio-input"
                       class="bb-file-input"
                     />
                   </div>
@@ -82,7 +81,7 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                   preview_label="Preview Clip"
                   preview_disabled={!source_ready}
                   data-preview-kind={if(@source_type == "local", do: "local-upload", else: "url")}
-                  data-file-input-id="upload-audio-input"
+                  data-file-input-id={@uploads.audio.ref}
                   data-url-input-id="upload-url-input"
                   data-preview-src={if(@source_type == "url", do: @url || "", else: "")}
                 />
@@ -143,33 +142,6 @@ defmodule SoundboardWeb.Components.Soundboard.UploadModal do
                       select_event="select_upload_tag"
                     />
                   </div>
-                </div>
-
-                <div class="bb-field bb-check-group">
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_join_sound"
-                      value="true"
-                      checked={@is_join_sound}
-                      phx-click="toggle_join_sound"
-                      disabled={!source_ready}
-                      class="bb-check"
-                    />
-                    <span>Play when I join voice</span>
-                  </label>
-                  <label class="bb-check-row">
-                    <input
-                      type="checkbox"
-                      name="is_leave_sound"
-                      value="true"
-                      checked={@is_leave_sound}
-                      phx-click="toggle_leave_sound"
-                      disabled={!source_ready}
-                      class="bb-check"
-                    />
-                    <span>Play when I leave voice</span>
-                  </label>
                 </div>
 
                 <div class="bb-modal-actions">

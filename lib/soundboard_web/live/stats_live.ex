@@ -4,7 +4,7 @@ defmodule SoundboardWeb.StatsLive do
   alias SoundboardWeb.PresenceHandler
   import Phoenix.Component
   import SoundboardWeb.SoundHelpers
-  alias Soundboard.{Accounts, Favorites, PubSubTopics, Sounds, Stats}
+  alias Soundboard.{Accounts, Favorites, PlaybackCooldown, PubSubTopics, Sounds, Stats}
   alias SoundboardWeb.Live.Support.{FlashHelpers, SoundPlayback}
   import FlashHelpers, only: [clear_flash_after_timeout: 1]
   require Logger
@@ -29,12 +29,15 @@ defmodule SoundboardWeb.StatsLive do
      |> assign(:current_path, if(preview_mode, do: "/preview/stats", else: "/stats"))
      |> assign(:preview_mode, preview_mode)
      |> assign(:current_user, get_user_from_session(session))
+     |> assign(:cooldown_end_ms, nil)
+     |> assign(:cooldown_remaining_ms, nil)
      |> assign(:force_update, 0)
      |> assign(:selected_week, current_week)
      |> assign(:current_week, current_week)
      |> stream_configure(:recent_plays, dom_id: &recent_play_dom_id/1)
      |> stream(:recent_plays, [])
-     |> assign_stats()}
+     |> assign_stats()
+     |> refresh_cooldown_timer()}
   end
 
   @impl true
@@ -44,6 +47,7 @@ defmodule SoundboardWeb.StatsLive do
     {:noreply,
      socket
      |> stream(:recent_plays, recent_plays, reset: true)
+     |> maybe_refresh_cooldown_timer(username)
      |> put_flash(:info, "#{username} played #{display_name(filename)}")
      |> clear_flash_after_timeout()}
   end
@@ -71,6 +75,14 @@ defmodule SoundboardWeb.StatsLive do
     top_users = Stats.get_top_users(start_date, end_date, limit: @recent_limit)
     top_sounds = Stats.get_top_sounds(start_date, end_date, limit: @recent_limit)
 
+    viewer_stats =
+      load_viewer_stats(
+        socket.assigns.current_user,
+        start_date,
+        end_date,
+        socket.assigns.preview_mode
+      )
+
     recent_plays = recent_plays()
 
     recent_uploads = Sounds.get_recent_uploads(limit: @recent_limit)
@@ -86,6 +98,7 @@ defmodule SoundboardWeb.StatsLive do
     |> assign(:favorites, favorites)
     |> assign(:sound_ids_by_filename, sound_ids_by_filename)
     |> assign(:avatars_by_username, avatars_by_username)
+    |> assign(:viewer_stats, viewer_stats)
   end
 
   defp get_favorites(nil), do: []
@@ -343,6 +356,29 @@ defmodule SoundboardWeb.StatsLive do
           </div>
         </section>
       </div>
+
+      <div class="bb-section-grid">
+        <section :if={@viewer_stats} class="bb-section-card bb-section-card-full">
+          <h2 class="bb-section-heading">Your Stats</h2>
+
+          <div class="bb-stat-list">
+            <div id="viewer-total-plays" class="bb-stat-item">
+              <span class="bb-stat-pill rounded-full px-2 py-1">Total Plays</span>
+              <span class="bb-stat-count">{@viewer_stats.total_plays}</span>
+            </div>
+
+            <div id="viewer-unique-sounds" class="bb-stat-item">
+              <span class="bb-stat-pill rounded-full px-2 py-1">Unique Sounds</span>
+              <span class="bb-stat-count">{@viewer_stats.unique_sounds}</span>
+            </div>
+
+            <div id="viewer-top-sound" class="bb-stat-item">
+              <span class="bb-stat-pill rounded-full px-2 py-1">Your Top Sound</span>
+              <span class="bb-stat-count">{viewer_top_sound_label(@viewer_stats.top_sound)}</span>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
     """
   end
@@ -397,6 +433,28 @@ defmodule SoundboardWeb.StatsLive do
     }
   end
 
+  defp load_viewer_stats(%{id: user_id}, start_date, end_date, _preview_mode)
+       when is_integer(user_id) do
+    Stats.get_user_week_summary(user_id, start_date, end_date, recent_limit: 3)
+  end
+
+  defp load_viewer_stats(nil, _start_date, _end_date, true) do
+    %{
+      total_plays: 0,
+      unique_sounds: 0,
+      top_sound: nil,
+      recent_plays: []
+    }
+  end
+
+  defp load_viewer_stats(_, _, _, _), do: nil
+
+  defp viewer_top_sound_label(nil), do: "No plays this week"
+
+  defp viewer_top_sound_label({filename, count}) do
+    "#{display_name(filename)} · #{count} plays"
+  end
+
   defp load_sound_ids_by_filename(top_sounds, recent_plays, recent_uploads) do
     filenames =
       top_sounds
@@ -434,6 +492,29 @@ defmodule SoundboardWeb.StatsLive do
   defp recent_play_dom_id(play) do
     base = slugify(play.filename)
     "recent-play-#{base}-#{play.id}"
+  end
+
+  defp refresh_cooldown_timer(socket) do
+    cooldown_end_ms = PlaybackCooldown.active_cooldown_end_unix_ms(socket.assigns[:current_user])
+
+    socket
+    |> assign(:cooldown_end_ms, cooldown_end_ms)
+    |> assign(:cooldown_remaining_ms, remaining_ms_from_end(cooldown_end_ms))
+  end
+
+  defp maybe_refresh_cooldown_timer(socket, played_by) when is_binary(played_by) do
+    case socket.assigns[:current_user] do
+      %{username: ^played_by} -> refresh_cooldown_timer(socket)
+      _ -> socket
+    end
+  end
+
+  defp maybe_refresh_cooldown_timer(socket, _played_by), do: socket
+
+  defp remaining_ms_from_end(nil), do: nil
+
+  defp remaining_ms_from_end(end_ms) when is_integer(end_ms) do
+    max(end_ms - System.system_time(:millisecond), 0)
   end
 
   @impl true

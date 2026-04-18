@@ -23,7 +23,10 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, :users, visible_users(assigns[:presences]))
+    assigns =
+      assigns
+      |> assign_new(:preview_mode, fn -> false end)
+      |> assign(:users, visible_users(assigns[:presences]))
 
     ~H"""
     <div
@@ -215,9 +218,26 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
       </div>
 
       <div class="bb-footer">
-        <.link :if={@current_user} href={~p"/auth/discord"} class="bb-reauth-link">
-          Re-auth
-        </.link>
+        <div :if={!@collapsed} class="bb-buzz-row">
+          <input
+            id={if @mobile, do: "buzz-mode-toggle-mobile", else: "buzz-mode-toggle-desktop"}
+            type="checkbox"
+            phx-hook="BuzzModeToggle"
+            data-buzz-toggle
+            role="switch"
+            aria-label="Buzz Mode"
+            class="sr-only"
+          />
+          <label
+            for={if @mobile, do: "buzz-mode-toggle-mobile", else: "buzz-mode-toggle-desktop"}
+            class="bb-buzz-icon-btn"
+            title="Toggle Buzz Mode"
+          >
+            <span class="bb-buzz-icon-emoji">&#x1F41D;</span>
+            <span class="bb-buzz-icon-label">Buzz Mode</span>
+          </label>
+        </div>
+
       </div>
     </div>
     """

@@ -7,7 +7,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
   import Mock
 
   alias Soundboard.Accounts.{ApiTokens, RoleCooldown, User}
-  alias Soundboard.{Repo, Sound, Tag, UserSoundSetting}
+  alias Soundboard.{Repo, Sound, Tag}
   alias Soundboard.Stats.Play
 
   setup %{conn: conn} do
@@ -35,6 +35,7 @@ defmodule SoundboardWeb.API.SoundControllerTest do
         assert is_integer(sound_data["id"])
         assert is_binary(sound_data["filename"])
         assert is_list(sound_data["tags"])
+        assert Map.has_key?(sound_data, "duration_ms")
         assert is_integer(sound_data["internal_cooldown_seconds"])
         assert sound_data["inserted_at"]
         assert sound_data["updated_at"]
@@ -51,31 +52,10 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       assert is_list(test_sound["tags"])
     end
 
-    test "includes join and leave flags for the authenticated user", %{
-      conn: conn,
-      sound: sound,
-      user: user
-    } do
-      %UserSoundSetting{}
-      |> UserSoundSetting.changeset(%{
-        user_id: user.id,
-        sound_id: sound.id,
-        is_join_sound: true,
-        is_leave_sound: false
-      })
-      |> Repo.insert!()
-
-      conn = get(conn, ~p"/api/sounds")
-      assert %{"data" => sounds} = json_response(conn, 200)
-
-      test_sound = Enum.find(sounds, &(&1["id"] == sound.id))
-      assert test_sound["is_join_sound"] == true
-      assert test_sound["is_leave_sound"] == false
-    end
   end
 
   describe "create" do
-    test "creates a URL sound", %{conn: conn, user: user} do
+    test "creates a URL sound", %{conn: conn} do
       name = "api_url_#{System.unique_integer([:positive])}"
 
       conn =
@@ -84,23 +64,18 @@ defmodule SoundboardWeb.API.SoundControllerTest do
           "name" => name,
           "url" => "https://example.com/wow.mp3",
           "tags" => ["meme", "reaction"],
-          "volume" => "35",
-          "is_join_sound" => "true"
+          "volume" => "35"
         })
 
       assert %{"data" => data} = json_response(conn, 201)
       assert data["filename"] == "#{name}.mp3"
       assert data["source_type"] == "url"
       assert data["url"] == "https://example.com/wow.mp3"
-      assert data["is_join_sound"] == true
+      assert Map.has_key?(data, "duration_ms")
 
       sound = Repo.get_by!(Sound, filename: "#{name}.mp3") |> Repo.preload(:tags)
       assert Enum.sort(Enum.map(sound.tags, & &1.name)) == ["meme", "reaction"]
       assert_in_delta sound.volume, 0.35, 0.0001
-
-      setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: sound.id)
-      assert setting.is_join_sound
-      refute setting.is_leave_sound
     end
 
     test "infers URL source type when source_type is omitted", %{conn: conn} do
@@ -133,14 +108,13 @@ defmodule SoundboardWeb.API.SoundControllerTest do
           "name" => name,
           "file" => upload,
           "tags" => "api,local",
-          "volume" => "120",
-          "is_leave_sound" => "true"
+          "volume" => "120"
         })
 
       assert %{"data" => data} = json_response(conn, 201)
       assert data["filename"] == "#{name}.mp3"
       assert data["source_type"] == "local"
-      assert data["is_leave_sound"] == true
+      assert Map.has_key?(data, "duration_ms")
 
       sound = Repo.get_by!(Sound, filename: "#{name}.mp3")
       assert_in_delta sound.volume, 1.2, 0.0001
@@ -172,38 +146,6 @@ defmodule SoundboardWeb.API.SoundControllerTest do
       assert data["filename"] == "#{name}.mp3"
 
       on_exit(fn -> File.rm(Path.join(uploads_dir(), "#{name}.mp3")) end)
-    end
-
-    test "clears previous join sound when creating a new join sound", %{conn: conn, user: user} do
-      first_name = "join_one_#{System.unique_integer([:positive])}"
-      second_name = "join_two_#{System.unique_integer([:positive])}"
-
-      _ =
-        post(conn, ~p"/api/sounds", %{
-          "source_type" => "url",
-          "name" => first_name,
-          "url" => "https://example.com/first.mp3",
-          "tags" => ["join"],
-          "is_join_sound" => "true"
-        })
-
-      _ =
-        post(conn, ~p"/api/sounds", %{
-          "source_type" => "url",
-          "name" => second_name,
-          "url" => "https://example.com/second.mp3",
-          "tags" => ["join"],
-          "is_join_sound" => "true"
-        })
-
-      first_sound = Repo.get_by!(Sound, filename: "#{first_name}.mp3")
-      second_sound = Repo.get_by!(Sound, filename: "#{second_name}.mp3")
-
-      first_setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: first_sound.id)
-      second_setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: second_sound.id)
-
-      refute first_setting.is_join_sound
-      assert second_setting.is_join_sound
     end
 
     test "returns validation errors for missing fields", %{conn: conn} do

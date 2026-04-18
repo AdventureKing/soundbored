@@ -65,8 +65,6 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlowTest do
             upload_tags: [],
             upload_tag_input: "",
             upload_tag_suggestions: [],
-            is_join_sound: false,
-            is_leave_sound: false,
             upload_error: nil,
             upload_volume: 100
           },

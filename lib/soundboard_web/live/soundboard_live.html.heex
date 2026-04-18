@@ -1,17 +1,18 @@
 <div class="bb-page-wrap">
+  <% tag_sound_counts = @tag_sound_counts || %{} %>
   <% tags = all_tags(@uploaded_files) %>
   <% featured_tags = featured_tags(@uploaded_files) %>
   <% sorted_tags =
     Enum.sort_by(tags, fn tag ->
       {
-        -SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag),
+        -Map.get(tag_sound_counts, tag.id, 0),
         String.downcase(to_string(Map.get(tag, :name, "")))
       }
     end) %>
   <% sorted_featured_tags =
     Enum.sort_by(featured_tags, fn tag ->
       {
-        -SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag),
+        -Map.get(tag_sound_counts, tag.id, 0),
         String.downcase(to_string(Map.get(tag, :name, "")))
       }
     end) %>
@@ -20,14 +21,30 @@
     @uploaded_files
     |> filter_sounds(@search_query, @selected_tags, @tag_filter_mode)
     |> filter_to_favorites(@favorites_only, @favorites) %>
+  <% sorted_sounds =
+    if @view_mode == "list",
+      do: sort_table(filtered_sounds, @play_counts, @sort_col, @sort_dir, @favorites),
+      else: sort_sounds(filtered_sounds, @sort_order) %>
+  <% display_limit = @display_limit || 120 %>
+  <% visible_sounds = Enum.take(sorted_sounds, display_limit) %>
 
   <div class="bb-content-grid">
-    <aside class="bb-filter-panel">
-      <div class="bb-panel-header">
-        <div>
-          <h2 class="bb-panel-title">Find Sounds</h2>
-          <p class="bb-panel-count">{length(@uploaded_files)} total</p>
-        </div>
+    <aside class="bb-filter-panel" id="bb-user-prefs" phx-hook="UserPrefs">
+      <div class="bb-action-row">
+        <%= if @can_upload_clips do %>
+          <button phx-click="show_upload_modal" class="bb-btn-primary">+ Add Sound</button>
+        <% else %>
+          <button
+            type="button"
+            disabled
+            class="bb-btn-primary bb-btn-disabled"
+            title="Your Discord role does not allow clip uploads"
+          >
+            + Add Sound
+          </button>
+        <% end %>
+
+        <button phx-click="play_random" class="bb-btn-secondary">Random</button>
 
         <button
           id="favorites-filter-toggle"
@@ -44,23 +61,6 @@
             <.icon name="hero-heart" class="h-4 w-4" />
           <% end %>
         </button>
-      </div>
-
-      <div class="bb-action-row">
-        <%= if @can_upload_clips do %>
-          <button phx-click="show_upload_modal" class="bb-btn-primary">+ Add Sound</button>
-        <% else %>
-          <button
-            type="button"
-            disabled
-            class="bb-btn-primary bb-btn-disabled"
-            title="Your Discord role does not allow clip uploads"
-          >
-            + Add Sound
-          </button>
-        <% end %>
-
-        <button phx-click="play_random" class="bb-btn-secondary">Random</button>
       </div>
 
       <button
@@ -100,6 +100,32 @@
         </button>
       </form>
 
+      <div id="bb-queen-pick" class="bb-queen-pick" phx-hook="QueenPick" data-rotation-ms="30000">
+        <button
+          type="button"
+          class="bb-queen-pick-hitarea"
+          data-role="queen-pick-play"
+          phx-click="play"
+          phx-value-name=""
+          aria-label="Play Queen's Pick"
+          disabled
+        >
+        </button>
+
+        <div class="bb-queen-pick-head">
+          <span class="bb-queen-pick-label">Queen's Pick</span>
+          <span class="bb-queen-pick-countdown" data-role="queen-pick-countdown">00:30</span>
+        </div>
+        <div class="bb-queen-pick-body">
+          <span class="bb-queen-pick-title" data-role="queen-pick-title">
+            Waiting for sounds...
+          </span>
+          <span class="bb-queen-pick-meta" data-role="queen-pick-meta">
+            Buzz Mode rotates a random sound every 30 seconds.
+          </span>
+        </div>
+      </div>
+
       <div class="bb-featured-block">
         <div class="bb-tags-header-row">
           <span class="bb-tags-label">Featured Tags</span>
@@ -138,7 +164,7 @@
               >
                 {tag.name}
                 <span class="bb-tag-count">
-                  {SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag)}
+                  {Map.get(tag_sound_counts, tag.id, 0)}
                 </span>
               </button>
             <% end %>
@@ -175,7 +201,7 @@
               >
                 {tag.name}
                 <span class="bb-tag-count">
-                  {SoundboardWeb.Live.Support.LiveTags.count_sounds_with_tag(@uploaded_files, tag)}
+                  {Map.get(tag_sound_counts, tag.id, 0)}
                 </span>
               </button>
             <% end %>
@@ -190,10 +216,86 @@
 
     <section class="bb-main">
       <div class="bb-main-header">
-        <h1 class="bb-main-title">Sounds</h1>
-        <p class="bb-main-subtitle bb-main-subtitle-right">
-          Showing {length(filtered_sounds)} of {length(@uploaded_files)}
-        </p>
+        <div class="bb-main-title-block">
+          <h1 class="bb-main-title">Sounds</h1>
+          <p class="bb-main-subtitle">
+            {length(visible_sounds)} of {length(filtered_sounds)} shown
+          </p>
+        </div>
+
+        <section
+          id="bb-now-playing-card"
+          class="bb-now-playing-card"
+          phx-hook="NowPlayingCard"
+          data-now-playing-event-id={@now_playing_event_id}
+          data-now-playing-source={@now_playing_source || ""}
+          data-now-playing-started-at-ms={@now_playing_started_at_ms || ""}
+        >
+          <div class="bb-now-playing-text">
+            <span class="bb-now-playing-label">Now Playing</span>
+            <span class="bb-now-playing-title">
+              {if @now_playing_title, do: @now_playing_title, else: "Waiting for playback..."}
+            </span>
+            <span
+              data-role="now-playing-byline"
+              class={[
+                "bb-now-playing-byline",
+                if(@now_playing_event_id > 0 && @now_playing_played_by,
+                  do: "",
+                  else: "bb-now-playing-byline-hidden"
+                )
+              ]}
+            >
+              {if @now_playing_played_by, do: "Played by #{@now_playing_played_by}", else: ""}
+            </span>
+          </div>
+          <div class="bb-now-playing-progress">
+            <span data-role="now-playing-progress-fill" class="bb-now-playing-progress-fill"></span>
+          </div>
+        </section>
+
+        <div class="bb-main-controls">
+          <div class={["bb-sort-toggle", if(@view_mode == "list", do: "bb-hidden", else: "")]} role="group" aria-label="Sort order">
+            <button
+              type="button"
+              phx-click="set_sort_order"
+              phx-value-order="alpha"
+              class={["bb-sort-btn", if(@sort_order == "alpha", do: "active", else: "")]}
+              title="Sort A–Z"
+            >
+              A–Z
+            </button>
+            <button
+              type="button"
+              phx-click="set_sort_order"
+              phx-value-order="recent"
+              class={["bb-sort-btn", if(@sort_order == "recent", do: "active", else: "")]}
+              title="Sort by newest"
+            >
+              Recent
+            </button>
+          </div>
+          <div class="bb-view-toggle" role="group" aria-label="View mode">
+            <button
+              type="button"
+              phx-click="set_view_mode"
+              phx-value-mode="grid"
+              class={["bb-view-btn", if(@view_mode == "grid", do: "active", else: "")]}
+              title="Grid view"
+            >
+              <.icon name="hero-squares-2x2" class="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              phx-click="set_view_mode"
+              phx-value-mode="list"
+              class={["bb-view-btn", if(@view_mode == "list", do: "active", else: "")]}
+              title="List view"
+            >
+              <.icon name="hero-bars-3" class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <%= if @loading_sounds do %>
@@ -206,120 +308,279 @@
             No sounds match the current search and filters.
           </div>
         <% else %>
-          <div class="bb-sound-grid">
-            <%= for sound <- filtered_sounds do %>
-              <div id={sound_card_dom_id(sound)} class="bb-sound-card">
-                <button
-                  phx-click="play"
-                  phx-value-name={sound.filename}
-                  class="absolute inset-0 z-0 h-full w-full cursor-pointer"
-                >
-                </button>
-
-                <div class="bb-card-body">
-                  <div class="bb-card-top">
-                    <div class="bb-card-meta">
-                      <div class="bb-card-title" title={display_name(sound.filename)}>
+          <%= if @view_mode == "list" do %>
+            <% col = @sort_col %>
+            <% dir = @sort_dir %>
+            <div class="bb-table-shell">
+              <table class="bb-sounds-table">
+                <thead>
+                  <tr>
+                    <th class="bb-th bb-th-icon"></th>
+                    <th class="bb-th">
+                      <button class="bb-th-btn" phx-click="sort_col" phx-value-col="name">
+                        Name {if col == "name", do: if(dir == :asc, do: "↑", else: "↓"), else: ""}
+                      </button>
+                    </th>
+                    <th class="bb-th">
+                      <button class="bb-th-btn" phx-click="sort_col" phx-value-col="uploader">
+                        By {if col == "uploader", do: if(dir == :asc, do: "↑", else: "↓"), else: ""}
+                      </button>
+                    </th>
+                    <th class="bb-th bb-th-tags">Tags</th>
+                    <th class="bb-th bb-th-num">
+                      <button class="bb-th-btn" phx-click="sort_col" phx-value-col="plays">
+                        Plays {if col == "plays", do: if(dir == :asc, do: "↑", else: "↓"), else: ""}
+                      </button>
+                    </th>
+                    <th class="bb-th bb-th-num">
+                      <button class="bb-th-btn" phx-click="sort_col" phx-value-col="duration">
+                        Dur {if col == "duration", do: if(dir == :asc, do: "↑", else: "↓"), else: ""}
+                      </button>
+                    </th>
+                    <th class="bb-th bb-th-num">
+                      <button class="bb-th-btn" phx-click="sort_col" phx-value-col="added">
+                        Added {if col == "added", do: if(dir == :asc, do: "↑", else: "↓"), else: ""}
+                      </button>
+                    </th>
+                    <th class="bb-th bb-th-icon">
+                      <%= if @current_user do %>
+                        <button class="bb-th-btn" phx-click="sort_col" phx-value-col="favorite">
+                          <.icon name="hero-heart" class="h-3.5 w-3.5" />{if col == "favorite", do: if(dir == :asc, do: "↑", else: "↓"), else: ""}
+                        </button>
+                      <% end %>
+                    </th>
+                    <th class="bb-th bb-th-icon"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for sound <- visible_sounds do %>
+                    <tr
+                      id={sound_card_dom_id(sound)}
+                      class="bb-tr"
+                      data-queen-filename={sound.filename}
+                      data-queen-title={display_name(sound.filename)}
+                      data-queen-uploader={
+                        if(sound.user && sound.user.username, do: sound.user.username, else: "")
+                      }
+                    >
+                      <td class="bb-td bb-td-play" phx-click="play" phx-value-name={sound.filename}>
+                        <span class="bb-play-icon" aria-hidden="true">
+                          <.icon name="hero-play" class="h-3.5 w-3.5" />
+                        </span>
+                      </td>
+                      <td class="bb-td bb-td-name" phx-click="play" phx-value-name={sound.filename}>
                         {display_name(sound.filename)}
+                      </td>
+                      <td class="bb-td bb-td-meta" phx-click="play" phx-value-name={sound.filename}>
+                        {(sound.user && sound.user.username) || ""}
+                      </td>
+                      <td class="bb-td bb-td-tags">
+                        <%= for tag <- sound.tags do %>
+                          <button
+                            phx-click="toggle_tag_filter"
+                            phx-value-tag={tag.name}
+                            class={["bb-card-tag", if(tag_selected?(tag, @selected_tags), do: "active", else: "")]}
+                          >
+                            <span class="bb-card-tag-label">{tag.name}</span>
+                          </button>
+                        <% end %>
+                      </td>
+                      <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
+                        {Map.get(@play_counts, sound.filename, 0)}
+                      </td>
+                      <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
+                        <span class="bb-mono">
+                          <%= if ms = Map.get(sound, :duration_ms) do %>
+                            {Integer.to_string(div(ms, 60000))}:{String.pad_leading(Integer.to_string(rem(div(ms, 1000), 60)), 2, "0")}
+                          <% else %>
+                            —
+                          <% end %>
+                        </span>
+                      </td>
+                      <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
+                        <%= if date = Map.get(sound, :inserted_at) do %>
+                          {Calendar.strftime(date, "%b %d")}
+                        <% else %>
+                          —
+                        <% end %>
+                      </td>
+                      <td class="bb-td bb-td-icon">
+                        <%= if @current_user do %>
+                          <button phx-click="toggle_favorite" phx-value-sound-id={sound.id} class="bb-icon-btn" title="Favorite">
+                            <%= if sound.id in @favorites do %>
+                              <.icon name="hero-heart-solid" class="h-4 w-4 text-red-500" />
+                            <% else %>
+                              <.icon name="hero-heart" class="h-4 w-4" />
+                            <% end %>
+                          </button>
+                        <% end %>
+                      </td>
+                      <td class="bb-td bb-td-actions">
+                        <button
+                          id={sound_player_dom_id(sound)}
+                          phx-hook="LocalPlayer"
+                          data-filename={sound.filename}
+                          data-source-type={sound.source_type}
+                          data-url={sound.url}
+                          data-volume={sound.volume || 1.0}
+                          data-duration-ms={Map.get(sound, :duration_ms) || Map.get(sound, "duration_ms") || ""}
+                          class="bb-icon-btn"
+                          title="Preview locally"
+                        >
+                          <.icon name="hero-speaker-wave" class="play-icon h-4 w-4" />
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="stop-icon hidden h-4 w-4">
+                            <path fill-rule="evenodd" d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z" clip-rule="evenodd" />
+                          </svg>
+                        </button>
+                        <%= if can_edit_sound_card?(sound, @current_user, @can_manage_settings) do %>
+                          <button phx-click="edit" phx-value-id={sound.id} class="bb-icon-btn" title="Edit">
+                            <.icon name="hero-pencil-square" class="h-4 w-4" />
+                          </button>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <div class="bb-sound-grid">
+              <%= for sound <- visible_sounds do %>
+                <div
+                  id={sound_card_dom_id(sound)}
+                  class="bb-sound-card"
+                  data-queen-filename={sound.filename}
+                  data-queen-title={display_name(sound.filename)}
+                  data-queen-uploader={
+                    if(sound.user && sound.user.username, do: sound.user.username, else: "")
+                  }
+                >
+                  <button
+                    phx-click="play"
+                    phx-value-name={sound.filename}
+                    aria-label={"Play #{display_name(sound.filename)}"}
+                    class="absolute inset-0 z-0 h-full w-full cursor-pointer"
+                  >
+                  </button>
+
+                  <div class="bb-card-body">
+                    <div class="bb-card-top">
+                      <div class="bb-card-meta">
+                        <div
+                          class="bb-card-title"
+                          data-full-title={display_name(sound.filename)}
+                          phx-click="play_from_title"
+                          phx-value-name={sound.filename}
+                        >
+                          {display_name(sound.filename)}
+                        </div>
+                        <div class="bb-card-tags">
+                          <%= for tag <- sound.tags do %>
+                            <button
+                              phx-click="toggle_tag_filter"
+                              phx-value-tag={tag.name}
+                              class={[
+                                "bb-card-tag",
+                                if(tag_selected?(tag, @selected_tags), do: "active", else: "")
+                              ]}
+                            >
+                              <span class="bb-card-tag-label">{tag.name}</span>
+                            </button>
+                          <% end %>
+                        </div>
                       </div>
+
+                      <div class="bb-card-actions">
+                        <button
+                          id={sound_player_dom_id(sound)}
+                          phx-hook="LocalPlayer"
+                          data-filename={sound.filename}
+                          data-source-type={sound.source_type}
+                          data-url={sound.url}
+                          data-volume={sound.volume || 1.0}
+                          data-duration-ms={Map.get(sound, :duration_ms) || Map.get(sound, "duration_ms") || ""}
+                          class="bb-icon-btn"
+                          title="Preview"
+                        >
+                          <.icon name="hero-speaker-wave" class="play-icon h-4 w-4" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            class="stop-icon hidden h-4 w-4"
+                          >
+                            <path
+                              fill-rule="evenodd"
+                              d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
+                              clip-rule="evenodd"
+                            />
+                          </svg>
+                        </button>
+
+                        <%= if @current_user do %>
+                          <button
+                            phx-click="toggle_favorite"
+                            phx-value-sound-id={sound.id}
+                            class="bb-icon-btn"
+                            title="Favorite"
+                          >
+                            <%= if sound.id in @favorites do %>
+                              <.icon name="hero-heart-solid" class="h-4 w-4 text-red-500" />
+                            <% else %>
+                              <.icon name="hero-heart" class="h-4 w-4" />
+                            <% end %>
+                          </button>
+                        <% end %>
+
+                        <%= if can_edit_sound_card?(sound, @current_user, @can_manage_settings) do %>
+                          <button
+                            phx-click="edit"
+                            phx-value-id={sound.id}
+                            class="bb-icon-btn"
+                            title="Edit"
+                          >
+                            <.icon name="hero-pencil-square" class="h-4 w-4" />
+                          </button>
+                        <% end %>
+                      </div>
+                    </div>
+
+                    <div class="bb-preview-bar">
+                      <div class="bb-preview-wave"></div>
+                      <div data-role="preview-time" class="bb-preview-time">0:00</div>
+                    </div>
+
+                    <div class="bb-card-footer-row">
                       <%= if sound.user && sound.user.username do %>
                         <div class="bb-card-uploader">
                           <.icon name="hero-arrow-up-tray" class="bb-card-uploader-icon h-4 w-4" />
                           <span class="bb-card-uploader-name">{sound.user.username}</span>
+                          <%= if Map.get(sound, :inserted_at) do %>
+                            <span class="bb-card-date">{Calendar.strftime(sound.inserted_at, "%b %-d, %Y")}</span>
+                          <% end %>
                         </div>
                       <% end %>
-                    </div>
-
-                    <div class="bb-card-actions">
-                      <button
-                        id={sound_player_dom_id(sound)}
-                        phx-hook="LocalPlayer"
-                        data-filename={sound.filename}
-                        data-source-type={sound.source_type}
-                        data-url={sound.url}
-                        data-volume={sound.volume || 1.0}
-                        class="bb-icon-btn"
-                        title="Preview"
-                      >
-                        <.icon name="hero-speaker-wave" class="play-icon h-4 w-4" />
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          class="stop-icon hidden h-4 w-4"
+                      <span class="bb-clip-duration">
+                        <.icon name="hero-clock" class="bb-clip-duration-icon h-5 w-5" />
+                        <span
+                          id={"#{sound_player_dom_id(sound)}-duration"}
+                          phx-update="ignore"
+                          data-role="clip-duration"
+                          class="bb-clip-duration-value"
                         >
-                          <path
-                            fill-rule="evenodd"
-                            d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </button>
-
-                      <%= if @current_user do %>
-                        <button
-                          phx-click="toggle_favorite"
-                          phx-value-sound-id={sound.id}
-                          class="bb-icon-btn"
-                          title="Favorite"
-                        >
-                          <%= if sound.id in @favorites do %>
-                            <.icon name="hero-heart-solid" class="h-4 w-4 text-red-500" />
-                          <% else %>
-                            <.icon name="hero-heart" class="h-4 w-4" />
-                          <% end %>
-                        </button>
-                      <% end %>
-
-                      <%= if can_edit_sound_card?(sound, @current_user, @can_manage_settings) do %>
-                        <button
-                          phx-click="edit"
-                          phx-value-id={sound.id}
-                          class="bb-icon-btn"
-                          title="Edit"
-                        >
-                          <.icon name="hero-pencil-square" class="h-4 w-4" />
-                        </button>
-                      <% end %>
-                    </div>
-                  </div>
-
-                  <div class="bb-preview-bar">
-                    <div class="bb-preview-wave"></div>
-                    <div data-role="preview-time" class="bb-preview-time">0:00</div>
-                  </div>
-
-                  <div class="bb-card-tags-row">
-                    <div class="bb-card-tags">
-                      <%= for tag <- sound.tags do %>
-                        <button
-                          phx-click="toggle_tag_filter"
-                          phx-value-tag={tag.name}
-                          class={[
-                            "bb-card-tag",
-                            if(tag_selected?(tag, @selected_tags), do: "active", else: "")
-                          ]}
-                        >
-                          <span class="bb-card-tag-label">{tag.name}</span>
-                        </button>
-                      <% end %>
-                    </div>
-
-                    <span class="bb-clip-duration">
-                      <.icon name="hero-clock" class="bb-clip-duration-icon h-5 w-5" />
-                      <span
-                        id={"#{sound_player_dom_id(sound)}-duration"}
-                        phx-update="ignore"
-                        data-role="clip-duration"
-                        class="bb-clip-duration-value"
-                      >
-                        --:--
+                          --:--
+                        </span>
                       </span>
-                    </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            <% end %>
+              <% end %>
+            </div>
+          <% end %>
+          <div :if={length(filtered_sounds) > display_limit} class="mt-4 flex justify-center">
+            <button phx-click="load_more_sounds" class="bb-btn-secondary">
+              Load {min(@display_limit_step || 120, length(filtered_sounds) - display_limit)} More
+            </button>
           </div>
         <% end %>
       <% end %>

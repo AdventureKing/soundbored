@@ -5,7 +5,7 @@ defmodule Soundboard.AudioPlayer do
 
   use GenServer
 
-  alias Soundboard.AudioPlayer.{Notifier, PlaybackQueue, SoundLibrary, VoiceSession}
+  alias Soundboard.AudioPlayer.{CommercialScheduler, Notifier, PlaybackQueue, SoundLibrary, VoiceSession}
   alias Soundboard.Discord.Voice
 
   defmodule State do
@@ -48,6 +48,14 @@ defmodule Soundboard.AudioPlayer do
 
   def playback_finished(guild_id) do
     GenServer.cast(__MODULE__, {:playback_finished, guild_id})
+  end
+
+  @doc """
+  Plays a file directly by path, bypassing the sound library and DB lookup.
+  Used for commercial clips. Does not reset the inactivity timer.
+  """
+  def play_direct(sound_name, file_path, actor) do
+    GenServer.cast(__MODULE__, {:play_direct, sound_name, file_path, actor})
   end
 
   def current_voice_channel do
@@ -124,6 +132,8 @@ defmodule Soundboard.AudioPlayer do
   end
 
   def handle_cast({:play_sound, sound_name, actor}, %{voice_channel: voice_channel} = state) do
+    CommercialScheduler.reset_timer()
+
     case PlaybackQueue.build_request(voice_channel, sound_name, actor) do
       {:ok, request} ->
         {:noreply, PlaybackQueue.enqueue(state, request)}
@@ -132,6 +142,26 @@ defmodule Soundboard.AudioPlayer do
         Notifier.error(reason)
         {:noreply, state}
     end
+  end
+
+  def handle_cast({:play_direct, _sound_name, _file_path, _actor}, %{voice_channel: nil} = state) do
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:play_direct, sound_name, file_path, actor},
+        %{voice_channel: {guild_id, channel_id}} = state
+      ) do
+    request = %{
+      guild_id: guild_id,
+      channel_id: channel_id,
+      sound_name: sound_name,
+      path_or_url: file_path,
+      volume: 1.0,
+      actor: actor
+    }
+
+    {:noreply, PlaybackQueue.enqueue(state, request)}
   end
 
   @impl true

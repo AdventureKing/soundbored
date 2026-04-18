@@ -37,7 +37,7 @@ defmodule Soundboard.FavoritesTest do
     end
 
     test "max_favorites/0 returns the maximum number of favorites allowed" do
-      assert Favorites.max_favorites() == 16
+      assert Favorites.max_favorites() == 30
     end
 
     test "cannot add more favorites than max_favorites", %{user: user} do
@@ -53,7 +53,7 @@ defmodule Soundboard.FavoritesTest do
       last_sound = List.last(sounds)
 
       assert {:error, changeset} = Favorites.toggle_favorite(user.id, last_sound.id)
-      assert "You can only have 16 favorites" in errors_on(changeset).base
+      assert "You can only have 30 favorites" in errors_on(changeset).base
     end
 
     test "toggle_favorite/2 rejects missing sounds", %{user: user} do

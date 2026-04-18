@@ -14,6 +14,7 @@ defmodule Soundboard.Application do
     children = [
       Soundboard.Repo,
       {Soundboard.AudioPlayer, []},
+      {Soundboard.AudioPlayer.CommercialScheduler, []},
       SoundboardWeb.Telemetry,
       {Phoenix.PubSub, name: Soundboard.PubSub},
       SoundboardWeb.Presence,

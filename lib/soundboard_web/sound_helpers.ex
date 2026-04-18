@@ -13,6 +13,15 @@ defmodule SoundboardWeb.SoundHelpers do
 
   def display_name(other), do: to_string(other)
 
+  def upload_path(nil), do: ""
+
+  def upload_path(filename) when is_binary(filename) do
+    encoded = URI.encode(filename, &URI.char_unreserved?/1)
+    "/uploads/" <> encoded
+  end
+
+  def upload_path(other), do: upload_path(to_string(other))
+
   def slugify(name) do
     name
     |> display_name()

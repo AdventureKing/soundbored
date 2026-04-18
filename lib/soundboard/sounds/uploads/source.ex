@@ -6,12 +6,13 @@ defmodule Soundboard.Sounds.Uploads.Source do
 
   require Logger
 
+  alias Soundboard.Media.Duration
   alias Soundboard.{Repo, Sound, UploadsPath}
 
   @allowed_extensions ~w(.mp3 .wav .ogg .m4a)
 
   @spec prepare(map(), :validate | :create) :: {:ok, map()} | {:error, Ecto.Changeset.t()}
-  def prepare(%{source_type: "url"} = params, _mode) do
+  def prepare(%{source_type: "url"} = params, mode) do
     with {:ok, url} <- validate_url(params.url),
          filename <- params.name <> url_file_extension(url),
          :ok <- validate_destination_filename(filename) do
@@ -20,7 +21,8 @@ defmodule Soundboard.Sounds.Uploads.Source do
          filename: filename,
          source_type: "url",
          url: url,
-         copied_file_path: nil
+         copied_file_path: nil,
+         duration_ms: maybe_probe_url_duration(url, mode)
        }}
     end
   end
@@ -35,7 +37,8 @@ defmodule Soundboard.Sounds.Uploads.Source do
          filename: filename,
          source_type: "local",
          url: nil,
-         copied_file_path: nil
+         copied_file_path: nil,
+         duration_ms: nil
        }}
     end
   end
@@ -51,7 +54,8 @@ defmodule Soundboard.Sounds.Uploads.Source do
          filename: filename,
          source_type: "local",
          url: nil,
-         copied_file_path: copied_file_path
+         copied_file_path: copied_file_path,
+         duration_ms: maybe_probe_local_duration(copied_file_path)
        }}
     end
   end
@@ -170,6 +174,40 @@ defmodule Soundboard.Sounds.Uploads.Source do
   end
 
   defp url_file_extension(_), do: ""
+
+  defp maybe_probe_local_duration(path) when is_binary(path) do
+    case Duration.probe_local(path) do
+      {:ok, duration_ms} ->
+        duration_ms
+
+      {:error, reason} ->
+        Logger.debug("Could not probe local duration for #{path}: #{inspect(reason)}")
+        nil
+    end
+  end
+
+  defp maybe_probe_local_duration(_), do: nil
+
+  defp maybe_probe_url_duration(_url, :validate), do: nil
+
+  defp maybe_probe_url_duration(url, :create) do
+    if probe_remote_durations?() do
+      case Duration.probe_url(url) do
+        {:ok, duration_ms} ->
+          duration_ms
+
+        {:error, reason} ->
+          Logger.debug("Could not probe remote duration for #{url}: #{inspect(reason)}")
+          nil
+      end
+    else
+      nil
+    end
+  end
+
+  defp probe_remote_durations? do
+    Application.get_env(:soundboard, :probe_remote_durations, true)
+  end
 
   defp blank?(value), do: value in [nil, ""]
 end

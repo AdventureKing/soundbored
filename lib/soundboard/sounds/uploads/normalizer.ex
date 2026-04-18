@@ -20,8 +20,6 @@ defmodule Soundboard.Sounds.Uploads.Normalizer do
           url: normalize_url(request.url),
           tags: request.tags,
           volume: request.volume,
-          is_join_sound: request.is_join_sound,
-          is_leave_sound: request.is_leave_sound,
           default_volume_percent: request.default_volume_percent || 100,
           upload: request.upload
         })
@@ -38,8 +36,6 @@ defmodule Soundboard.Sounds.Uploads.Normalizer do
          url: url,
          tags: tags,
          volume: volume,
-         is_join_sound: is_join_sound,
-         is_leave_sound: is_leave_sound,
          default_volume_percent: default_volume_percent,
          upload: upload
        }) do
@@ -62,8 +58,6 @@ defmodule Soundboard.Sounds.Uploads.Normalizer do
            tags: normalized_tags,
            volume:
              Volume.percent_to_decimal(volume, normalize_default_volume(default_volume_percent)),
-           is_join_sound: to_boolean(is_join_sound),
-           is_leave_sound: to_boolean(is_leave_sound),
            upload: upload
          }}
     end
@@ -132,9 +126,6 @@ defmodule Soundboard.Sounds.Uploads.Normalizer do
 
   defp normalize_url(url) when is_binary(url), do: String.trim(url)
   defp normalize_url(_), do: nil
-
-  defp to_boolean(value) when value in [true, "true", "1", 1, "on", "yes"], do: true
-  defp to_boolean(_), do: false
 
   defp blank?(value), do: value in [nil, ""]
 end
