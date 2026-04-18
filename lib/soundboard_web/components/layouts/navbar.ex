@@ -238,9 +238,6 @@ defmodule SoundboardWeb.Components.Layouts.Navbar do
           </label>
         </div>
 
-        <.link :if={@current_user} href={~p"/auth/discord"} class="bb-reauth-link">
-          Re-auth
-        </.link>
       </div>
     </div>
     """

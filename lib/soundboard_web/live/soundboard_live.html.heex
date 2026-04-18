@@ -372,7 +372,7 @@
                         {display_name(sound.filename)}
                       </td>
                       <td class="bb-td bb-td-meta" phx-click="play" phx-value-name={sound.filename}>
-                        {get_in(sound, [:user, :username]) || ""}
+                        {(sound.user && sound.user.username) || ""}
                       </td>
                       <td class="bb-td bb-td-tags">
                         <%= for tag <- sound.tags do %>
