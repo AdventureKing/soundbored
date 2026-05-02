@@ -265,6 +265,36 @@ body {
   color: var(--bb-text-primary);
 }
 
+.bb-tab-group {
+  display: inline-flex;
+  border-radius: 8px;
+  border: 0.5px solid var(--bb-border-secondary);
+  overflow: hidden;
+  background: var(--bb-bg-secondary);
+}
+
+.bb-tab {
+  padding: 0 14px;
+  height: 30px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--bb-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bb-tab:hover {
+  color: var(--bb-text-primary);
+  background: var(--bb-bg-tertiary);
+}
+
+.bb-tab-active {
+  color: var(--bb-text-primary);
+  background: var(--bb-bg-tertiary);
+}
+
 .bb-brand {
   display: flex;
   align-items: center;

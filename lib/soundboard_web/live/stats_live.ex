@@ -32,6 +32,7 @@ defmodule SoundboardWeb.StatsLive do
      |> assign(:cooldown_end_ms, nil)
      |> assign(:cooldown_remaining_ms, nil)
      |> assign(:force_update, 0)
+     |> assign(:tab, :week)
      |> assign(:selected_week, current_week)
      |> assign(:current_week, current_week)
      |> stream_configure(:recent_plays, dom_id: &recent_play_dom_id/1)
@@ -71,20 +72,31 @@ defmodule SoundboardWeb.StatsLive do
   end
 
   defp assign_stats(socket) do
-    {start_date, end_date} = socket.assigns.selected_week
-    top_users = Stats.get_top_users(start_date, end_date, limit: @recent_limit)
-    top_sounds = Stats.get_top_sounds(start_date, end_date, limit: @recent_limit)
+    tab = socket.assigns.tab
+
+    {top_users, top_sounds} =
+      if tab == :all_time do
+        {
+          Stats.get_top_users_all_time(limit: @recent_limit),
+          Stats.get_top_sounds_all_time(limit: @recent_limit)
+        }
+      else
+        {start_date, end_date} = socket.assigns.selected_week
+        {
+          Stats.get_top_users(start_date, end_date, limit: @recent_limit),
+          Stats.get_top_sounds(start_date, end_date, limit: @recent_limit)
+        }
+      end
 
     viewer_stats =
-      load_viewer_stats(
-        socket.assigns.current_user,
-        start_date,
-        end_date,
-        socket.assigns.preview_mode
-      )
+      if tab == :all_time do
+        load_viewer_stats_all_time(socket.assigns.current_user, socket.assigns.preview_mode)
+      else
+        {start_date, end_date} = socket.assigns.selected_week
+        load_viewer_stats(socket.assigns.current_user, start_date, end_date, socket.assigns.preview_mode)
+      end
 
     recent_plays = recent_plays()
-
     recent_uploads = Sounds.get_recent_uploads(limit: @recent_limit)
     favorites = get_favorites(socket.assigns.current_user)
     sound_ids_by_filename = load_sound_ids_by_filename(top_sounds, recent_plays, recent_uploads)
@@ -142,46 +154,68 @@ defmodule SoundboardWeb.StatsLive do
       <div class="bb-view-header">
         <div>
           <h1 class="bb-view-title">Stats</h1>
-          <p class="bb-view-subtitle">Weekly sound activity and recent highlights.</p>
+          <p class="bb-view-subtitle">
+            <%= if @tab == :all_time do %>
+              All-time sound activity and recent highlights.
+            <% else %>
+              Weekly sound activity and recent highlights.
+            <% end %>
+          </p>
         </div>
 
         <div class="bb-view-controls">
-          <button
-            phx-click="previous_week"
-            class="bb-icon-control"
-          >
-            <.icon name="hero-chevron-left-solid" class="h-5 w-5" />
-          </button>
-
-          <div class="bb-week-picker">
-            <form phx-change="select_week" phx-submit="select_week" class="bb-week-input-row">
-              <label for="week-picker">Week of</label>
-              <input
-                type="date"
-                id="week-picker"
-                name="week"
-                value={date_input_value(@selected_week)}
-                max={date_input_value(@current_week)}
-                phx-debounce="blur"
-                class="bb-input"
-              />
-            </form>
-
-            <span class="bb-week-range">
-              {format_date_range(@selected_week)}
-            </span>
+          <div class="bb-tab-group">
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="week"
+              class={["bb-tab", @tab == :week && "bb-tab-active"]}
+            >
+              Week
+            </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="all_time"
+              class={["bb-tab", @tab == :all_time && "bb-tab-active"]}
+            >
+              All Time
+            </button>
           </div>
 
-          <button
-            phx-click="next_week"
-            disabled={@selected_week == @current_week}
-            class={[
-              "bb-icon-control",
-              @selected_week == @current_week && "opacity-50 cursor-not-allowed"
-            ]}
-          >
-            <.icon name="hero-chevron-right-solid" class="h-5 w-5" />
-          </button>
+          <%= if @tab == :week do %>
+            <button phx-click="previous_week" class="bb-icon-control">
+              <.icon name="hero-chevron-left-solid" class="h-5 w-5" />
+            </button>
+
+            <div class="bb-week-picker">
+              <form phx-change="select_week" phx-submit="select_week" class="bb-week-input-row">
+                <label for="week-picker">Week of</label>
+                <input
+                  type="date"
+                  id="week-picker"
+                  name="week"
+                  value={date_input_value(@selected_week)}
+                  max={date_input_value(@current_week)}
+                  phx-debounce="blur"
+                  class="bb-input"
+                />
+              </form>
+
+              <span class="bb-week-range">
+                {format_date_range(@selected_week)}
+              </span>
+            </div>
+
+            <button
+              phx-click="next_week"
+              disabled={@selected_week == @current_week}
+              class={[
+                "bb-icon-control",
+                @selected_week == @current_week && "opacity-50 cursor-not-allowed"
+              ]}
+            >
+              <.icon name="hero-chevron-right-solid" class="h-5 w-5" />
+            </button>
+          <% end %>
         </div>
       </div>
 
@@ -374,7 +408,7 @@ defmodule SoundboardWeb.StatsLive do
 
             <div id="viewer-top-sound" class="bb-stat-item">
               <span class="bb-stat-pill rounded-full px-2 py-1">Your Top Sound</span>
-              <span class="bb-stat-count">{viewer_top_sound_label(@viewer_stats.top_sound)}</span>
+              <span class="bb-stat-count">{viewer_top_sound_label(@viewer_stats.top_sound, @tab)}</span>
             </div>
           </div>
         </section>
@@ -439,19 +473,25 @@ defmodule SoundboardWeb.StatsLive do
   end
 
   defp load_viewer_stats(nil, _start_date, _end_date, true) do
-    %{
-      total_plays: 0,
-      unique_sounds: 0,
-      top_sound: nil,
-      recent_plays: []
-    }
+    %{total_plays: 0, unique_sounds: 0, top_sound: nil, recent_plays: []}
   end
 
   defp load_viewer_stats(_, _, _, _), do: nil
 
-  defp viewer_top_sound_label(nil), do: "No plays this week"
+  defp load_viewer_stats_all_time(%{id: user_id}, _preview_mode) when is_integer(user_id) do
+    Stats.get_user_all_time_summary(user_id, recent_limit: 3)
+  end
 
-  defp viewer_top_sound_label({filename, count}) do
+  defp load_viewer_stats_all_time(nil, true) do
+    %{total_plays: 0, unique_sounds: 0, top_sound: nil, recent_plays: []}
+  end
+
+  defp load_viewer_stats_all_time(_, _), do: nil
+
+  defp viewer_top_sound_label(nil, :week), do: "No plays this week"
+  defp viewer_top_sound_label(nil, :all_time), do: "No plays yet"
+
+  defp viewer_top_sound_label({filename, count}, _tab) do
     "#{display_name(filename)} · #{count} plays"
   end
 
@@ -515,6 +555,12 @@ defmodule SoundboardWeb.StatsLive do
 
   defp remaining_ms_from_end(end_ms) when is_integer(end_ms) do
     max(end_ms - System.system_time(:millisecond), 0)
+  end
+
+  @impl true
+  def handle_event("switch_tab", %{"tab" => tab}, socket) do
+    tab_atom = if tab == "all_time", do: :all_time, else: :week
+    {:noreply, socket |> assign(:tab, tab_atom) |> assign_stats()}
   end
 
   @impl true
