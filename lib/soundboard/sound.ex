@@ -19,9 +19,9 @@ defmodule Soundboard.Sound do
     field :source_type, :string, default: "local"
     field :description, :string
     field :volume, :float, default: 1.0
+    field :duration_ms, :integer
     field :internal_cooldown_seconds, :integer, default: 0
     belongs_to :user, Soundboard.Accounts.User
-    has_many :user_sound_settings, Soundboard.UserSoundSetting
 
     many_to_many :tags, Soundboard.Tag,
       join_through: Soundboard.SoundTag,
@@ -40,11 +40,13 @@ defmodule Soundboard.Sound do
       :description,
       :user_id,
       :volume,
+      :duration_ms,
       :internal_cooldown_seconds
     ])
     |> validate_required([:user_id])
     |> validate_source_type()
     |> validate_volume()
+    |> validate_duration()
     |> validate_internal_cooldown()
     |> unique_constraint(:filename, name: :sounds_filename_index)
     |> put_tags(attrs)
@@ -100,5 +102,9 @@ defmodule Soundboard.Sound do
       cs ->
         cs
     end
+  end
+
+  defp validate_duration(changeset) do
+    validate_number(changeset, :duration_ms, greater_than_or_equal_to: 0)
   end
 end

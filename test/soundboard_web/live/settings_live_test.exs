@@ -70,8 +70,6 @@ defmodule SoundboardWeb.SettingsLiveTest do
     assert html =~ "Upload local file (multipart/form-data)"
     assert html =~ "Upload from URL (JSON)"
     assert html =~ "tags[]"
-    assert html =~ "is_join_sound"
-    assert html =~ "is_leave_sound"
   end
 
   test "can select and save featured tags", %{conn: conn} do

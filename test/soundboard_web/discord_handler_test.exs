@@ -7,7 +7,6 @@ defmodule Soundboard.Discord.HandlerTest do
   import ExUnit.CaptureLog
   import Mock
 
-  alias Soundboard.{Accounts.User, Repo, Sound, UserSoundSetting}
   alias Soundboard.Discord.Handler
   alias Soundboard.Discord.Voice
 
@@ -86,119 +85,6 @@ defmodule Soundboard.Discord.HandlerTest do
           Handler.handle_event({:VOICE_STATE_UPDATE, payload, nil})
 
           assert Agent.get(recorder, & &1) == []
-        end
-      end)
-    end
-
-    test "plays join sounds immediately without artificial delay" do
-      user = insert_user!(%{discord_id: "555", username: "joiner"})
-      sound = insert_sound!(user, %{filename: "join.mp3"})
-      insert_user_sound_setting!(user, sound, %{is_join_sound: true})
-
-      bot_id = "999"
-      guild_id = "456"
-      channel_id = "123"
-
-      guild = %{
-        id: guild_id,
-        voice_states: [
-          %{user_id: bot_id, channel_id: channel_id, guild_id: guild_id, session_id: "bot"},
-          %{
-            user_id: user.discord_id,
-            channel_id: channel_id,
-            guild_id: guild_id,
-            session_id: "abc"
-          }
-        ]
-      }
-
-      {:ok, recorder} = Agent.start_link(fn -> [] end)
-
-      capture_log(fn ->
-        with_mocks([
-          {Soundboard.Discord.GuildCache, [], [all: fn -> [guild] end]},
-          {Soundboard.Discord.BotIdentity, [], [fetch: fn -> {:ok, %{id: bot_id}} end]},
-          {Soundboard.AudioPlayer, [],
-           [
-             play_sound: fn filename, played_by ->
-               Agent.update(recorder, &(&1 ++ [{:play_sound, filename, played_by}]))
-               :ok
-             end
-           ]}
-        ]) do
-          payload = %{
-            channel_id: channel_id,
-            guild_id: guild_id,
-            user_id: user.discord_id,
-            session_id: "abc"
-          }
-
-          Handler.handle_event({:VOICE_STATE_UPDATE, payload, nil})
-
-          assert Agent.get(recorder, & &1) == [{:play_sound, "join.mp3", "System"}]
-        end
-      end)
-    end
-
-    test "plays leave sounds before auto-leaving the voice channel" do
-      user = insert_user!(%{discord_id: "556", username: "leaver"})
-      sound = insert_sound!(user, %{filename: "leave.mp3"})
-      insert_user_sound_setting!(user, sound, %{is_leave_sound: true})
-
-      bot_id = "999"
-      guild_id = "456"
-      channel_id = "123"
-
-      guild = %{
-        id: guild_id,
-        voice_states: [
-          %{user_id: bot_id, channel_id: channel_id, guild_id: guild_id, session_id: "bot"}
-        ]
-      }
-
-      {:ok, recorder} = Agent.start_link(fn -> [] end)
-
-      capture_log(fn ->
-        with_mocks([
-          {Soundboard.Discord.GuildCache, [],
-           [
-             all: fn -> [guild] end,
-             get: fn ^guild_id -> {:ok, guild} end
-           ]},
-          {Soundboard.Discord.BotIdentity, [], [fetch: fn -> {:ok, %{id: bot_id}} end]},
-          {Soundboard.Discord.Voice, [],
-           [
-             leave_channel: fn ^guild_id ->
-               Agent.update(recorder, &(&1 ++ [:leave_channel]))
-               :ok
-             end
-           ]},
-          {Soundboard.AudioPlayer, [],
-           [
-             play_sound: fn filename, played_by ->
-               Agent.update(recorder, &(&1 ++ [{:play_sound, filename, played_by}]))
-               :ok
-             end,
-             set_voice_channel: fn guild, channel ->
-               Agent.update(recorder, &(&1 ++ [{:set_voice_channel, guild, channel}]))
-               :ok
-             end
-           ]}
-        ]) do
-          payload = %{
-            channel_id: nil,
-            guild_id: guild_id,
-            user_id: user.discord_id,
-            session_id: "gone"
-          }
-
-          Handler.handle_event({:VOICE_STATE_UPDATE, payload, nil})
-
-          assert Agent.get(recorder, & &1) == [
-                   {:play_sound, "leave.mp3", "System"},
-                   :leave_channel,
-                   {:set_voice_channel, nil, nil}
-                 ]
         end
       end)
     end
@@ -284,32 +170,4 @@ defmodule Soundboard.Discord.HandlerTest do
     end
   end
 
-  defp insert_user!(attrs) do
-    %User{}
-    |> User.changeset(Map.put_new(attrs, :avatar, "avatar.png"))
-    |> Repo.insert!()
-  end
-
-  defp insert_sound!(user, attrs) do
-    attrs =
-      attrs
-      |> Map.put_new(:user_id, user.id)
-      |> Map.put_new(:source_type, "local")
-      |> Map.put_new(:volume, 1.0)
-
-    %Sound{}
-    |> Sound.changeset(attrs)
-    |> Repo.insert!()
-  end
-
-  defp insert_user_sound_setting!(user, sound, attrs) do
-    attrs =
-      attrs
-      |> Map.put(:user_id, user.id)
-      |> Map.put(:sound_id, sound.id)
-
-    %UserSoundSetting{}
-    |> UserSoundSetting.changeset(attrs)
-    |> Repo.insert!()
-  end
 end

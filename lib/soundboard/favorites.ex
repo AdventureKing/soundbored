@@ -9,7 +9,7 @@ defmodule Soundboard.Favorites do
 
   @type favorite_result :: {:ok, Favorite.t()} | {:error, Ecto.Changeset.t()}
 
-  @max_favorites 16
+  @max_favorites 30
 
   @spec list_favorites(integer()) :: [integer()]
   def list_favorites(user_id) do

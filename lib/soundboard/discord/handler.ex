@@ -5,7 +5,7 @@ defmodule Soundboard.Discord.Handler do
   use GenServer
   require Logger
 
-  alias Soundboard.Discord.Handler.{CommandHandler, SoundEffects, VoiceRuntime}
+  alias Soundboard.Discord.Handler.{CommandHandler, VoiceRuntime}
 
   defmodule State do
     @moduledoc """
@@ -73,12 +73,6 @@ defmodule Soundboard.Discord.Handler do
     Logger.info("User #{payload.user_id} disconnected from voice")
     State.update_state(payload.user_id, nil, payload.session_id)
 
-    if VoiceRuntime.bot_user?(payload.user_id) do
-      Logger.debug("Skipping leave sound lookup for bot user #{payload.user_id}")
-    else
-      SoundEffects.handle_leave(payload.user_id)
-    end
-
     VoiceRuntime.handle_disconnect(payload)
   end
 
@@ -91,16 +85,10 @@ defmodule Soundboard.Discord.Handler do
       )
     end
 
-    previous_state = State.get_state(payload.user_id)
+    _previous_state = State.get_state(payload.user_id)
     State.update_state(payload.user_id, payload.channel_id, payload.session_id)
 
     runtime_actions = VoiceRuntime.handle_connect(payload)
-
-    if VoiceRuntime.bot_user?(payload.user_id) do
-      Logger.debug("Skipping join sound lookup for bot user #{payload.user_id}")
-    else
-      SoundEffects.handle_join(payload.user_id, previous_state, payload.channel_id)
-    end
 
     runtime_actions
   end

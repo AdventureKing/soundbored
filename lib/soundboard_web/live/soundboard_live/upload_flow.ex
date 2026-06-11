@@ -18,8 +18,6 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlow do
               upload_tags: [],
               upload_tag_input: "",
               upload_tag_suggestions: [],
-              is_join_sound: false,
-              is_leave_sound: false,
               upload_error: nil,
               upload_volume: 100,
               current_user: nil,
@@ -34,8 +32,6 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlow do
             upload_tags: list(),
             upload_tag_input: String.t(),
             upload_tag_suggestions: list(),
-            is_join_sound: boolean(),
-            is_leave_sound: boolean(),
             upload_error: String.t() | nil,
             upload_volume: number(),
             current_user: term(),
@@ -134,14 +130,6 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlow do
     upload = state(socket)
 
     TagForm.select_tag(socket, tag_name, upload.upload_tags, &append_upload_tag/3, @tag_form)
-  end
-
-  def toggle_join_sound(socket) do
-    {:noreply, update_state(socket, &%{&1 | is_join_sound: !&1.is_join_sound})}
-  end
-
-  def toggle_leave_sound(socket) do
-    {:noreply, update_state(socket, &%{&1 | is_leave_sound: !&1.is_leave_sound})}
   end
 
   def update_volume(socket, volume) do
@@ -257,9 +245,7 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlow do
       url: params["url"],
       tags: request_tags(upload, params),
       volume: params["volume"],
-      default_volume_percent: upload.upload_volume,
-      is_join_sound: upload.is_join_sound,
-      is_leave_sound: upload.is_leave_sound
+      default_volume_percent: upload.upload_volume
     })
   end
 
@@ -331,8 +317,6 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlow do
       upload_tags: Map.get(socket.assigns, :upload_tags, []),
       upload_tag_input: Map.get(socket.assigns, :upload_tag_input, ""),
       upload_tag_suggestions: Map.get(socket.assigns, :upload_tag_suggestions, []),
-      is_join_sound: Map.get(socket.assigns, :is_join_sound, false),
-      is_leave_sound: Map.get(socket.assigns, :is_leave_sound, false),
       upload_error: Map.get(socket.assigns, :upload_error),
       upload_volume: Map.get(socket.assigns, :upload_volume, 100),
       current_user: Map.get(socket.assigns, :current_user),
@@ -358,8 +342,6 @@ defmodule SoundboardWeb.Live.SoundboardLive.UploadFlow do
     |> assign(:upload_tags, state.upload_tags)
     |> assign(:upload_tag_input, state.upload_tag_input)
     |> assign(:upload_tag_suggestions, state.upload_tag_suggestions)
-    |> assign(:is_join_sound, state.is_join_sound)
-    |> assign(:is_leave_sound, state.is_leave_sound)
     |> assign(:upload_error, state.upload_error)
     |> assign(:upload_volume, state.upload_volume)
   end

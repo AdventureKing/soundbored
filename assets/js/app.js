@@ -43,10 +43,25 @@ const MAX_VOLUME_PERCENT_DEFAULT = 150
 const BOOST_CAP = 1.5
 const BUZZ_MODE_STORAGE_KEY = "soundboard:buzz-mode"
 const BUZZ_MODE_CLASS = "buzz-mode"
+const HONEY_DRIP_VAR_A = "--bb-honey-drips-a"
+const HONEY_DRIP_VAR_B = "--bb-honey-drips-b"
+const HONEY_PARALLAX_VAR_X = "--bb-honey-parallax-x"
+const HONEY_PARALLAX_VAR_Y = "--bb-honey-parallax-y"
+const HONEY_PARALLAX_MAX_X = 10
+const HONEY_PARALLAX_MAX_Y = 8
+const HONEY_SHEEN_ACTIVE_CLASS = "bb-honey-sheen-active"
+const HONEY_SHEEN_WAVE_MS = 11000
+const HONEY_SHEEN_MIN_DELAY_MS = 1800
+const HONEY_SHEEN_MAX_DELAY_MS = 4200
+const HONEY_PARALLAX_TARGET_SELECTOR = ".bb-sound-grid .bb-sound-card, #bb-queen-pick"
+const QUEEN_PICK_DEFAULT_ROTATION_MS = 30000
+const QUEEN_PICK_MIN_ROTATION_MS = 10000
+const DURATION_OBSERVER_ROOT_MARGIN = "450px 0px"
 const DESKTOP_NAV_COLLAPSED_CLASS = "desktop-nav-collapsed"
 const CLIP_DURATION_CACHE_PREFIX = "soundboard:clip-duration:v1:"
 const CLIP_DURATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30
 const clipDurationMemoryCache = new Map()
+const buildUploadUrl = (filename) => `/uploads/${encodeURIComponent(filename)}`
 
 const clearBuzzSyncFlag = (toggle) => {
   requestAnimationFrame(() => {
@@ -57,9 +72,19 @@ const clearBuzzSyncFlag = (toggle) => {
 }
 
 const applyBuzzMode = (enabled, {suppressAnimation = false} = {}) => {
+  applyRandomHoneyDrips()
+
   document.documentElement.classList.toggle(BUZZ_MODE_CLASS, enabled)
   if (document.body) {
     document.body.classList.toggle(BUZZ_MODE_CLASS, enabled)
+  }
+
+  resetAllHoneyParallax()
+
+  if (!enabled) {
+    stopHoneySheenWaves()
+  } else {
+    startHoneySheenWaves()
   }
 
   document.querySelectorAll("[data-buzz-toggle]").forEach((toggle) => {
@@ -90,6 +115,268 @@ const saveBuzzModePreference = (enabled) => {
   try {
     window.localStorage.setItem(BUZZ_MODE_STORAGE_KEY, enabled ? "on" : "off")
   } catch (_err) {}
+}
+
+const randomInRange = (min, max) => min + Math.random() * (max - min)
+
+const buildRandomDripShadow = ({
+  count,
+  color,
+  minAlpha,
+  maxAlpha,
+  minY,
+  maxY,
+  minSpread,
+  maxSpread,
+  jitterX
+}) => {
+  const [r, g, b] = color
+  const minX = 4
+  const maxX = 95
+  const step = count > 1 ? (maxX - minX) / (count - 1) : 0
+  const shadows = []
+
+  for (let idx = 0; idx < count; idx += 1) {
+    const baseX = minX + step * idx
+    const x = roundTo(clamp(baseX + randomInRange(-jitterX, jitterX), minX, maxX), 2)
+    const y = Math.round(randomInRange(minY, maxY))
+    const spread = -Math.round(randomInRange(minSpread, maxSpread))
+    const alpha = roundTo(randomInRange(minAlpha, maxAlpha), 2)
+    shadows.push(`${x}vw ${y}px 0 ${spread}px rgba(${r}, ${g}, ${b}, ${alpha})`)
+  }
+
+  return shadows.join(", ")
+}
+
+const applyRandomHoneyDrips = () => {
+  if (window.__bbHoneyDripsInitialized) {
+    return
+  }
+
+  const rootStyle = document.documentElement?.style
+  if (!rootStyle) {
+    return
+  }
+
+  const primaryShadows = buildRandomDripShadow({
+    count: 24,
+    color: [245, 184, 0],
+    minAlpha: 0.27,
+    maxAlpha: 0.4,
+    minY: -820,
+    maxY: -340,
+    minSpread: 2,
+    maxSpread: 6,
+    jitterX: 2.6
+  })
+
+  const primaryThickShadows = buildRandomDripShadow({
+    count: 4,
+    color: [245, 184, 0],
+    minAlpha: 0.34,
+    maxAlpha: 0.45,
+    minY: -820,
+    maxY: -340,
+    minSpread: 0,
+    maxSpread: 1,
+    jitterX: 5.5
+  })
+
+  const secondaryShadows = buildRandomDripShadow({
+    count: 20,
+    color: [255, 211, 76],
+    minAlpha: 0.19,
+    maxAlpha: 0.26,
+    minY: -860,
+    maxY: -380,
+    minSpread: 3,
+    maxSpread: 6,
+    jitterX: 3.2
+  })
+
+  rootStyle.setProperty(HONEY_DRIP_VAR_A, `${primaryShadows}, ${primaryThickShadows}`)
+  rootStyle.setProperty(HONEY_DRIP_VAR_B, secondaryShadows)
+  window.__bbHoneyDripsInitialized = true
+}
+
+const supportsFinePointerHover = () => {
+  if (typeof window.matchMedia !== "function") {
+    return false
+  }
+
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches
+}
+
+const resetHoneyParallax = (card) => {
+  if (!card || !(card instanceof Element)) {
+    return
+  }
+
+  card.style.setProperty(HONEY_PARALLAX_VAR_X, "0px")
+  card.style.setProperty(HONEY_PARALLAX_VAR_Y, "0px")
+}
+
+const resetActiveHoneyParallax = () => {
+  if (window.__bbHoneyParallaxActiveCard) {
+    resetHoneyParallax(window.__bbHoneyParallaxActiveCard)
+    window.__bbHoneyParallaxActiveCard = null
+  }
+}
+
+const resetAllHoneyParallax = () => {
+  resetActiveHoneyParallax()
+  document.querySelectorAll(HONEY_PARALLAX_TARGET_SELECTOR).forEach((card) => resetHoneyParallax(card))
+}
+
+const updateHoneyParallaxFromPointer = (event) => {
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS) || !supportsFinePointerHover()) {
+    resetActiveHoneyParallax()
+    return
+  }
+
+  const eventTarget = event.target
+  const hoveredCard =
+    eventTarget instanceof Element ? eventTarget.closest(HONEY_PARALLAX_TARGET_SELECTOR) : null
+
+  if (window.__bbHoneyParallaxActiveCard && window.__bbHoneyParallaxActiveCard !== hoveredCard) {
+    resetHoneyParallax(window.__bbHoneyParallaxActiveCard)
+  }
+
+  if (!hoveredCard) {
+    window.__bbHoneyParallaxActiveCard = null
+    return
+  }
+
+  const rect = hoveredCard.getBoundingClientRect()
+  if (!rect.width || !rect.height) {
+    resetHoneyParallax(hoveredCard)
+    window.__bbHoneyParallaxActiveCard = hoveredCard
+    return
+  }
+
+  const progressX = clamp((event.clientX - rect.left) / rect.width, 0, 1)
+  const progressY = clamp((event.clientY - rect.top) / rect.height, 0, 1)
+  const offsetX = roundTo((progressX - 0.5) * HONEY_PARALLAX_MAX_X * 2, 2)
+  const offsetY = roundTo((progressY - 0.5) * HONEY_PARALLAX_MAX_Y * 2, 2)
+
+  hoveredCard.style.setProperty(HONEY_PARALLAX_VAR_X, `${offsetX}px`)
+  hoveredCard.style.setProperty(HONEY_PARALLAX_VAR_Y, `${offsetY}px`)
+  window.__bbHoneyParallaxActiveCard = hoveredCard
+}
+
+const ensureHoneyParallaxTracking = () => {
+  if (window.__bbHoneyParallaxTrackingInitialized) {
+    return
+  }
+
+  window.__bbHoneyParallaxTrackingInitialized = true
+  document.addEventListener("pointermove", updateHoneyParallaxFromPointer, {passive: true})
+  document.addEventListener("pointerout", (event) => {
+    if (!event.relatedTarget) {
+      resetActiveHoneyParallax()
+    }
+  })
+  window.addEventListener("blur", resetActiveHoneyParallax)
+}
+
+const randomBetweenInt = (min, max) => Math.floor(randomInRange(min, max + 1))
+
+const clearHoneySheenTimeouts = () => {
+  if (window.__bbHoneySheenNextTimeout) {
+    window.clearTimeout(window.__bbHoneySheenNextTimeout)
+    window.__bbHoneySheenNextTimeout = null
+  }
+
+  if (window.__bbHoneySheenWaveTimeout) {
+    window.clearTimeout(window.__bbHoneySheenWaveTimeout)
+    window.__bbHoneySheenWaveTimeout = null
+  }
+}
+
+const clearActiveHoneySheenCard = () => {
+  if (window.__bbHoneySheenActiveCard && window.__bbHoneySheenActiveCard.classList) {
+    window.__bbHoneySheenActiveCard.classList.remove(HONEY_SHEEN_ACTIVE_CLASS)
+  }
+  window.__bbHoneySheenActiveCard = null
+}
+
+const getBuzzSoundCards = () =>
+  Array.from(document.querySelectorAll(".bb-sound-grid .bb-sound-card"))
+
+const scheduleNextHoneySheenWave = (runId) => {
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS)) {
+    return
+  }
+
+  const delay = randomBetweenInt(HONEY_SHEEN_MIN_DELAY_MS, HONEY_SHEEN_MAX_DELAY_MS)
+  window.__bbHoneySheenNextTimeout = window.setTimeout(() => {
+    if (window.__bbHoneySheenRunId !== runId) {
+      return
+    }
+    triggerHoneySheenWave(runId)
+  }, delay)
+}
+
+const triggerHoneySheenWave = (runId) => {
+  if (window.__bbHoneySheenRunId !== runId) {
+    return
+  }
+
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS)) {
+    return
+  }
+
+  const cards = getBuzzSoundCards()
+  if (!cards.length) {
+    scheduleNextHoneySheenWave(runId)
+    return
+  }
+
+  clearActiveHoneySheenCard()
+
+  let candidates = cards
+  if (window.__bbHoneySheenLastCard && cards.length > 1) {
+    candidates = cards.filter((card) => card !== window.__bbHoneySheenLastCard)
+  }
+
+  const nextCard = candidates[Math.floor(Math.random() * candidates.length)] || cards[0]
+  nextCard.classList.add(HONEY_SHEEN_ACTIVE_CLASS)
+  window.__bbHoneySheenActiveCard = nextCard
+  window.__bbHoneySheenLastCard = nextCard
+
+  window.__bbHoneySheenWaveTimeout = window.setTimeout(() => {
+    if (window.__bbHoneySheenRunId !== runId) {
+      return
+    }
+    if (nextCard.classList) {
+      nextCard.classList.remove(HONEY_SHEEN_ACTIVE_CLASS)
+    }
+    if (window.__bbHoneySheenActiveCard === nextCard) {
+      window.__bbHoneySheenActiveCard = null
+    }
+    scheduleNextHoneySheenWave(runId)
+  }, HONEY_SHEEN_WAVE_MS)
+}
+
+const startHoneySheenWaves = () => {
+  window.__bbHoneySheenRunId = (window.__bbHoneySheenRunId || 0) + 1
+  const runId = window.__bbHoneySheenRunId
+
+  clearHoneySheenTimeouts()
+  clearActiveHoneySheenCard()
+
+  if (!document.documentElement.classList.contains(BUZZ_MODE_CLASS)) {
+    return
+  }
+
+  scheduleNextHoneySheenWave(runId)
+}
+
+const stopHoneySheenWaves = () => {
+  window.__bbHoneySheenRunId = (window.__bbHoneySheenRunId || 0) + 1
+  clearHoneySheenTimeouts()
+  clearActiveHoneySheenCard()
+  window.__bbHoneySheenLastCard = null
 }
 
 const applyDesktopNavState = (collapsed) => {
@@ -222,47 +509,401 @@ const writeCachedClipDuration = (source, duration) => {
   } catch (_err) {}
 }
 
+const clipDurationProbePromises = new Map()
+
+const loadClipDuration = (source) => {
+  if (!source) {
+    return Promise.resolve(null)
+  }
+
+  const cached = readCachedClipDuration(source)
+  if (Number.isFinite(cached) && cached > 0) {
+    return Promise.resolve(cached)
+  }
+
+  const inFlight = clipDurationProbePromises.get(source)
+  if (inFlight) {
+    return inFlight
+  }
+
+  const probePromise = new Promise((resolve) => {
+    const probe = new Audio()
+    probe.preload = "metadata"
+
+    const cleanup = () => {
+      probe.removeEventListener("loadedmetadata", onLoadedMetadata)
+      probe.removeEventListener("error", onError)
+      probe.src = ""
+    }
+
+    const onLoadedMetadata = () => {
+      const duration = probe.duration
+      if (Number.isFinite(duration) && duration > 0) {
+        writeCachedClipDuration(source, duration)
+        cleanup()
+        resolve(duration)
+        return
+      }
+
+      cleanup()
+      resolve(null)
+    }
+
+    const onError = () => {
+      cleanup()
+      resolve(null)
+    }
+
+    probe.addEventListener("loadedmetadata", onLoadedMetadata)
+    probe.addEventListener("error", onError)
+    probe.src = source
+  })
+
+  clipDurationProbePromises.set(source, probePromise)
+
+  probePromise.finally(() => {
+    clipDurationProbePromises.delete(source)
+  })
+
+  return probePromise
+}
+
 window.addEventListener("phx:stop-all-sounds", stopActiveLocalPlayer)
 
 let Hooks = {}
+Hooks.NowPlayingCard = {
+  mounted() {
+    this.progressFillEl = this.el.querySelector("[data-role='now-playing-progress-fill']")
+    this.bylineEl = this.el.querySelector("[data-role='now-playing-byline']")
+    this.signature = null
+    this.eventId = 0
+    this.source = ""
+    this.startedAtMs = null
+    this.durationSeconds = null
+    this.durationRequestToken = 0
+    this.finishedEventNotifiedId = null
+    this.animationFrame = null
+    this.bylineTimer = null
+    this.tick = this.tick.bind(this)
+    this.syncFromDataset(true)
+  },
+  updated() {
+    this.syncFromDataset()
+  },
+  destroyed() {
+    this.stopTicking()
+    this.clearBylineTimer()
+    this.durationRequestToken += 1
+  },
+  parseEventId() {
+    const parsed = Number(this.el.dataset.nowPlayingEventId)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  },
+  parseStartedAtMs() {
+    const parsed = Number(this.el.dataset.nowPlayingStartedAtMs)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  },
+  syncFromDataset(force = false) {
+    const eventId = this.parseEventId()
+    const source = (this.el.dataset.nowPlayingSource || "").trim()
+    const startedAtMs = this.parseStartedAtMs()
+    const signature = `${eventId}|${source}|${startedAtMs ?? ""}`
+
+    if (!force && signature === this.signature) {
+      this.eventId = eventId
+      this.startedAtMs = startedAtMs
+      this.syncBylineVisibility()
+      return
+    }
+
+    this.signature = signature
+    this.eventId = eventId
+    this.source = source
+    this.startedAtMs = startedAtMs
+    this.durationSeconds = null
+    this.durationRequestToken += 1
+    this.finishedEventNotifiedId = null
+
+    this.stopTicking()
+    this.setProgress(0)
+
+    if (eventId <= 0) {
+      this.finishedEventNotifiedId = null
+      this.hideByline()
+      return
+    }
+
+    this.syncBylineVisibility()
+    this.resolveDuration(this.durationRequestToken)
+    this.startTicking()
+  },
+  resolveDuration(requestToken) {
+    if (!this.source) {
+      return
+    }
+
+    loadClipDuration(this.source).then((duration) => {
+      if (requestToken !== this.durationRequestToken) {
+        return
+      }
+
+      if (Number.isFinite(duration) && duration > 0) {
+        this.durationSeconds = duration
+      }
+    })
+  },
+  startTicking() {
+    this.stopTicking()
+    this.animationFrame = window.requestAnimationFrame(this.tick)
+  },
+  stopTicking() {
+    if (this.animationFrame) {
+      window.cancelAnimationFrame(this.animationFrame)
+      this.animationFrame = null
+    }
+  },
+  tick() {
+    if (this.eventId <= 0) {
+      this.setProgress(0)
+      return
+    }
+
+    const startedAtMs = this.startedAtMs || Date.now()
+    const elapsedSeconds = Math.max(0, (Date.now() - startedAtMs) / 1000)
+
+    if (Number.isFinite(this.durationSeconds) && this.durationSeconds > 0) {
+      const ratio = clamp(elapsedSeconds / this.durationSeconds, 0, 1)
+      this.setProgress(ratio * 100)
+
+      if (ratio < 1) {
+        this.animationFrame = window.requestAnimationFrame(this.tick)
+      } else {
+        this.notifyFinished()
+      }
+      return
+    }
+
+    const fallbackDurationSeconds = 15
+    const fallbackRatio = clamp(elapsedSeconds / fallbackDurationSeconds, 0, 1)
+    this.setProgress(fallbackRatio * 100)
+
+    if (fallbackRatio < 1) {
+      this.animationFrame = window.requestAnimationFrame(this.tick)
+    }
+  },
+  notifyFinished() {
+    if (this.eventId <= 0) {
+      return
+    }
+
+    if (this.finishedEventNotifiedId === this.eventId) {
+      return
+    }
+
+    this.finishedEventNotifiedId = this.eventId
+    this.pushEvent("now_playing_finished", {event_id: this.eventId})
+  },
+  setProgress(percent) {
+    if (!this.progressFillEl) {
+      return
+    }
+
+    const bounded = clamp(percent, 0, 100)
+    this.progressFillEl.style.width = `${bounded}%`
+  },
+  clearBylineTimer() {
+    if (this.bylineTimer) {
+      window.clearTimeout(this.bylineTimer)
+      this.bylineTimer = null
+    }
+  },
+  syncBylineVisibility() {
+    if (!this.bylineEl) {
+      return
+    }
+
+    this.clearBylineTimer()
+
+    if ((this.bylineEl.textContent || "").trim() === "") {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+      return
+    }
+
+    if (this.eventId <= 0 || !Number.isFinite(this.startedAtMs)) {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+      return
+    }
+
+    const elapsedMs = Date.now() - this.startedAtMs
+    const remainingMs = 1000 - elapsedMs
+
+    if (remainingMs <= 0) {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+      return
+    }
+
+    this.bylineEl.classList.remove("bb-now-playing-byline-hidden")
+    this.bylineTimer = window.setTimeout(() => {
+      this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+    }, remainingMs)
+  },
+  hideByline() {
+    if (!this.bylineEl) {
+      return
+    }
+
+    this.clearBylineTimer()
+    this.bylineEl.classList.add("bb-now-playing-byline-hidden")
+  }
+}
+
 Hooks.LocalPlayer = {
   mounted() {
     this.audio = null
     this.audioContext = null
     this.cleanup = null
+    this.boundAudio = null
     this.previewTimer = null
     this.previewStartedAt = null
+    this.remountGuardTimer = null
     this.cardEl = null
     this.previewTimeEl = null
     this.previewWaveEl = null
     this.durationEl = null
     this.durationSource = null
+    this.durationObserver = null
+    this.durationObserverSource = null
     this.durationLoadToken = 0
     this.previewBars = []
     this.waveHeights = [6, 10, 14, 18, 14, 18, 10, 14, 18, 14, 10, 6, 14, 10, 18, 14, 6, 14, 10, 18]
     this.waveBarWidth = 3
     this.waveGap = 2
     this.handleClick = this.handleClick.bind(this)
+    this.handleRemotePlay = this.handleRemotePlay.bind(this)
+    this.handleAudioEnded = this.handleAudioEnded.bind(this)
     this.handleWindowResize = this.handleWindowResize.bind(this)
     this.syncPreviewElements()
     this.el.addEventListener("click", this.handleClick)
+    window.addEventListener("phx:play-local-sound", this.handleRemotePlay)
     this.rebuildPreviewBars()
-    this.loadClipDuration()
+    this.hydrateClipDuration()
+    this.adoptActivePlaybackIfNeeded()
     window.addEventListener("resize", this.handleWindowResize)
   },
   updated() {
     this.syncPreviewElements()
     this.rebuildPreviewBars()
-    this.loadClipDuration()
+    this.hydrateClipDuration()
     if (this.audio && !this.audio.paused) {
       this.configureGain(this.readGain())
     }
   },
   destroyed() {
+    const keepAliveForPotentialRemount =
+      activeLocalPlayer === this && this.audio && !this.audio.paused
+
     this.durationLoadToken += 1
+    this.disconnectDurationObserver()
     this.el.removeEventListener("click", this.handleClick)
+    window.removeEventListener("phx:play-local-sound", this.handleRemotePlay)
     window.removeEventListener("resize", this.handleWindowResize)
+
+    if (keepAliveForPotentialRemount) {
+      this.clearPreviewTimer()
+
+      this.remountGuardTimer = window.setTimeout(() => {
+        if (activeLocalPlayer === this) {
+          this.stopPlayback()
+        }
+      }, 350)
+
+      return
+    }
+
     this.stopPlayback()
+  },
+  clearRemountGuardTimer() {
+    if (this.remountGuardTimer) {
+      window.clearTimeout(this.remountGuardTimer)
+      this.remountGuardTimer = null
+    }
+  },
+  clearPreviewTimer() {
+    if (this.previewTimer) {
+      clearInterval(this.previewTimer)
+      this.previewTimer = null
+    }
+  },
+  handleAudioEnded() {
+    this.stopPlayback()
+  },
+  bindAudioEvents(audio) {
+    if (!audio) {
+      return
+    }
+
+    this.unbindAudioEvents()
+    audio.addEventListener("ended", this.handleAudioEnded)
+    audio.addEventListener("error", this.handleAudioEnded)
+    this.boundAudio = audio
+  },
+  unbindAudioEvents() {
+    if (!this.boundAudio) {
+      return
+    }
+
+    this.boundAudio.removeEventListener("ended", this.handleAudioEnded)
+    this.boundAudio.removeEventListener("error", this.handleAudioEnded)
+    this.boundAudio = null
+  },
+  adoptActivePlaybackIfNeeded() {
+    const previousPlayer = activeLocalPlayer
+
+    if (!previousPlayer || previousPlayer === this) {
+      return
+    }
+
+    if (!previousPlayer.audio || previousPlayer.audio.paused) {
+      return
+    }
+
+    if ((previousPlayer.el?.id || "") !== (this.el?.id || "")) {
+      return
+    }
+
+    previousPlayer.clearRemountGuardTimer?.()
+    previousPlayer.unbindAudioEvents?.()
+    previousPlayer.clearPreviewTimer?.()
+
+    this.audio = previousPlayer.audio
+    this.audioContext = previousPlayer.audioContext
+    this.cleanup = previousPlayer.cleanup
+    this.previewStartedAt = previousPlayer.previewStartedAt || Date.now()
+
+    previousPlayer.audio = null
+    previousPlayer.audioContext = null
+    previousPlayer.cleanup = null
+    previousPlayer.previewStartedAt = null
+
+    this.bindAudioEvents(this.audio)
+    activeLocalPlayer = this
+    this.setPlaying(true, this.previewStartedAt)
+    this.configureGain(this.readGain())
+  },
+  async handleRemotePlay(event) {
+    const requestedFilename =
+      typeof event?.detail?.filename === "string" ? event.detail.filename.trim() : ""
+    const currentFilename = (this.el.dataset.filename || "").trim()
+
+    if (!requestedFilename || requestedFilename !== currentFilename) {
+      return
+    }
+
+    if (activeLocalPlayer && activeLocalPlayer !== this) {
+      activeLocalPlayer.stopPlayback()
+    }
+
+    await this.startPlayback()
   },
   handleWindowResize() {
     this.rebuildPreviewBars()
@@ -313,11 +954,77 @@ Hooks.LocalPlayer = {
       return url
     }
     if (filename) {
-      return `/uploads/${filename}`
+      return buildUploadUrl(filename)
     }
     return null
   },
-  loadClipDuration() {
+  readDurationMsFromDataset() {
+    const raw = this.el?.dataset?.durationMs
+    if (typeof raw !== "string" || raw.trim() === "") {
+      return null
+    }
+
+    const parsed = Number(raw)
+
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed
+    }
+
+    return null
+  },
+  disconnectDurationObserver() {
+    if (this.durationObserver) {
+      try {
+        this.durationObserver.disconnect()
+      } catch (_err) {}
+    }
+
+    this.durationObserver = null
+    this.durationObserverSource = null
+  },
+  isDurationTargetNearViewport(target) {
+    if (!(target instanceof Element)) {
+      return true
+    }
+
+    const rect = target.getBoundingClientRect()
+    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0
+    const margin = 450
+
+    return rect.bottom >= -margin && rect.top <= viewportHeight + margin
+  },
+  observeDurationUntilVisible(source, target) {
+    if (!(target instanceof Element) || typeof window.IntersectionObserver !== "function") {
+      return false
+    }
+
+    if (this.durationObserver && this.durationObserverSource === source) {
+      return true
+    }
+
+    this.disconnectDurationObserver()
+    this.durationObserverSource = source
+    this.durationObserver = new window.IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting || entry.intersectionRatio > 0)
+        if (!visible) {
+          return
+        }
+
+        this.disconnectDurationObserver()
+        this.hydrateClipDuration(true)
+      },
+      {
+        root: null,
+        rootMargin: DURATION_OBSERVER_ROOT_MARGIN,
+        threshold: 0.01
+      }
+    )
+
+    this.durationObserver.observe(target)
+    return true
+  },
+  hydrateClipDuration(force = false) {
     if (!this.durationEl) {
       return
     }
@@ -326,6 +1033,17 @@ Hooks.LocalPlayer = {
     if (!source) {
       this.durationSource = null
       this.durationEl.textContent = "--:--"
+      this.disconnectDurationObserver()
+      return
+    }
+
+    const datasetDurationMs = this.readDurationMsFromDataset()
+    if (datasetDurationMs !== null) {
+      const datasetDurationSeconds = datasetDurationMs / 1000
+      this.durationSource = source
+      this.durationEl.textContent = this.formatClipDuration(datasetDurationSeconds)
+      writeCachedClipDuration(source, datasetDurationSeconds)
+      this.disconnectDurationObserver()
       return
     }
 
@@ -335,52 +1053,36 @@ Hooks.LocalPlayer = {
     if (Number.isFinite(cachedDuration) && cachedDuration > 0) {
       this.durationSource = source
       this.durationEl.textContent = this.formatClipDuration(cachedDuration)
+      this.disconnectDurationObserver()
       return
     }
 
-    if (this.durationSource === source) {
+    if (!force && this.durationSource === source) {
       return
     }
 
+    const target = this.cardEl || this.el
+    if (!force && !this.isDurationTargetNearViewport(target)) {
+      this.observeDurationUntilVisible(source, target)
+      return
+    }
+
+    this.disconnectDurationObserver()
     this.durationSource = source
     this.durationEl.textContent = "--:--"
     this.durationLoadToken += 1
     const token = this.durationLoadToken
-    const probe = new Audio()
-    probe.preload = "metadata"
-
-    const cleanup = () => {
-      probe.removeEventListener("loadedmetadata", onLoadedMetadata)
-      probe.removeEventListener("error", onError)
-      probe.src = ""
-    }
-
-    const onLoadedMetadata = () => {
-      if (token !== this.durationLoadToken) {
-        cleanup()
+    loadClipDuration(source).then((duration) => {
+      if (token !== this.durationLoadToken || !this.durationEl) {
         return
       }
 
-      const duration = probe.duration
       if (Number.isFinite(duration) && duration > 0) {
-        writeCachedClipDuration(source, duration)
         this.durationEl.textContent = this.formatClipDuration(duration)
       } else {
         this.durationEl.textContent = "--:--"
       }
-      cleanup()
-    }
-
-    const onError = () => {
-      if (token === this.durationLoadToken && this.durationEl) {
-        this.durationEl.textContent = "--:--"
-      }
-      cleanup()
-    }
-
-    probe.addEventListener("loadedmetadata", onLoadedMetadata)
-    probe.addEventListener("error", onError)
-    probe.src = source
+    })
   },
   async handleClick(event) {
     event.preventDefault()
@@ -408,9 +1110,7 @@ Hooks.LocalPlayer = {
     }
     audio.src = source
 
-    audio.addEventListener("ended", () => this.stopPlayback())
-    audio.addEventListener("error", () => this.stopPlayback())
-
+    this.bindAudioEvents(audio)
     this.audio = audio
 
     await this.configureGain(this.readGain())
@@ -485,6 +1185,8 @@ Hooks.LocalPlayer = {
     }
   },
   stopPlayback() {
+    this.clearRemountGuardTimer()
+    this.unbindAudioEvents()
     this.releaseBoost()
     if (this.audio) {
       try {
@@ -516,19 +1218,18 @@ Hooks.LocalPlayer = {
 
     return `${minutes}:${String(seconds).padStart(2, "0")}`
   },
-  startPreviewUi() {
-    this.previewStartedAt = Date.now()
+  startPreviewUi(startedAtMs = Date.now()) {
+    this.previewStartedAt = Number.isFinite(startedAtMs) ? startedAtMs : Date.now()
     if (this.cardEl) {
       this.cardEl.classList.add("previewing")
     }
     this.rebuildPreviewBars()
     this.previewBars.forEach((bar) => bar.classList.add("active"))
     if (this.previewTimeEl) {
-      this.previewTimeEl.textContent = "0:00"
+      const elapsed = Math.max(0, (Date.now() - this.previewStartedAt) / 1000)
+      this.previewTimeEl.textContent = this.formatPreviewTime(elapsed)
     }
-    if (this.previewTimer) {
-      clearInterval(this.previewTimer)
-    }
+    this.clearPreviewTimer()
     this.previewTimer = setInterval(() => {
       if (!this.previewStartedAt || !this.previewTimeEl) {
         return
@@ -538,10 +1239,7 @@ Hooks.LocalPlayer = {
     }, 250)
   },
   stopPreviewUi() {
-    if (this.previewTimer) {
-      clearInterval(this.previewTimer)
-      this.previewTimer = null
-    }
+    this.clearPreviewTimer()
     this.previewStartedAt = null
     if (this.cardEl) {
       this.cardEl.classList.remove("previewing")
@@ -551,7 +1249,7 @@ Hooks.LocalPlayer = {
       this.previewTimeEl.textContent = "0:00"
     }
   },
-  setPlaying(isPlaying) {
+  setPlaying(isPlaying, startedAtMs = Date.now()) {
     const playIcon = this.el.querySelector(".play-icon")
     const stopIcon = this.el.querySelector(".stop-icon")
 
@@ -562,7 +1260,7 @@ Hooks.LocalPlayer = {
     if (isPlaying) {
       playIcon.classList.add("hidden")
       stopIcon.classList.remove("hidden")
-      this.startPreviewUi()
+      this.startPreviewUi(startedAtMs)
     } else {
       playIcon.classList.remove("hidden")
       stopIcon.classList.add("hidden")
@@ -1025,6 +1723,289 @@ Hooks.CopyButton = {
   }
 }
 
+Hooks.QueenPick = {
+  mounted() {
+    this.rotationMs = this.readRotationMs()
+    this.countdownEl = this.el.querySelector("[data-role='queen-pick-countdown']")
+    this.titleEl = this.el.querySelector("[data-role='queen-pick-title']")
+    this.metaEl = this.el.querySelector("[data-role='queen-pick-meta']")
+    this.playButtonEl = this.el.querySelector("[data-role='queen-pick-play']")
+    this.pickTimer = null
+    this.countdownTimer = null
+    this.nextPickDeadlineMs = null
+    this.currentCandidateKey = null
+    this.highlightedCard = null
+    this.candidates = []
+
+    this.handleVisibilityChange = () => {
+      if (document.hidden) {
+        this.clearTimers()
+        this.stopCountdown()
+        return
+      }
+
+      this.syncCandidates()
+      this.syncWithBuzzMode()
+    }
+
+    document.addEventListener("visibilitychange", this.handleVisibilityChange)
+
+    this.buzzClassObserver = new MutationObserver(() => {
+      this.syncWithBuzzMode()
+    })
+
+    this.buzzClassObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"]
+    })
+
+    this.syncCandidates()
+    this.syncWithBuzzMode()
+  },
+  updated() {
+    this.syncCandidates()
+
+    if (!this.candidates.some((candidate) => candidate.key === this.currentCandidateKey)) {
+      this.currentCandidateKey = null
+    }
+
+    this.syncWithBuzzMode()
+  },
+  destroyed() {
+    this.clearTimers()
+    this.stopCountdown()
+    this.clearHighlightedCard()
+
+    if (this.buzzClassObserver) {
+      this.buzzClassObserver.disconnect()
+      this.buzzClassObserver = null
+    }
+
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange)
+  },
+  readRotationMs() {
+    const raw = parseInt(this.el.dataset.rotationMs || `${QUEEN_PICK_DEFAULT_ROTATION_MS}`, 10)
+    if (!Number.isFinite(raw)) {
+      return QUEEN_PICK_DEFAULT_ROTATION_MS
+    }
+
+    return Math.max(QUEEN_PICK_MIN_ROTATION_MS, raw)
+  },
+  isBuzzModeActive() {
+    return document.documentElement.classList.contains(BUZZ_MODE_CLASS)
+  },
+  syncCandidates() {
+    const cards = Array.from(
+      document.querySelectorAll(".bb-sound-grid .bb-sound-card, .bb-sounds-table .bb-tr[data-queen-filename]")
+    )
+    this.candidates = cards
+      .map((cardEl) => this.extractCandidate(cardEl))
+      .filter((candidate) => candidate !== null)
+  },
+  extractCandidate(cardEl) {
+    if (!(cardEl instanceof Element)) {
+      return null
+    }
+
+    const playButton = cardEl.querySelector("button[phx-click='play'][phx-value-name]")
+    const filename =
+      (playButton?.getAttribute("phx-value-name") || cardEl.dataset.queenFilename || "").trim()
+
+    if (!filename) {
+      return null
+    }
+
+    const title = (cardEl.dataset.queenTitle || cardEl.querySelector(".bb-card-title")?.textContent || filename).trim()
+    const uploader = (cardEl.dataset.queenUploader || cardEl.querySelector(".bb-card-uploader-name")?.textContent || "").trim()
+    const tags = Array.from(cardEl.querySelectorAll(".bb-card-tag-label"))
+      .map((tagEl) => tagEl.textContent.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+
+    return {
+      key: cardEl.id || filename,
+      filename,
+      title,
+      uploader,
+      tags,
+      cardEl
+    }
+  },
+  formatCountdown(remainingMs) {
+    const seconds = Math.max(0, Math.ceil(remainingMs / 1000))
+    const minutesPart = Math.floor(seconds / 60)
+    const secondsPart = seconds % 60
+    return `${padNumber(minutesPart)}:${padNumber(secondsPart)}`
+  },
+  updateCountdown() {
+    if (!this.countdownEl || !Number.isFinite(this.nextPickDeadlineMs)) {
+      return
+    }
+
+    const remaining = Math.max(0, this.nextPickDeadlineMs - Date.now())
+    this.countdownEl.textContent = this.formatCountdown(remaining)
+  },
+  beginCountdown(delayMs) {
+    this.stopCountdown()
+    this.nextPickDeadlineMs = Date.now() + delayMs
+    this.updateCountdown()
+    this.countdownTimer = window.setInterval(() => this.updateCountdown(), 500)
+  },
+  stopCountdown() {
+    if (this.countdownTimer) {
+      window.clearInterval(this.countdownTimer)
+      this.countdownTimer = null
+    }
+  },
+  clearTimers() {
+    if (this.pickTimer) {
+      window.clearTimeout(this.pickTimer)
+      this.pickTimer = null
+    }
+  },
+  clearHighlightedCard() {
+    if (this.highlightedCard && this.highlightedCard.classList) {
+      this.highlightedCard.classList.remove("bb-queen-card-active")
+    }
+    this.highlightedCard = null
+  },
+  setHighlightedCard(cardEl) {
+    if (this.highlightedCard && this.highlightedCard !== cardEl && this.highlightedCard.classList) {
+      this.highlightedCard.classList.remove("bb-queen-card-active")
+    }
+
+    this.highlightedCard = cardEl
+    if (cardEl && cardEl.classList) {
+      cardEl.classList.add("bb-queen-card-active")
+    }
+  },
+  renderCandidate(candidate) {
+    if (!candidate) {
+      this.renderEmptyState()
+      return
+    }
+
+    if (this.titleEl) {
+      this.titleEl.textContent = candidate.title || candidate.filename
+    }
+
+    if (this.metaEl) {
+      const metaParts = []
+      if (candidate.uploader) {
+        metaParts.push(`uploaded by ${candidate.uploader}`)
+      }
+      if (candidate.tags.length > 0) {
+        metaParts.push(candidate.tags.join(" | "))
+      }
+      this.metaEl.textContent = metaParts.join("  ") || "Randomly selected from current results."
+    }
+
+    if (this.playButtonEl) {
+      this.playButtonEl.removeAttribute("disabled")
+      this.playButtonEl.setAttribute("phx-value-name", candidate.filename)
+    }
+
+    this.setHighlightedCard(candidate.cardEl)
+  },
+  renderEmptyState() {
+    if (this.titleEl) {
+      this.titleEl.textContent = "No sounds match current filters."
+    }
+    if (this.metaEl) {
+      this.metaEl.textContent = "Adjust search or tags to repopulate Queen's Pick."
+    }
+    if (this.playButtonEl) {
+      this.playButtonEl.setAttribute("disabled", "disabled")
+      this.playButtonEl.setAttribute("phx-value-name", "")
+    }
+    if (this.countdownEl) {
+      this.countdownEl.textContent = "--:--"
+    }
+    this.clearHighlightedCard()
+  },
+  pickRandomCandidate() {
+    if (!this.candidates || this.candidates.length === 0) {
+      return null
+    }
+
+    let pool = this.candidates
+    if (this.currentCandidateKey && this.candidates.length > 1) {
+      pool = this.candidates.filter((candidate) => candidate.key !== this.currentCandidateKey)
+    }
+
+    return pool[Math.floor(Math.random() * pool.length)] || this.candidates[0]
+  },
+  scheduleNextPick(delayMs = this.rotationMs) {
+    if (!this.isBuzzModeActive()) {
+      return
+    }
+
+    if (this.pickTimer) {
+      window.clearTimeout(this.pickTimer)
+      this.pickTimer = null
+    }
+
+    const safeDelay = Math.max(1000, delayMs)
+    this.beginCountdown(safeDelay)
+
+    this.pickTimer = window.setTimeout(() => {
+      this.pickTimer = null
+      this.runPick()
+    }, safeDelay)
+  },
+  runPick() {
+    if (!this.isBuzzModeActive() || document.hidden) {
+      return
+    }
+
+    this.syncCandidates()
+    const candidate = this.pickRandomCandidate()
+    if (!candidate) {
+      this.renderEmptyState()
+      this.clearTimers()
+      this.stopCountdown()
+      return
+    }
+
+    this.currentCandidateKey = candidate.key
+    this.renderCandidate(candidate)
+    this.scheduleNextPick(this.rotationMs)
+  },
+  syncWithBuzzMode() {
+    if (!this.isBuzzModeActive()) {
+      this.clearTimers()
+      this.stopCountdown()
+      this.clearHighlightedCard()
+      return
+    }
+
+    if (document.hidden) {
+      return
+    }
+
+    if (!this.candidates || this.candidates.length === 0) {
+      this.renderEmptyState()
+      this.clearTimers()
+      this.stopCountdown()
+      return
+    }
+
+    const currentCandidate =
+      this.candidates.find((candidate) => candidate.key === this.currentCandidateKey) || null
+
+    if (!currentCandidate) {
+      this.runPick()
+      return
+    }
+
+    this.renderCandidate(currentCandidate)
+
+    if (!this.pickTimer) {
+      this.scheduleNextPick(this.rotationMs)
+    }
+  }
+}
+
 Hooks.BuzzModeToggle = {
   mounted() {
     if (!window.__buzzModeInitialized) {
@@ -1053,18 +2034,64 @@ Hooks.BuzzModeToggle = {
   }
 }
 
+const NAV_COLLAPSED_STORAGE_KEY = "bb_nav_collapsed"
+
 Hooks.DesktopNavState = {
   mounted() {
-    applyDesktopNavState(this.readCollapsed())
+    const saved = this.loadCollapsed()
+    if (saved !== null && saved !== this.readCollapsed()) {
+      this.pushEvent("toggle-desktop-nav", {})
+    }
+    applyDesktopNavState(saved !== null ? saved : this.readCollapsed())
   },
   updated() {
-    applyDesktopNavState(this.readCollapsed())
+    const collapsed = this.readCollapsed()
+    this.saveCollapsed(collapsed)
+    applyDesktopNavState(collapsed)
   },
   destroyed() {
     applyDesktopNavState(false)
   },
   readCollapsed() {
     return this.el.dataset.collapsed === "true"
+  },
+  loadCollapsed() {
+    try {
+      const val = localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY)
+      return val === null ? null : val === "true"
+    } catch (_) {
+      return null
+    }
+  },
+  saveCollapsed(collapsed) {
+    try {
+      localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, String(collapsed))
+    } catch (_) {}
+  }
+}
+
+const USER_PREFS_KEY = "bb_user_prefs"
+
+Hooks.UserPrefs = {
+  mounted() {
+    const prefs = this.loadPrefs()
+    if (prefs) {
+      this.pushEvent("restore_prefs", prefs)
+    }
+
+    this.handleEvent("save_pref", ({ key, value }) => {
+      const prefs = this.loadPrefs() || {}
+      prefs[key] = value
+      localStorage.setItem(USER_PREFS_KEY, JSON.stringify(prefs))
+    })
+  },
+  loadPrefs() {
+    try {
+      const raw = localStorage.getItem(USER_PREFS_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch (_) {
+      return null
+    }
   }
 }
 

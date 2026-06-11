@@ -4,7 +4,7 @@ defmodule Soundboard.Sounds.UploadsTest do
   import Soundboard.DataCase, only: [errors_on: 1]
 
   alias Soundboard.Accounts.User
-  alias Soundboard.{Repo, Sound, UserSoundSetting}
+  alias Soundboard.{Repo, Sound}
   alias Soundboard.Sounds.Uploads
   alias Soundboard.Sounds.Uploads.CreateRequest
 
@@ -98,7 +98,7 @@ defmodule Soundboard.Sounds.UploadsTest do
   end
 
   describe "create/1" do
-    test "creates url sound with tags and settings", %{user: user} do
+    test "creates url sound with tags", %{user: user} do
       name = "upload_url_#{System.unique_integer([:positive])}"
 
       assert {:ok, sound} =
@@ -108,8 +108,7 @@ defmodule Soundboard.Sounds.UploadsTest do
                  name: name,
                  url: "https://example.com/sound.mp3",
                  tags: ["alpha", "beta"],
-                 volume: "45",
-                 is_join_sound: "true"
+                 volume: "45"
                })
                |> Uploads.create()
 
@@ -119,10 +118,6 @@ defmodule Soundboard.Sounds.UploadsTest do
 
       sound = Repo.preload(sound, :tags)
       assert Enum.sort(Enum.map(sound.tags, & &1.name)) == ["alpha", "beta"]
-
-      setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: sound.id)
-      assert setting.is_join_sound
-      refute setting.is_leave_sound
     end
 
     test "publishes canonical soundboard events after create", %{user: user} do
@@ -178,39 +173,6 @@ defmodule Soundboard.Sounds.UploadsTest do
       assert File.exists?(copied_path)
 
       on_exit(fn -> File.rm(copied_path) end)
-    end
-
-    test "clears previous join setting when creating a new join sound", %{user: user} do
-      first_name = "first_join_#{System.unique_integer([:positive])}"
-      second_name = "second_join_#{System.unique_integer([:positive])}"
-
-      assert {:ok, first_sound} =
-               user
-               |> request(%{
-                 source_type: "url",
-                 name: first_name,
-                 url: "https://example.com/first.mp3",
-                 tags: ["join"],
-                 is_join_sound: true
-               })
-               |> Uploads.create()
-
-      assert {:ok, second_sound} =
-               user
-               |> request(%{
-                 source_type: "url",
-                 name: second_name,
-                 url: "https://example.com/second.mp3",
-                 tags: ["join"],
-                 is_join_sound: true
-               })
-               |> Uploads.create()
-
-      first_setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: first_sound.id)
-      second_setting = Repo.get_by!(UserSoundSetting, user_id: user.id, sound_id: second_sound.id)
-
-      refute first_setting.is_join_sound
-      assert second_setting.is_join_sound
     end
 
     test "returns error when local file is missing", %{user: user} do

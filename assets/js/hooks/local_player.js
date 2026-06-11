@@ -1,4 +1,7 @@
 const LocalPlayer = {
+  buildUploadUrl(filename) {
+    return `/uploads/${encodeURIComponent(filename)}`
+  },
   currentAudio: null,
   currentButton: null,
 
@@ -25,7 +28,7 @@ const LocalPlayer = {
       }
 
       // Play the new audio
-      LocalPlayer.currentAudio = new Audio(`/uploads/${filename}`);
+      LocalPlayer.currentAudio = new Audio(this.buildUploadUrl(filename));
       LocalPlayer.currentButton = this.el;
       LocalPlayer.currentAudio.play();
       this.updateIcon(true);

@@ -1,5 +1,5 @@
 defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Phoenix.LiveViewTest
 
@@ -46,11 +46,13 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
   end
 
   test "hides delete for non-owners" do
+    Application.put_env(:soundboard, :discord_settings_admin_user_ids, ["admin-only"])
+
     html =
       render_component(
         &EditModal.edit_modal/1,
         edit_assigns(%{
-          current_user: %{id: 2}
+          current_user: %{id: 2, discord_id: "not-admin"}
         })
       )
 
@@ -144,8 +146,7 @@ defmodule SoundboardWeb.Components.Soundboard.EditModalTest do
       volume: 1.0,
       internal_cooldown_seconds: 0,
       tags: [%{name: "funny"}],
-      user_id: 1,
-      user_sound_settings: [%{user_id: 1, is_join_sound: true, is_leave_sound: false}]
+      user_id: 1
     }
   end
 end

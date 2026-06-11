@@ -57,6 +57,7 @@ if config_env() == :dev do
   eda_dave = env!("EDA_DAVE", :boolean, true)
   voice_rtp_probe = env!("VOICE_RTP_PROBE", :boolean, false)
   voice_rtp_probe_timeout_ms = env!("VOICE_RTP_PROBE_TIMEOUT_MS", :integer, 6_000)
+  probe_remote_durations = env!("PROBE_REMOTE_DURATIONS", :boolean, true)
 
   secret_key_base =
     case env!("SECRET_KEY_BASE", :string!, nil) do
@@ -104,6 +105,7 @@ if config_env() == :dev do
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,
+    probe_remote_durations: probe_remote_durations,
     ffmpeg_available: ffmpeg_available
 
   config :eda,
@@ -208,6 +210,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
   # Store token for application use (bot will fetch it from here)
   voice_rtp_probe = env!("VOICE_RTP_PROBE", :boolean, false)
   voice_rtp_probe_timeout_ms = env!("VOICE_RTP_PROBE_TIMEOUT_MS", :integer, 6_000)
+  probe_remote_durations = env!("PROBE_REMOTE_DURATIONS", :boolean, true)
   eda_dave = env!("EDA_DAVE", :boolean, true)
 
   ffmpeg_available = not is_nil(System.find_executable("ffmpeg"))
@@ -227,6 +230,7 @@ if config_env() == :prod and is_nil(env!("SKIP_RUNTIME_CONFIG", :string, nil)) d
     discord_token: discord_token,
     voice_rtp_probe: voice_rtp_probe,
     voice_rtp_probe_timeout_ms: voice_rtp_probe_timeout_ms,
+    probe_remote_durations: probe_remote_durations,
     ffmpeg_available: ffmpeg_available
 
   config :eda,
