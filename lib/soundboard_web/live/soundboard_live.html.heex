@@ -44,7 +44,7 @@
           </button>
         <% end %>
 
-        <button phx-click="play_random" class="bb-btn-secondary">Random</button>
+        <button phx-click="play_random" phx-throttle="750" class="bb-btn-secondary">Random</button>
 
         <button
           id="favorites-filter-toggle"
@@ -363,15 +363,15 @@
                         if(sound.user && sound.user.username, do: sound.user.username, else: "")
                       }
                     >
-                      <td class="bb-td bb-td-play" phx-click="play" phx-value-name={sound.filename}>
+                      <td class="bb-td bb-td-play" phx-click="play" phx-throttle="750" phx-value-name={sound.filename}>
                         <span class="bb-play-icon" aria-hidden="true">
                           <.icon name="hero-play" class="h-3.5 w-3.5" />
                         </span>
                       </td>
-                      <td class="bb-td bb-td-name" phx-click="play" phx-value-name={sound.filename}>
+                      <td class="bb-td bb-td-name" phx-click="play" phx-throttle="750" phx-value-name={sound.filename}>
                         {display_name(sound.filename)}
                       </td>
-                      <td class="bb-td bb-td-meta" phx-click="play" phx-value-name={sound.filename}>
+                      <td class="bb-td bb-td-meta" phx-click="play" phx-throttle="750" phx-value-name={sound.filename}>
                         {(sound.user && sound.user.username) || ""}
                       </td>
                       <td class="bb-td bb-td-tags">
@@ -385,10 +385,10 @@
                           </button>
                         <% end %>
                       </td>
-                      <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
+                      <td class="bb-td bb-td-num" phx-click="play" phx-throttle="750" phx-value-name={sound.filename}>
                         {Map.get(@play_counts, sound.filename, 0)}
                       </td>
-                      <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
+                      <td class="bb-td bb-td-num" phx-click="play" phx-throttle="750" phx-value-name={sound.filename}>
                         <span class="bb-mono">
                           <%= if ms = Map.get(sound, :duration_ms) do %>
                             {Integer.to_string(div(ms, 60000))}:{String.pad_leading(Integer.to_string(rem(div(ms, 1000), 60)), 2, "0")}
@@ -397,7 +397,7 @@
                           <% end %>
                         </span>
                       </td>
-                      <td class="bb-td bb-td-num" phx-click="play" phx-value-name={sound.filename}>
+                      <td class="bb-td bb-td-num" phx-click="play" phx-throttle="750" phx-value-name={sound.filename}>
                         <%= if date = Map.get(sound, :inserted_at) do %>
                           {Calendar.strftime(date, "%b %d")}
                         <% else %>
@@ -457,6 +457,7 @@
                 >
                   <button
                     phx-click="play"
+                    phx-throttle="750"
                     phx-value-name={sound.filename}
                     aria-label={"Play #{display_name(sound.filename)}"}
                     class="absolute inset-0 z-0 h-full w-full cursor-pointer"
@@ -470,6 +471,7 @@
                           class="bb-card-title"
                           data-full-title={display_name(sound.filename)}
                           phx-click="play_from_title"
+                          phx-throttle="750"
                           phx-value-name={sound.filename}
                         >
                           {display_name(sound.filename)}

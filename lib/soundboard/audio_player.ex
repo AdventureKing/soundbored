@@ -5,7 +5,14 @@ defmodule Soundboard.AudioPlayer do
 
   use GenServer
 
-  alias Soundboard.AudioPlayer.{CommercialScheduler, Notifier, PlaybackQueue, SoundLibrary, VoiceSession}
+  alias Soundboard.AudioPlayer.{
+    CommercialScheduler,
+    Notifier,
+    PlaybackQueue,
+    SoundLibrary,
+    VoiceSession
+  }
+
   alias Soundboard.Discord.Voice
 
   defmodule State do
@@ -31,7 +38,10 @@ defmodule Soundboard.AudioPlayer do
   end
 
   def play_sound(sound_name, actor) do
-    GenServer.cast(__MODULE__, {:play_sound, sound_name, actor})
+    case Soundboard.PlaybackGate.request(sound_name) do
+      :ok -> GenServer.cast(__MODULE__, {:play_sound, sound_name, actor})
+      {:error, :debounced} -> :ok
+    end
   end
 
   def stop_sound do

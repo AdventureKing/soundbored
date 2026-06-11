@@ -13,6 +13,7 @@ defmodule Soundboard.Application do
 
     children = [
       Soundboard.Repo,
+      {Soundboard.PlaybackGate, []},
       {Soundboard.AudioPlayer, []},
       {Soundboard.AudioPlayer.CommercialScheduler, []},
       SoundboardWeb.Telemetry,
